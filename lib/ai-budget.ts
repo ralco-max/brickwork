@@ -75,10 +75,11 @@ export function budgetedProvider(db:BudgetDatabase,key:string,notify:(budget:Bud
   const amount=tokenCost(input,body.max_output_tokens),id=await reserveBudget(db,keyHash,amount);
   reservation={id,input,maxOutput:body.max_output_tokens};
   await report();
-  // Disconnects and uncertain upstream failures keep the entire reservation:
+  // Disconnects and streams that end without usage keep the entire reservation:
   // generation may have been billed even when its final usage never arrived.
+  // An HTTP error reply is different: nothing was generated, so release it.
   const response=await fetcher(url,{...init,body:JSON.stringify({...body,service_tier:"default"})});
-  if(!response.ok&&[400,401,403,404,422,429].includes(response.status)){
+  if(!response.ok){
    await settle(db,id,0);await report();
   }
   return response;
