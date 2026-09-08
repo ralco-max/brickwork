@@ -35,7 +35,9 @@ PNG/JPG/WebP imports remain browser-local flat mosaics in a twelve-color palette
 
 ## Assembly and instructions
 
-The landing first shows the completed model, then smoothly releases the bricks into an automatic 18-second assembly. A short hold joins each loop without a blank cut. Inline pause and expand controls remain available. It advances only while visible and pauses behind dialogs. Reduced-motion preference shows the finished model unless the viewer explicitly resumes. “Play assembly” above the 3D model, the assembly card, and the design review play button open the expanded film with replay, pause, seek and 0.5×/1×/2× playback. Movie playback does not need AI.
+The assembly plays inside the model's own canvas. In the studio, Play assembly (or the expand button on the landing) switches the 3D view into playback with a floating bar for play, pause, replay, scrubbing, speed and Make video; Done returns to the interactive model. The live creation stage has the same inline playback for a finished draft. There is no separate film dialog.
+
+The landing first shows the completed model, then smoothly releases the bricks into an automatic 18-second assembly. A short hold joins each loop without a blank cut. Inline pause and expand controls remain available. It advances only while visible and pauses behind dialogs. Reduced-motion preference shows the finished model unless the viewer explicitly resumes. Playback offers replay, pause, seek and 0.5×/1×/2× speed and does not need AI.
 
 The landing, live creation and expanded film use a white stage with soft contact shadows and dark controls. Exported video uses the same white background and readable dark captions.
 
