@@ -5,6 +5,7 @@
   "compatibility_date": "2026-05-01",
   "compatibility_flags": ["nodejs_compat"],
   "observability": { "enabled": true },
+  "limits": { "cpu_ms": 120000 },
   "d1_databases": [
     {
       "binding": "DB",

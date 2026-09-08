@@ -33,7 +33,8 @@ export const sceneJSONSchema={type:"object",properties:{
 function bounds(s:Shape,d:GeneratedScene["dimensions"]){
  const lo=s.kind==="beam"?{x:Math.min(s.position.x,s.end.x)-s.radius,y:Math.min(s.position.y,s.end.y)-s.radius/.4,z:Math.min(s.position.z,s.end.z)-s.radius}:s.position;
  const hi=s.kind==="beam"?{x:Math.max(s.position.x,s.end.x)+s.radius,y:Math.max(s.position.y,s.end.y)+s.radius/.4,z:Math.max(s.position.z,s.end.z)+s.radius}:{x:lo.x+s.size.x,y:lo.y+s.size.y,z:lo.z+s.size.z};
- if(s.kind!=="beam"&&Math.min(s.size.x,s.size.y,s.size.z)<=0)throw Error("A generated shape has no volume. Try generating again.");
+ // A shape with no volume draws nothing, so it is skipped rather than failing the whole design.
+ if(s.kind!=="beam"&&Math.min(s.size.x,s.size.y,s.size.z)<=0)return {x0:0,y0:0,z0:0,x1:0,y1:0,z1:0};
  if(s.kind!=="beam"&&(hi.x>d.x||hi.y>d.y||hi.z>d.z))throw Error("A generated shape extends outside the build area. Try a smaller design.");
  if(s.kind==="beam"&&[s.position,s.end].some(p=>p.x>d.x||p.y>d.y||p.z>d.z))throw Error("A generated beam extends outside the build area.");
  return {x0:Math.max(0,Math.floor(lo.x)),y0:Math.max(0,Math.floor(lo.y)),z0:Math.max(0,Math.floor(lo.z)),x1:Math.min(d.x,Math.ceil(hi.x)),y1:Math.min(d.y,Math.ceil(hi.y)),z1:Math.min(d.z,Math.ceil(hi.z))};

@@ -86,7 +86,8 @@ export default function Generator({filmOpen,onPlay,open,onOpenChange,initialProm
        if(header&&live)previews.push({...header,shapes:[...shapes]});
       }else if(event.type==="complete")result=event.scene;else if(event.type==="error"){if(event.code==="INVALID_GEOMETRY"||/outside the build area|no volume|too complex|duplicate shape IDs|repeats too many|shape limit|incomplete design/.test(event.message))geometryError=event.message;else throw new GenerationError(event.message,event.code||"GENERATION_FAILED");}
      }}finally{await previews.flush();previews.cancel();abort.signal.removeEventListener("abort",cancelPreview);}
-     alive();if(geometryError){if(attempt<(autoRepair?2:0)){feedback=[geometryError];candidate=original;continue;}throw Error(geometryError);}if(!result)throw new GenerationError("The connection ended before your design was finished. Continue from the saved draft.","CONNECTION_LOST");
+     // A refinement that returns bad geometry never replaces a completed draft: retry while passes remain, otherwise finish with the best one.
+     alive();if(geometryError){if(attempt<(autoRepair?2:0)){feedback=[geometryError];candidate=original;continue;}if(best)break;throw Error(geometryError);}if(!result)throw new GenerationError("The connection ended before your design was finished. Continue from the saved draft.","CONNECTION_LOST");
      try{
       setPhase("check");setStatus("Packing bricks and checking every connection…");const m=await compile(result,b,original);alive();setDraft(m);setPreviewError("");partialDraft.current=null;const c=designChecks(m,b);const structuralScore=c.issues.length*1000+c.audit.ungrounded.length+c.audit.unsupported.length;if(!best||structuralScore<bestScore){lastComplete.current={model:m,scene:result,review:null,brief:b};}
       let r:VisualReview|null=null,reviewError="";
@@ -96,7 +97,7 @@ export default function Generator({filmOpen,onPlay,open,onOpenChange,initialProm
       if(score<bestScore){bestScore=score;best={model:m,scene:result,review:r,brief:b};lastComplete.current=best;}
       feedback=[...c.issues,...c.locations,...visualIssues,...(r?.improvements||[])].slice(0,40);candidate=result;
       if(reviewError){setError(reviewError);break;}if(c.pass&&!visualIssues.length)break;
-     }catch(e){alive();feedback=[e instanceof Error?e.message:"Compilation failed. Repair the geometry."];if(attempt===(autoRepair?2:0))throw e;candidate=original;}
+     }catch(e){alive();feedback=[e instanceof Error?e.message:"Compilation failed. Repair the geometry."];if(attempt===(autoRepair?2:0)){if(best)break;throw e;}candidate=original;}
     }
    }
    alive();if(!best)throw Error("No complete draft passed geometry compilation. Adjust your brief and try again.");
