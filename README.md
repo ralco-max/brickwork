@@ -43,6 +43,10 @@ The landing, live creation and expanded film use a white stage with soft contact
 
 Build guides now have at most 24 parts per step and expose exact X/Y/Z coordinates, rotation and a per-step parts list. Ground and earlier-piece support paths are checked. Assembly animation is cinematic; the guide still needs physical validation for strength and hand access. LDraw exports contain these same steps.
 
+## Sizes and piece limits
+
+Desk allows up to 200 pieces in 16 × 16 studs by 40 plates, Shelf up to 600 pieces in 24 × 24 by 64, and Statement up to 4,000 pieces in 48 × 40 by 120. Fine-tune limits can raise any of these. The design instructions explain that pieces come from occupied cells, about 8 to 12 cells per piece for solid masses and one per cell for thin details, and give the designer a cell budget for each size so it plans volume rather than shape count.
+
 ## Landmark presets
 
 The four quick picks on the landing are real landmarks sculpted in `lib/landmarks.ts` at true-ish proportions: the Golden Gate Bridge (stepped Art Deco towers with portal struts, parabolic main cables with suspenders, anchorages, the stiffening truss, Fort Point and the headlands), Neuschwanstein Castle (the Palas with its north and south towers, courtyard wings, stair tower and the red-brick gatehouse on its rock), the Cape Hatteras Lighthouse (brick base, the black-and-white spiral daymark, gallery, lantern room and keepers' quarters) and the Saturn V (all three stages with roll patterns, the Apollo spacecraft and escape tower, on the mobile launcher beside the umbilical tower). The bridge keeps the studio's size, color, bay and shoreline controls. Small, medium and large sizes scale every landmark; the Saturn V caps its scale so the large size stays under the 240-layer ceiling.
