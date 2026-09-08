@@ -1,0 +1,17 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "brickwork",
+  "main": "./worker/index.ts",
+  "compatibility_date": "2026-05-01",
+  "compatibility_flags": ["nodejs_compat"],
+  "observability": { "enabled": true },
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "brickwork-db",
+      "database_id": "a7e49f18-d368-4daf-b651-33f7098e99c9",
+      "migrations_dir": "drizzle"
+    }
+  ],
+  "images": { "binding": "IMAGES" }
+}

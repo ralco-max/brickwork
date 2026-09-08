@@ -43,6 +43,14 @@ The landing, live creation and expanded film use a white stage with soft contact
 
 Build guides now have at most 24 parts per step and expose exact X/Y/Z coordinates, rotation and a per-step parts list. Ground and earlier-piece support paths are checked. Assembly animation is cinematic; the guide still needs physical validation for strength and hand access. LDraw exports contain these same steps.
 
+## Deploying to Cloudflare
+
+Brickwork runs as a Cloudflare Worker with static assets, using the D1 database in `wrangler.jsonc` for the spending ledger. Production lives at https://brickwork.ryan-c-alcorn.workers.dev.
+
+1. `npx wrangler login` once, then `npx wrangler d1 migrations apply brickwork-db --remote` whenever `drizzle/` gains a migration.
+2. `npx wrangler secret put OPENAI_API_KEY` to set or rotate the shared studio key. The $10 budget is tracked per key fingerprint, so every visitor who uses the studio key shares one $10 pool; rotating the key starts a fresh pool. Also set a matching hard limit on the OpenAI project itself as a backstop.
+3. `npm run deploy` builds with vinext and deploys with Wrangler.
+
 ## Verification
 
 Run `node --test tests/design-workflow.test.mjs tests/generation.test.mjs tests/assembly.test.mjs` for support/overlap, protected edit and export round trips, locks, repeated features, hollow interiors, schema/stream failures, visual review contracts, inventory parity and deterministic assembly placement. The production build uses the Sites build helper.
