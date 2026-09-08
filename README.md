@@ -43,6 +43,18 @@ The landing, live creation and expanded film use a white stage with soft contact
 
 Build guides now have at most 24 parts per step and expose exact X/Y/Z coordinates, rotation and a per-step parts list. Ground and earlier-piece support paths are checked. Assembly animation is cinematic; the guide still needs physical validation for strength and hand access. LDraw exports contain these same steps.
 
+## Landmark presets
+
+The four quick picks on the landing are real landmarks sculpted in `lib/landmarks.ts` at true-ish proportions: the Golden Gate Bridge (stepped Art Deco towers with portal struts, parabolic main cables with suspenders, anchorages, the stiffening truss, Fort Point and the headlands), Neuschwanstein Castle (the Palas with its north and south towers, courtyard wings, stair tower and the red-brick gatehouse on its rock), the Cape Hatteras Lighthouse (brick base, the black-and-white spiral daymark, gallery, lantern room and keepers' quarters) and the Saturn V (all three stages with roll patterns, the Apollo spacecraft and escape tower, on the mobile launcher beside the umbilical tower). The bridge keeps the studio's size, color, bay and shoreline controls. Small, medium and large sizes scale every landmark; the Saturn V caps its scale so the large size stays under the 240-layer ceiling.
+
+## Brick packing and cleanup
+
+The catalog includes 1 × 2 to 1 × 8 bricks and 1 × 4 to 1 × 8 plates, so thin walls, ledges and bridging courses pack into single pieces. Within each layer the packer places overhanging cells first and gives each one the piece that reaches back over something already placed, preferring placements that bridge the most unsupported span. Arches, eaves, lintels and cantilevers are anchored to the mass behind them instead of ending as loose plates. Before packing an AI scene, `tidyVoxels` deletes cells with nothing above or below and at most one side neighbour, then any cluster no longer connected to the ground; these are slivers left by curved subtractions and were the stray bricks in generated arches. Project files exported before this change may fail the saved-brick check when reopened because the same scene now packs differently.
+
+## Generation flow
+
+Only the first pass streams into the canvas. Auto-refine keeps the finished draft on screen while it reviews the model and reworks it, and swaps in the improved result once it compiles, so the model is never rebuilt from the foundation in view. The interface no longer counts passes; it reports composing, checking, refining and finished states. When a run finishes, the status bar under the canvas reads Finished and carries the actions to open the design in the studio, review again or repair remaining issues. Generation and visual review are pinned to `gpt-5.4-2026-03-05` with the standard service tier.
+
 ## Deploying to Cloudflare
 
 Brickwork runs as a Cloudflare Worker with static assets, using the D1 database in `wrangler.jsonc` for the spending ledger. Production lives at https://brickwork.ryan-c-alcorn.workers.dev.
@@ -53,7 +65,7 @@ Brickwork runs as a Cloudflare Worker with static assets, using the D1 database 
 
 ## Verification
 
-Run `node --test tests/design-workflow.test.mjs tests/generation.test.mjs tests/assembly.test.mjs` for support/overlap, protected edit and export round trips, locks, repeated features, hollow interiors, schema/stream failures, visual review contracts, inventory parity and deterministic assembly placement. The production build uses the Sites build helper.
+Run `node --test tests/landmarks.test.mjs tests/design-workflow.test.mjs tests/generation.test.mjs tests/assembly.test.mjs` for landmark presets, packer anchoring, voxel cleanup, support/overlap, protected edit and export round trips, locks, repeated features, hollow interiors, schema/stream failures, visual review contracts, inventory parity and deterministic assembly placement. The production build uses the Sites build helper.
 
 Six varied evaluation briefs live in `tests/design-benchmarks.json`. Use the same size/limits across revisions and record recognizability, required-feature coverage, grounded/support counts, piece count, total generation time, revision fidelity and export/reopen fidelity. Live AI evaluations were not run because no API key is configured. Tests use authored geometry and mocked API responses. Browser playback, video export and physical construction were not tested. Standalone TypeScript checking retains the starter's missing Cloudflare runtime type declarations; production bundling succeeds.
 

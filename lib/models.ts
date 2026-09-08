@@ -1,18 +1,19 @@
 import type {GeneratedScene} from "./generated-scene";
 import {readProjectMetadata} from "./design-project";
 import type {DesignContext,ShoppingState} from "./design-project";
-import {COLORS,PARTS,STAGES,generateBridge,auditModel} from "./bridge";
+import {COLORS,PARTS,STAGES,auditModel} from "./bridge";
 import type {ColorKey,Piece,InventoryRow,PartId,Config} from "./bridge";
+import {goldenGate,neuschwanstein,capeHatteras,saturnV} from "./landmarks";
 
 export type Recipe = "bridge"|"castle"|"lighthouse"|"house"|"rocket"|"robot"|"car"|"tree"|"cat"|"dog"|"boat"|"skyline"|"blank";
 export type Detail = "small"|"medium"|"large";
 export type BuildModel={design?:DesignContext;shopping?:ShoppingState;generation?:GeneratedScene;name:string;description:string;source:"recipe"|"mosaic"|"mesh"|"custom";recipe?:Recipe;detail?:Detail;primary?:ColorKey;accent?:ColorKey;bridgeConfig?:Config;pieces:Piece[];inventory:InventoryRow[];length:number;width:number;height:number;stages:{title:string;text:string}[];};
 export const RECIPES:{id:Recipe;name:string;prompt:string;color:ColorKey;description:string}[]=[
- {id:"bridge",name:"Golden Gate",prompt:"The Golden Gate Bridge in red",color:"red",description:"The original brick-built landmark"},
- {id:"castle",name:"Castle",prompt:"A gray medieval castle with blue roofs",color:"gray",description:"Four towers, battlements and a central keep"},
- {id:"lighthouse",name:"Lighthouse",prompt:"A red and white coastal lighthouse",color:"red",description:"A striped tower and lantern room"},
+ {id:"bridge",name:"Golden Gate Bridge",prompt:"The Golden Gate Bridge in red",color:"red",description:"Art Deco towers, suspension cables, Fort Point and the Marin headlands"},
+ {id:"castle",name:"Neuschwanstein",prompt:"Neuschwanstein Castle in white with navy slate roofs",color:"white",description:"Ludwig's Bavarian castle on its rock: the Palas, its towers and the red gatehouse"},
+ {id:"lighthouse",name:"Cape Hatteras",prompt:"The Cape Hatteras Lighthouse in black and white",color:"black",description:"The spiral-striped brick tower, lantern room and keepers' quarters"},
  {id:"house",name:"Cottage",prompt:"A tan cottage with a red roof",color:"tan",description:"A pitched roof, front door and windows"},
- {id:"rocket",name:"Rocket",prompt:"A white rocket with red fins",color:"white",description:"A space-age rocket ready for display"},
+ {id:"rocket",name:"Saturn V",prompt:"The Apollo Saturn V rocket on its white launch pad with a red umbilical tower",color:"white",description:"All three stages, the Apollo spacecraft and the launch umbilical tower"},
  {id:"robot",name:"Robot",prompt:"A blue robot with yellow eyes",color:"blue",description:"A friendly companion with blocky arms"},
  {id:"car",name:"Sports car",prompt:"A red sports car with a black roof",color:"red",description:"A sculptural car with brick-built wheels"},
  {id:"tree",name:"Tree",prompt:"A green tree with a brown trunk",color:"green",description:"A layered canopy on a display base"},
@@ -22,7 +23,7 @@ export const RECIPES:{id:Recipe;name:string;prompt:string;color:ColorKey;descrip
  {id:"skyline",name:"City skyline",prompt:"A blue city skyline with yellow windows",color:"navy",description:"A family of towers at different heights"},
  {id:"blank",name:"Blank canvas",prompt:"Start with a blank canvas",color:"gray",description:"A studded base for your own design"},
 ];
-const defaultNames:Record<Recipe,string>={bridge:"Golden Gate Bridge",castle:"The little kingdom",lighthouse:"Coastal lighthouse",house:"Weekend cottage",rocket:"Mission to the moon",robot:"Your tiny sidekick",car:"Sunday drive",tree:"A little green escape",cat:"Curious cat",dog:"Best friend",boat:"Set sail",skyline:"City after dark",blank:"Untitled build"};
+const defaultNames:Record<Recipe,string>={bridge:"Golden Gate Bridge",castle:"Neuschwanstein Castle",lighthouse:"Cape Hatteras Lighthouse",house:"Weekend cottage",rocket:"Saturn V",robot:"Your tiny sidekick",car:"Sunday drive",tree:"A little green escape",cat:"Curious cat",dog:"Best friend",boat:"Set sail",skyline:"City after dark",blank:"Untitled build"};
 export function inventoryFor(pieces:Piece[]) {const map=new Map<string,InventoryRow>();for(const p of pieces){const key=`${p.part}:${p.color}`,r=map.get(key);if(r)r.quantity++;else map.set(key,{key,part:p.part,color:p.color,quantity:1});}return [...map.values()].sort((a,b)=>b.quantity-a.quantity);}
 export function finishModel(pieces:Piece[],meta:Pick<BuildModel,"name"|"description"|"source">&Partial<BuildModel>,keepStages=false):BuildModel {
  const clean=pieces.map((p,id)=>({...p,id}));const maxY=Math.max(1,...clean.map(p=>p.y+p.h));
@@ -40,34 +41,48 @@ export type VoxelMap = Map<string,ColorKey>;
 export const voxelKey=(x:number,y:number,z:number)=>`${x},${y},${z}`;
 export function packVoxels(voxels:VoxelMap):Piece[]{
  const remaining=new Map(voxels),pieces:Piece[]=[],owners=new Map<string,number>();
- const ids:PartId[]=["3007","3001","3003","3035","3034","3020","3022","3005","3023","3024"];
- const options=ids.flatMap(part=>[false,true].map(rotated=>{const p=PARTS[part];return {part,rotated,w:rotated?p.d:p.w,d:rotated?p.w:p.d,h:p.h};}));
+ const ids:PartId[]=["3007","3001","3008","3009","3010","3003","3004","3035","3034","3020","3460","3666","3710","3022","3005","3023","3024"];
+ type Option={part:PartId;rotated:boolean;w:number;d:number;h:number};
+ const options:Option[]=ids.flatMap(part=>[false,true].map(rotated=>{const p=PARTS[part];return {part,rotated,w:rotated?p.d:p.w,d:rotated?p.w:p.d,h:p.h};}));
  const positions=[...voxels.keys()].map(k=>k.split(",").map(Number)).sort((a,b)=>a[1]-b[1]||a[2]-b[2]||a[0]-b[0]);
  const tieLayers=new Set<number>();for(const [x,y,z] of positions)if(y>1&&!voxels.has(voxelKey(x,y-1,z))){tieLayers.add(y);tieLayers.add(y+1);}
- // Brick orientations change by layer to cross seams wherever the shape allows it.
- for(const [x,y,z] of positions){const color=remaining.get(voxelKey(x,y,z));if(!color)continue;
-  let best:typeof options[number]|undefined,bestScore=-1;
-  for(const p of options){
-   // Continuous plate courses let a roof or overhang overlap its supporting walls.
-   // Tall wall bricks must end before these courses rather than cutting through them.
-   if(p.h>1&&[y,y+1,y+2].some(layer=>tieLayers.has(layer)))continue;
-
-   if(y<2){const stepX=y===0?4:8,stepZ=y===0?8:4,offset=y===0?0:2;const nextX=x<offset?offset:offset+(Math.floor((x-offset)/stepX)+1)*stepX;const nextZ=z<offset?offset:offset+(Math.floor((z-offset)/stepZ)+1)*stepZ;if(p.h!==1||x+p.w>nextX||z+p.d>nextZ)continue;}
-   let fits=true;outer:for(let a=0;a<p.w;a++)for(let b=0;b<p.h;b++)for(let c=0;c<p.d;c++)if(remaining.get(voxelKey(x+a,y+b,z+c))!==color){fits=false;break outer;}if(!fits)continue;
-   const supports=new Set<number>();for(let a=0;a<p.w;a++)for(let c=0;c<p.d;c++){const below=owners.get(voxelKey(x+a,y-1,z+c));if(below!==undefined)supports.add(below);}
-   const score=p.w*p.d*p.h*(1+Math.min(3,Math.max(0,supports.size-1))*.16)+(p.rotated===!!(Math.floor(y/3)%2)?.01:0);
-   if(score>bestScore){best=p;bestScore=score;}
+ // Score option p with its minimum corner at (x,y,z), or null when it cannot go there.
+ const evaluate=(p:Option,x:number,y:number,z:number,color:ColorKey)=>{
+  if(x<0||z<0)return null;
+  // Continuous plate courses let a roof or overhang overlap its supporting walls.
+  // Tall wall bricks must end before these courses rather than cutting through them.
+  if(p.h>1&&[y,y+1,y+2].some(layer=>tieLayers.has(layer)))return null;
+  if(y<2){const stepX=y===0?4:8,stepZ=y===0?8:4,offset=y===0?0:2;const nextX=x<offset?offset:offset+(Math.floor((x-offset)/stepX)+1)*stepX;const nextZ=z<offset?offset:offset+(Math.floor((z-offset)/stepZ)+1)*stepZ;if(p.h!==1||x+p.w>nextX||z+p.d>nextZ)return null;}
+  for(let a=0;a<p.w;a++)for(let b=0;b<p.h;b++)for(let c=0;c<p.d;c++)if(remaining.get(voxelKey(x+a,y+b,z+c))!==color)return null;
+  const supports=new Set<number>();let overhang=0;for(let a=0;a<p.w;a++)for(let c=0;c<p.d;c++){const below=owners.get(voxelKey(x+a,y-1,z+c));if(below!==undefined)supports.add(below);else if(y>0&&!voxels.has(voxelKey(x+a,y-1,z+c)))overhang++;}
+  return {score:p.w*p.d*p.h*(1+Math.min(3,Math.max(0,supports.size-1))*.16)+(p.rotated===!!(Math.floor(y/3)%2)?.01:0),supports:supports.size,overhang};
+ };
+ const place=(p:Option,color:ColorKey,x:number,y:number,z:number)=>{const id=pieces.length;pieces.push({id,part:p.part,color,x,y,z,w:p.w,d:p.d,h:p.h,rotated:p.rotated,stage:0});for(let a=0;a<p.w;a++)for(let b=0;b<p.h;b++)for(let c=0;c<p.d;c++){const key=voxelKey(x+a,y+b,z+c);remaining.delete(key);owners.set(key,id);}};
+ for(let i=0;i<positions.length;){
+  const y=positions[i][1];let j=i;while(j<positions.length&&positions[j][1]===y)j++;const layer=positions.slice(i,j);i=j;
+  // Overhanging cells go first. Each one takes the piece that reaches back over a
+  // placed piece beneath, so an arch, eave or cantilever is anchored to the mass
+  // behind it instead of ending up as a loose plate with nothing under it.
+  if(y>0)for(const [x,,z] of layer){
+   const color=remaining.get(voxelKey(x,y,z));if(!color||voxels.has(voxelKey(x,y-1,z)))continue;
+   let best:{p:Option;x:number;z:number}|undefined,bestScore=-1;
+   // Bridging as much unsupported span as possible comes first, then piece size.
+   for(const p of options)for(let ox=0;ox<p.w;ox++)for(let oz=0;oz<p.d;oz++){const r=evaluate(p,x-ox,y,z-oz,color);if(!r||!r.supports)continue;const score=r.overhang*64+r.score;if(score>bestScore){bestScore=score;best={p,x:x-ox,z:z-oz};}}
+   if(best)place(best.p,color,best.x,y,best.z);
   }
-  if(best){const p=best,id=pieces.length;pieces.push({id,part:p.part,color,x,y,z,w:p.w,d:p.d,h:p.h,rotated:p.rotated,stage:0});
-   for(let a=0;a<p.w;a++)for(let b=0;b<p.h;b++)for(let c=0;c<p.d;c++){const key=voxelKey(x+a,y+b,z+c);remaining.delete(key);owners.set(key,id);}}
-
+  // Brick orientations change by layer to cross seams wherever the shape allows it.
+  for(const [x,,z] of layer){const color=remaining.get(voxelKey(x,y,z));if(!color)continue;
+   let best:Option|undefined,bestScore=-1;
+   for(const p of options){const r=evaluate(p,x,y,z,color);if(r&&r.score>bestScore){best=p;bestScore=r.score;}}
+   if(best)place(best,color,x,y,z);
+  }
  }
  if(pieces.length>16000)throw Error("This model needs too many pieces. Choose a smaller size and try again.");
  return pieces;
 }
 export function parseIdea(text:string):{recipe:Recipe;color:ColorKey;accent:ColorKey;detail?:Detail;applied:string[]}|{error:string}{
  const t=text.toLowerCase();
- const terms:[Recipe,RegExp][]=[["bridge",/\b(bridge|golden gate)\b/],["lighthouse",/\b(lighthouse|beacon)\b/],["castle",/\b(castle|fortress|palace)\b/],["house",/\b(house|cottage|cabin|home)\b/],["rocket",/\b(rocket|spaceship|spacecraft)\b/],["robot",/\b(robot|droid)\b/],["car",/\b(car|convertible|bmw|roadster|automobile)\b/],["tree",/\b(tree|bonsai|oak)\b/],["cat",/\b(cat|kitten)\b/],["dog",/\b(dog|puppy|pup)\b/],["boat",/\b(boat|sailboat|yacht|ship)\b/],["skyline",/\b(skyline|city|skyscraper)\b/],["blank",/\b(blank|empty)\b/]];
+ const terms:[Recipe,RegExp][]=[["bridge",/\b(bridge|golden gate)\b/],["lighthouse",/\b(lighthouse|beacon|hatteras)\b/],["castle",/\b(castle|fortress|palace|neuschwanstein)\b/],["house",/\b(house|cottage|cabin|home)\b/],["rocket",/\b(rocket|spaceship|spacecraft|saturn v|apollo)\b/],["robot",/\b(robot|droid)\b/],["car",/\b(car|convertible|bmw|roadster|automobile)\b/],["tree",/\b(tree|bonsai|oak)\b/],["cat",/\b(cat|kitten)\b/],["dog",/\b(dog|puppy|pup)\b/],["boat",/\b(boat|sailboat|yacht|ship)\b/],["skyline",/\b(skyline|city|skyscraper)\b/],["blank",/\b(blank|empty)\b/]];
  const hit=terms.find(([,r])=>r.test(t));if(!hit)return {error:"No matching preset."};
  const recipe=hit[0],r=RECIPES.find(r=>r.id===recipe)!;
  const colorWords=[...t.matchAll(/\b(red|orange|blue|navy|black|gray|grey|white|green|tan|yellow|brown|pink)\b/g)].map(m=>(m[1]==="grey"?"gray":m[1]) as ColorKey);
@@ -76,29 +91,23 @@ export function parseIdea(text:string):{recipe:Recipe;color:ColorKey;accent:Colo
  return {recipe,color,accent,detail,applied:[r.name,`${COLORS[color].name} body`,`${COLORS[accent].name} accents`,...(detail?[`${detail} size`]:[])]};
 }
 export function generateRecipe(recipe:Recipe,detail:Detail="medium",primary?:ColorKey,accent?:ColorKey,bridgeConfig?:Config):BuildModel{
- if(recipe==="bridge"){const config=bridgeConfig||{size:detail==="small"?"compact":"display",color:"red",water:"blue",landscape:true};const b=generateBridge(config);return finishModel(b.pieces,{name:defaultNames.bridge,description:"The original brick-built suspension bridge",source:"recipe",recipe,detail,primary:config.color,accent:config.water,bridgeConfig:config});}
- const scale=detail==="small"?0.75:detail==="large"?1.25:1,voxels:VoxelMap=new Map();
+ const scale=detail==="small"?0.75:detail==="large"?1.25:1;
  const p=primary||RECIPES.find(r=>r.id===recipe)!.color,a=accent||"white";
+ const landmark=(voxels:VoxelMap,primaryColor:ColorKey,accentColor:ColorKey,extra:Partial<BuildModel>={})=>finishModel(packVoxels(voxels),{name:defaultNames[recipe],description:RECIPES.find(r=>r.id===recipe)!.description,source:"recipe",recipe,detail,primary:primaryColor,accent:accentColor,...extra});
+ if(recipe==="bridge"){const config=bridgeConfig||{size:detail==="small"?"compact":"display",color:"red",water:"blue",landscape:true};return landmark(goldenGate(config,config.size==="compact"?0.72:1),config.color,config.water,{bridgeConfig:config});}
+ if(recipe==="castle")return landmark(neuschwanstein(scale,p,a==="white"?"navy":a),p,a);
+ if(recipe==="lighthouse")return landmark(capeHatteras(scale,p,a),p,a);
+ // The Saturn V is 197 plates tall at full size, so the large size stays under the 240-layer ceiling.
+ if(recipe==="rocket")return landmark(saturnV(Math.min(scale,1.2),p,a==="white"?"red":a),p,a);
+ const voxels:VoxelMap=new Map();
  const put=(x:number,y:number,z:number,c:ColorKey)=>{if(x>=0&&y>=0&&z>=0)voxels.set(voxelKey(x,y,z),c);};
  const box=(x:number,y:number,z:number,w:number,h:number,d:number,c:ColorKey)=>{for(let xx=Math.round(x*scale);xx<Math.round((x+w)*scale);xx++)for(let yy=Math.round(y*scale);yy<Math.round((y+h)*scale);yy++)for(let zz=Math.round(z*scale);zz<Math.round((z+d)*scale);zz++)put(xx,yy,zz,c);};
  const erase=(x:number,y:number,z:number,w:number,h:number,d:number)=>{for(let xx=Math.round(x*scale);xx<Math.round((x+w)*scale);xx++)for(let yy=Math.round(y*scale);yy<Math.round((y+h)*scale);yy++)for(let zz=Math.round(z*scale);zz<Math.round((z+d)*scale);zz++)voxels.delete(voxelKey(xx,yy,zz));};
  const ellipse=(cx:number,y:number,cz:number,rx:number,rz:number,h:number,c:ColorKey)=>{for(let x=Math.floor((cx-rx)*scale);x<Math.ceil((cx+rx)*scale);x++)for(let z=Math.floor((cz-rz)*scale);z<Math.ceil((cz+rz)*scale);z++)if(((x+.5-cx*scale)/(rx*scale))**2+((z+.5-cz*scale)/(rz*scale))**2<=1)for(let yy=Math.round(y*scale);yy<Math.round((y+h)*scale);yy++)put(x,yy,z,c);};
  const base=(w=32,d=24,c:ColorKey="gray")=>{for(let x=0;x<Math.ceil(w*scale/8)*8;x++)for(let z=0;z<Math.ceil(d*scale/8)*8;z++)for(let y=0;y<Math.round(2*scale);y++)put(x,y,z,c);};
- if(recipe==="castle"){
-  base(36,28,"green");box(3,2,3,30,15,3,p);box(3,2,22,30,15,3,p);box(3,2,3,3,15,22,p);box(30,2,3,3,15,22,p);
-  erase(15,2,22,6,11,3);box(13,2,7,10,26,12,p);box(17,2,18,3,7,1,"brown");
-  for(const x of [3,27])for(const z of [3,19]){box(x,2,z,6,22,6,p);for(let level=0;level<5;level++)box(x-1+level*.5,24+level*2,z-1+level*.5,8-level,2,8-level,a);}
-  for(let x=7;x<28;x+=4){box(x,17,3,2,3,3,p);box(x,17,22,2,3,3,p);}for(let z=8;z<20;z+=4){box(3,17,z,3,3,2,p);box(30,17,z,3,3,2,p);}for(let i=0;i<5;i++)box(12+i,28+i*2,6+i,12-2*i,2,14-2*i,a);
- }else if(recipe==="lighthouse"){
-  base(28,24,"blue");ellipse(14,2,12,10,9,2,"tan");ellipse(14,4,12,6,6,3,"gray");
-  for(let y=7;y<58;y+=3){const r=5.5-(y-7)/30;ellipse(14,y,12,r,r,3,Math.floor((y-7)/9)%2?a:p);}
-  ellipse(14,58,12,6,6,2,"black");ellipse(14,60,12,4,4,8,"yellow");for(let z=9;z<16;z+=6)for(let x=11;x<18;x+=6)box(x,60,z,1,8,1,"black");ellipse(14,68,12,5,5,2,"black");for(let k=0;k<5;k++)ellipse(14,70+k,12,5-k,5-k,1,p);box(13,7,16,2,6,1,"black");
- }else if(recipe==="house"){
+ if(recipe==="house"){
   base(32,26,"green");box(4,2,4,24,2,18,"gray");box(5,4,5,22,23,16,p);box(14,4,20,4,12,1,"brown");
   for(const x of [8,21]){box(x,11,20,4,7,1,"navy");box(x,14,20,4,1,1,"white");box(x+1,11,20,1,7,1,"white");}for(let k=0;k<10;k++)box(3,27+k*2,3+k,26,2,20-2*k,a);box(23,27,9,3,18,3,"brown");box(13,2,22,6,1,4,"tan");
- }else if(recipe==="rocket"){
-  base(28,24,"gray");ellipse(14,2,12,6,6,3,"black");ellipse(14,5,12,5,5,6,"orange");ellipse(14,11,12,5,5,39,p);ellipse(14,24,12,5,5,3,a);ellipse(14,43,12,5,5,3,a);box(12,33,16,4,5,1,"navy");for(let k=0;k<10;k++)ellipse(14,50+k*2,12,5-k*.5,5-k*.5,2,a);
-  for(let y=8;y<25;y+=2){const w=Math.max(1,8-(y-8)/2);box(14-5-w,y,11,w,2,2,a);box(19,y,11,w,2,2,a);box(13,y,12-5-w,2,2,w,a);box(13,y,17,2,2,w,a);}
  }else if(recipe==="robot"){
   base();box(9,2,7,6,4,11,a);box(18,2,7,6,4,11,a);box(10,6,10,4,12,5,"gray");box(19,6,10,4,12,5,"gray");box(8,18,7,18,22,12,p);box(13,40,11,8,3,5,"gray");box(7,43,6,20,17,14,p);box(10,49,19,4,5,1,a);box(20,49,19,4,5,1,a);box(13,45,19,9,2,1,"black");box(3,22,9,5,17,7,p);box(26,22,9,5,17,7,p);box(3,18,9,5,5,7,a);box(26,18,9,5,5,7,a);box(12,25,18,10,8,1,a);box(16,60,11,2,7,2,"gray");box(15,67,10,4,2,4,a);
  }else if(recipe==="car"){

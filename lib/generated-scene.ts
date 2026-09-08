@@ -66,6 +66,31 @@ export function sceneVoxels(raw:unknown):VoxelMap{
  }
  return voxels;
 }
+// Bricks only hold through stud contact, so a cell with nothing above or below
+// it and at most one neighbour beside it can never be a real brick: it is a
+// sliver left by a curved subtraction or a rounding edge. Remove those, then
+// remove any cluster of cells that no longer touches the ground through the
+// remaining cells. Both passes repeat until the volume is stable.
+export function tidyVoxels(voxels:VoxelMap){
+ const at=(x:number,y:number,z:number)=>voxels.has(voxelKey(x,y,z));
+ const parse=(key:string)=>key.split(",").map(Number) as [number,number,number];
+ let removed=0,changed=true;
+ while(changed){
+  changed=false;
+  for(const key of [...voxels.keys()]){
+   const [x,y,z]=parse(key);if(y===0)continue;
+   if(at(x,y-1,z)||at(x,y+1,z))continue;
+   const beside=[at(x-1,y,z),at(x+1,y,z),at(x,y,z-1),at(x,y,z+1)].filter(Boolean).length;
+   if(beside<=1){voxels.delete(key);removed++;changed=true;}
+  }
+  // Flood from the ground layer through face-adjacent cells; everything unreached floats.
+  const seen=new Set<string>(),queue:string[]=[];
+  for(const key of voxels.keys())if(parse(key)[1]===0){seen.add(key);queue.push(key);}
+  while(queue.length){const [x,y,z]=parse(queue.pop()!);for(const [a,b,c] of [[1,0,0],[-1,0,0],[0,1,0],[0,-1,0],[0,0,1],[0,0,-1]]){const next=voxelKey(x+a,y+b,z+c);if(voxels.has(next)&&!seen.has(next)){seen.add(next);queue.push(next);}}}
+  for(const key of [...voxels.keys()])if(!seen.has(key)){voxels.delete(key);removed++;changed=true;}
+ }
+ return removed;
+}
 export function compileScene(raw:unknown,options:{manual?:ManualEdits;hollow?:boolean}={}){
  const scene=validateScene(raw),voxels=sceneVoxels(scene);
  if(options.hollow){
@@ -75,6 +100,7 @@ export function compileScene(raw:unknown,options:{manual?:ManualEdits;hollow?:bo
   for(const key of inner){const [x,y,z]=key.split(",").map(Number);if(y>5&&y%12>2&&x%8>1&&z%8>1)voxels.delete(key);}
  }
  if(options.manual)applyManual(voxels,options.manual);
+ tidyVoxels(voxels);
  const pieces=[...packVoxels(voxels),...(options.manual?.bricks||[])];if(!pieces.length)throw Error("The generated draft is empty. Try again.");if(pieces.length>16000)throw Error("The design exceeds the 16,000 piece limit.");
  return finishModel(pieces,{name:scene.name,description:scene.description,source:"custom"});
 }
