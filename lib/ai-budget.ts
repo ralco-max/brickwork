@@ -1,11 +1,12 @@
 import {GenerationError,upstreamError} from "./generation-errors";
 
 // USD nanodollars avoid floating-point rounding in the durable ledger.
-// Standard GPT-5.4 rates, checked 2026-09-08:
-// https://developers.openai.com/api/docs/models/gpt-5.4
+// Standard GPT-5.6 Terra rates, checked 2026-09-08. The model page lists only
+// the undated alias, so that alias is pinned here:
+// https://developers.openai.com/api/docs/models/gpt-5.6-terra
 export const BUDGET_NANOS=10_000_000_000;
-export const BUDGET_MODEL="gpt-5.4-2026-03-05";
-const INPUT=2500,CACHED_INPUT=250,OUTPUT=15000;
+export const BUDGET_MODEL="gpt-5.6-terra";
+const INPUT=2000,CACHED_INPUT=200,OUTPUT=12000;
 type Statement={bind:(...values:(string|number|null)[])=>Statement;run:()=>Promise<{meta:{changes?:number}}>;
  first:<T>()=>Promise<T|null>};
 export type BudgetDatabase={prepare:(sql:string)=>Statement};

@@ -29,11 +29,11 @@ test('count before generation, enforce standard service, then release unused and
  const {db,sqlite}=budgetDb();t.after(()=>sqlite.close());const calls=[],events=[];
  const provider=budgetedProvider(db,key,b=>events.push(b),async(u,init)=>{calls.push([u,JSON.parse(init.body)]);return u.endsWith('/input_tokens')?Response.json({input_tokens:1000}):Response.json({ok:true});});
  await provider.fetch(url,payload({service_tier:'priority',text:{format:{type:'json_schema',schema:{type:'object'}}}}));
- assert.equal(calls[0][0],url+'/input_tokens');assert.equal(calls[0][1].input,'A castle');assert.equal(calls[1][1].service_tier,'default');assert.ok(events[0].held>.48);
+ assert.equal(calls[0][0],url+'/input_tokens');assert.equal(calls[0][1].input,'A castle');assert.equal(calls[1][1].service_tier,'default');assert.ok(events[0].held>.38);
  await provider.recordUsage({input_tokens:1000,output_tokens:2000,input_tokens_details:{cached_tokens:400}});
- assert.deepEqual(events.at(-1),{limit:10,spent:.0316,held:0,remaining:9.9684});
- await provider.recordUsage({input_tokens:1000,output_tokens:2000});assert.equal((await budgetSnapshot(db,await keyFingerprint(key))).spent,.0316);
- assert.equal(tokenCost(272001,1000),272001*5000+1000*22500);
+ assert.deepEqual(events.at(-1),{limit:10,spent:.02528,held:0,remaining:9.97472});
+ await provider.recordUsage({input_tokens:1000,output_tokens:2000});assert.equal((await budgetSnapshot(db,await keyFingerprint(key))).spent,.02528);
+ assert.equal(tokenCost(272001,1000),272001*4000+1000*18000);
 });
 
 test('budget exhaustion, missing storage and unknown prices never start a paid request',async t=>{
@@ -56,7 +56,7 @@ test('insufficient remaining funds block the request after counting and counting
 test('uncertain failures hold the ceiling; explicit authentication rejection releases it',async t=>{
  const {db,sqlite}=budgetDb();t.after(()=>sqlite.close());const hash=await keyFingerprint(key);
  const unknown=budgetedProvider(db,key,()=>{},async u=>{if(u.endsWith('/input_tokens'))return Response.json({input_tokens:100});throw new DOMException('Cancelled','AbortError');});
- await assert.rejects(unknown.fetch(url,payload()),{name:'AbortError'});const held=(await budgetSnapshot(db,hash)).held;assert.ok(held>.48);
+ await assert.rejects(unknown.fetch(url,payload()),{name:'AbortError'});const held=(await budgetSnapshot(db,hash)).held;assert.ok(held>.38);
  await unknown.recordUsage(null);await unknown.recordUsage({input_tokens:-1,output_tokens:2});assert.equal((await budgetSnapshot(db,hash)).held,held);
  const rejected=budgetedProvider(db,key,()=>{},async u=>u.endsWith('/input_tokens')?Response.json({input_tokens:100}):Response.json({error:{}},{status:401}));
  assert.equal((await rejected.fetch(url,payload())).status,401);assert.equal((await budgetSnapshot(db,hash)).held,held);
@@ -67,7 +67,7 @@ test('an incomplete streamed design records real usage before reporting its erro
  const events=[{type:'response.incomplete',response:{status:'incomplete',usage:{input_tokens:800,output_tokens:32000}}}];
  const provider=budgetedProvider(db,key,()=>{},async u=>u.endsWith('/input_tokens')?Response.json({input_tokens:800}):new Response(events.map(e=>'data: '+JSON.stringify(e)+'\n\n').join('')));
  await assert.rejects(async()=>{for await(const _ of generateScene({prompt:'castle',detail:'medium'},key,BUDGET_MODEL,signal(),provider.fetch,provider.recordUsage)){}},{code:'INCOMPLETE_RESPONSE'});
- assert.deepEqual(await budgetSnapshot(db,await keyFingerprint(key)),{limit:10,spent:.482,held:0,remaining:9.518});
+ assert.deepEqual(await budgetSnapshot(db,await keyFingerprint(key)),{limit:10,spent:.3856,held:0,remaining:9.6144});
 });
 
 test('generation, review and budget routes share the personal key ledger instead of the configured key',async t=>{
@@ -82,5 +82,5 @@ test('generation, review and budget routes share the personal key ledger instead
  const reviewed=await collect(await reviewPOST(req('review',{brief,images:Array(3).fill('data:image/jpeg;base64,YQ==')})));assert.deepEqual(reviewed.at(-1),{type:'complete',review});
  assert.equal(calls.length,4);assert.ok(calls.every(([,init])=>new Headers(init.headers).get('Authorization')===`Bearer ${key}`));
  const response=await budgetGET(new Request('https://brickwork.test/api/budget',{headers:{'x-brickwork-api-key':key}}));assert.match(response.headers.get('cache-control'),/no-store/);
- assert.equal((await response.json()).budget.spent,.035);assert.equal((await budgetSnapshot(db,await keyFingerprint('fixture-server-key'))).spent,0);
+ assert.equal((await response.json()).budget.spent,.028);assert.equal((await budgetSnapshot(db,await keyFingerprint('fixture-server-key'))).spent,0);
 });
