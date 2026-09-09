@@ -33,7 +33,7 @@ export function simulateClutch(pieces:Piece[]):ClutchReport{
   const total=holders.reduce((s,[,c])=>s+c,0);
   if(!total){floating.push(i);continue;}
   const before=load[i];
-  for(const [k,c] of holders){const demand=before*c/total;joints.push({piece:i,holder:k,kind:"hanging",studs:c,demand,capacity:c*CLUTCH_PER_STUD,ratio:demand/(c*CLUTCH_PER_STUD)});pass(i,k,demand);}
+  for(const [k,c] of holders){const demand=before*c/total;joints.push({piece:pieces[i].id,holder:pieces[k].id,kind:"hanging",studs:c,demand,capacity:c*CLUTCH_PER_STUD,ratio:demand/(c*CLUTCH_PER_STUD)});pass(i,k,demand);}
  }
  // Grounded pieces pass their load down, highest first, and lever on their footing when off-centre.
  for(const i of [...asc].reverse()){
@@ -46,12 +46,12 @@ export function simulateClutch(pieces:Piece[]):ClutchReport{
    if(leverX>0||leverZ>0){
     const alongX=leverX>=leverZ,lever=(alongX?leverX:leverZ)*STUD_M,extent=(alongX?maxX-minX:maxZ-minZ)*STUD_M;
     const studs=supporters.reduce((s,[j,c])=>s+(isTile(pieces[j])?0:c),0),demand=load[i]*lever,capacity=studs*CLUTCH_PER_STUD*extent/2;
-    joints.push({piece:i,holder:supporters[0][0],kind:"cantilever",studs,demand,capacity,ratio:capacity?demand/capacity:Infinity});
+    joints.push({piece:pieces[i].id,holder:pieces[supporters[0][0]].id,kind:"cantilever",studs,demand,capacity,ratio:capacity?demand/capacity:Infinity});
    }
    const before=load[i];for(const [j,c] of supporters)pass(i,j,before*c/total);
   }
  }
- const ratios=new Map<number,number>();for(const j of joints)ratios.set(j.piece,Math.max(ratios.get(j.piece)??0,j.ratio));for(const i of floating)ratios.set(i,Infinity);
+ const ratios=new Map<number,number>();for(const j of joints)ratios.set(j.piece,Math.max(ratios.get(j.piece)??0,j.ratio));for(const i of floating)ratios.set(pieces[i].id,Infinity);
  const overloaded=[...ratios].filter(([,r])=>r>1).map(([i])=>i),tight=[...ratios].filter(([,r])=>r>.5&&r<=1).map(([i])=>i);
- return {ratios,joints,overloaded,tight,floating,maxRatio:Math.max(0,...ratios.values()),grams:pieces.reduce((s,p)=>s+p.w*p.d*p.h*GRAM_PER_CELL,0)};
+ return {ratios,joints,overloaded,tight,floating:floating.map(i=>pieces[i].id),maxRatio:Math.max(0,...ratios.values()),grams:pieces.reduce((s,p)=>s+p.w*p.d*p.h*GRAM_PER_CELL,0)};
 }
