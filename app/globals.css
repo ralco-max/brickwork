@@ -368,3 +368,17 @@ h1,h2,.brand-wordmark,[data-slot=dialog-title],.landing-film-caption h1,.project
 h1,.landing-film-caption h1,.project-heading h1,[data-slot=dialog-title]{text-wrap:balance}
 .model-metrics strong,.film-time,.live-elapsed,.live-budget,.design-dimensions strong{font-variant-numeric:tabular-nums}
 ::selection{background:var(--accent-soft);color:var(--ink)}
+/* Landing: the design's name is the anchor; picks are real controls; phones get a full-width studio button. */
+.designs-first .landing-film-caption h1{font-size:clamp(1.9rem,3.4vw,2.7rem);font-weight:650;line-height:1.05;letter-spacing:-.03em}
+.designs-first .landing-film-caption span{font-size:.72rem;letter-spacing:.14em;font-weight:600}
+.designs-first .design-quick-picks{padding:8px 22px 14px}
+.designs-first .design-quick-picks button{min-height:44px;padding:0 16px;font-size:.95rem;font-weight:500;border:1px solid transparent}
+.designs-first .design-quick-picks button[aria-pressed=true]{border-color:var(--line)}
+.designs-first .open-design{min-height:44px;padding:0 14px;border-radius:24px;font-weight:600}
+@media(max-width:800px){
+ .designs-first .design-quick-picks{flex-direction:column;align-items:stretch;gap:10px;padding:8px 14px 14px}
+ .designs-first .design-quick-picks>div{overflow-x:auto;scrollbar-width:none;padding-bottom:2px;mask-image:linear-gradient(90deg,#000 90%,transparent)}
+ .designs-first .design-quick-picks>div::-webkit-scrollbar{display:none}
+ .designs-first .open-design{position:static;justify-content:center;border:1px solid var(--line);background:var(--surface);color:var(--ink)}
+ .designs-first .landing-film-caption h1{font-size:1.6rem}
+}
