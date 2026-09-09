@@ -47,6 +47,7 @@ export default function Studio(){
  const intro=useRef({time:1,playing:false,last:0,speed:1}),[introPlaying,setIntroPlaying]=useState(false),[introSpeed,setIntroSpeed]=useState(1),introDone=useRef<(()=>void)|null>(null),introSeen=useRef(new Set<string>());
  const readIntro=useCallback(()=>{const c=intro.current,now=performance.now();if(c.playing){const elapsed=c.last?Math.min(.08,(now-c.last)/1000):0;c.time=Math.min(1,c.time+elapsed*c.speed/18);if(c.time>=1){c.playing=false;setIntroPlaying(false);introDone.current?.();introDone.current=null;}}c.last=now;return c.time;},[]);
  const playIntro=useCallback(()=>{if(window.matchMedia("(prefers-reduced-motion: reduce)").matches)return;const c=intro.current,key=`${model.libraryId||model.name}:${model.pieces.length}`;c.speed=introSeen.current.has(key)?2:1;introSeen.current.add(key);setIntroSpeed(c.speed);c.time=0;c.playing=true;c.last=performance.now();setIntroPlaying(true);},[model.libraryId,model.name,model.pieces.length]);
+ const skipIntro=useCallback(()=>{const c=intro.current;c.time=1;c.playing=false;setIntroPlaying(false);introDone.current?.();introDone.current=null;},[]);
  const pauseIntro=useCallback(()=>{intro.current.playing=false;setIntroPlaying(false);},[]);
  const resumeIntro=useCallback(()=>{const c=intro.current;c.last=performance.now();c.playing=true;setIntroPlaying(true);},[]);
  // One Play button: plays the assembly from the start, pauses it mid-way, resumes, and replays once it has finished.
