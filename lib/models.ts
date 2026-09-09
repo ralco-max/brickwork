@@ -94,7 +94,7 @@ export function generateRecipe(recipe:Recipe,detail:Detail="medium",primary?:Col
  const scale=detail==="small"?0.75:detail==="large"?1.25:1;
  const p=primary||RECIPES.find(r=>r.id===recipe)!.color,a=accent||"white";
  const landmark=(voxels:VoxelMap,primaryColor:ColorKey,accentColor:ColorKey,extra:Partial<BuildModel>={})=>finishModel(packVoxels(voxels),{name:defaultNames[recipe],description:RECIPES.find(r=>r.id===recipe)!.description,source:"recipe",recipe,detail,primary:primaryColor,accent:accentColor,...extra});
- if(recipe==="bridge"){const config=bridgeConfig||{size:detail==="small"?"compact":"display",color:"red",water:"blue",landscape:true};return landmark(goldenGate(config,config.size==="compact"?0.72:1),config.color,config.water,{bridgeConfig:config});}
+ if(recipe==="bridge"){const config=bridgeConfig||{size:detail==="small"?"compact":"display",color:"red",water:"blue",landscape:true};return landmark(goldenGate(config,config.size==="compact"?0.7:1),config.color,config.water,{bridgeConfig:config});}
  if(recipe==="castle")return landmark(neuschwanstein(scale,p,a==="white"?"navy":a),p,a);
  if(recipe==="lighthouse")return landmark(capeHatteras(scale,p,a),p,a);
  // The Saturn V is 197 plates tall at full size, so the large size stays under the 240-layer ceiling.

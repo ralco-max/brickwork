@@ -84,3 +84,15 @@ test('generation, review and budget routes share the personal key ledger instead
  const response=await budgetGET(new Request('https://brickwork.test/api/budget',{headers:{'x-brickwork-api-key':key}}));assert.match(response.headers.get('cache-control'),/no-store/);
  assert.equal((await response.json()).budget.spent,.028);assert.equal((await budgetSnapshot(db,await keyFingerprint('fixture-server-key'))).spent,0);
 });
+
+test('a web search lookup reserves per-call fees and content tokens, settles on the calls that ran, and other tools stay refused',async t=>{
+ const {db,sqlite}=budgetDb();t.after(()=>sqlite.close());const events=[];
+ const provider=budgetedProvider(db,key,b=>events.push(b),async u=>u.endsWith('/input_tokens')?Response.json({input_tokens:500}):Response.json({ok:true}));
+ await provider.fetch(url,payload({max_output_tokens:2500,tools:[{type:'web_search'}],max_tool_calls:2}));
+ assert.ok(events[0].held>.1&&events[0].held<.2,String(events[0].held));
+ await provider.recordUsage({input_tokens:9000,output_tokens:800},{searchCalls:1});
+ const spent=(await budgetSnapshot(db,await keyFingerprint(key))).spent;
+ assert.ok(Math.abs(spent-(9000*2000+800*12000+10000000)/1e9)<1e-9,String(spent));
+ const other=budgetedProvider(db,key,()=>{},async()=>Response.json({ok:true}));
+ await assert.rejects(other.fetch(url,payload({tools:[{type:'function',name:'x'}]})),{code:'BUDGET_MODEL'});
+});

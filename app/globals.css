@@ -357,3 +357,6 @@ body {margin:0;background:var(--background);color:var(--foreground);font-family:
 
 /* Skip control in the intro pill */
 .assembly-inline-topline{pointer-events:none}.assembly-inline-topline .intro-skip{pointer-events:auto;font:inherit;font-size:12px;font-weight:600;letter-spacing:.06em;padding:6px 14px;border:1px solid var(--line);border-radius:20px;background:var(--surface);color:var(--ink);cursor:pointer}.assembly-inline-topline .intro-skip:hover{border-color:var(--line-strong)}
+
+/* Reference sheet from the lookup step */
+.reference-sheet{display:grid;gap:6px;padding:12px 14px;border:1px solid var(--line);border-radius:12px;background:var(--surface-2);font-size:13px;color:var(--ink-2)}.reference-sheet strong{color:var(--ink);font-size:14px}.reference-sheet p{margin:0;line-height:1.5}.reference-sheet ul{margin:0;padding-left:18px}.reference-sheet li{line-height:1.5}.reference-sheet small{display:flex;gap:10px;flex-wrap:wrap;color:var(--ink-3)}.reference-sheet a{color:var(--accent-deep)}

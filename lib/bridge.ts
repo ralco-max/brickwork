@@ -10,7 +10,7 @@ export type PartId = keyof typeof PARTS;
 export const TILES=new Set<string>(["3068b","3069b","3070b","2431","6636","4162","87079"]);
 export const isTile=(part:string)=>TILES.has(part);
 export interface Piece {id:number;part:PartId;color:ColorKey;x:number;y:number;z:number;w:number;d:number;h:number;rotated:boolean;stage:number;support?:boolean;}
-export interface Config {size:"compact"|"display";color:"red"|"orange"|"white";water:"blue"|"navy";landscape:boolean;}
+export interface Config {size:"compact"|"display";color:"red"|"orange"|"white";water:"blue"|"navy";landscape:boolean;proportions?:"display"|"true";}
 export interface InventoryRow {key:string;part:PartId;color:ColorKey;quantity:number;}
 export const STAGES = [
  {title:"Lay the bay",text:"Build the lower plate layer, then overlap its seams with the upper layer. The second layer ties the display base together."},

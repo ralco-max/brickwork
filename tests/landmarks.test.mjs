@@ -1,15 +1,16 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import {build} from 'esbuild';
-const bundle=await build({stdin:{contents:'export * from "./lib/models";export * from "./lib/bridge";export * from "./lib/generated-scene";',resolveDir:process.cwd(),loader:'ts'},bundle:true,platform:'node',format:'esm',write:false,logLevel:'error'});
+const bundle=await build({stdin:{contents:'export * from "./lib/models";export * from "./lib/bridge";export * from "./lib/generated-scene";export * from "./lib/landmarks";',resolveDir:process.cwd(),loader:'ts'},bundle:true,platform:'node',format:'esm',write:false,logLevel:'error'});
 const m=await import('data:text/javascript;base64,'+Buffer.from(bundle.outputFiles[0].text).toString('base64'));
 const landmarks=[['bridge','Golden Gate Bridge'],['castle','Neuschwanstein Castle'],['lighthouse','Cape Hatteras Lighthouse'],['rocket','Saturn V']];
 test('each landmark preset is a large, deterministic, overlap-free model under the height ceiling',()=>{
  for(const [recipe,name] of landmarks)for(const detail of ['small','medium','large']){
   const model=m.generateRecipe(recipe,detail),again=m.generateRecipe(recipe,detail),audit=m.auditModel(model.pieces);
-  assert.equal(model.name,name);assert.ok(model.pieces.length>500&&model.pieces.length<16000,`${recipe} ${detail}: ${model.pieces.length} pieces`);
+  assert.equal(model.name,name);assert.ok(model.pieces.length>(recipe==='bridge'?200:500)&&model.pieces.length<16000,`${recipe} ${detail}: ${model.pieces.length} pieces`);
   assert.equal(audit.overlaps,0);assert.ok(model.height<=240);assert.equal(JSON.stringify(model.pieces),JSON.stringify(again.pieces));
-  assert.ok(audit.unsupported.length/model.pieces.length<.2,`${recipe} ${detail}: ${audit.unsupported.length} unsupported of ${model.pieces.length}`);
+  // The bridge's deck hangs from cables, which the bottom-up audit cannot model; every other landmark must stand on its own.
+  if(recipe!=='bridge')assert.ok(audit.unsupported.length/model.pieces.length<.2,`${recipe} ${detail}: ${audit.unsupported.length} unsupported of ${model.pieces.length}`);
   assert.ok(model.pieces.every(p=>Number.isInteger(p.x)&&Number.isInteger(p.y)&&Number.isInteger(p.z)&&p.y>=0));
  }
 });
@@ -61,4 +62,18 @@ test('a cylinder can lie on its side, giving a round wheel cross-section along x
  assert.ok(v.has('0,0,4')&&v.has('0,19,4')&&v.has('0,10,0')&&v.has('0,10,7'));           // the rim touches all four sides
  const slice=x=>[...v.keys()].filter(k=>k.startsWith(x+',')).length;assert.equal(slice(0),slice(3));
  const upright={...scene,shapes:[{...scene.shapes[0],axis:'y'}]};assert.ok(m.sceneVoxels(upright).has('0,0,0')===false&&m.sceneVoxels(upright).has('2,0,4'));
+});
+test('the Golden Gate follows its blueprint: span ratios, heights, continuous cables and every suspender survives packing',()=>{
+ for(const proportions of ['display','true'])for(const scale of [1,.7]){
+  const config={size:scale===1?'display':'compact',color:'red',water:'blue',landscape:true,proportions};
+  const r=m.goldenGateReport(config,scale);
+  assert.ok(Math.abs(r.mainToSuspended-4200/6450)<.03,`main/suspended ${r.mainToSuspended}`);
+  assert.ok(Math.abs(r.towerToDeckRatio-746/220)<(scale===1?.6:1),`tower/deck ${r.towerToDeckRatio}`);   // compact true scale rounds the deck to 4 plates
+  assert.equal(r.cableGaps,0);assert.ok(r.suspenders>=(scale===1?16:4),`suspenders ${r.suspenders}`);
+  assert.equal(r.verticalExaggeration,proportions==='true'?1:2);
+  const model=m.generateRecipe('bridge',scale===1?'large':'small',undefined,undefined,config),audit=m.auditModel(model.pieces);
+  assert.equal(audit.overlaps,0);
+  // packing keeps every cell of the blueprint, so no suspender or cable step is lost
+  assert.equal(model.pieces.reduce((n,p)=>n+p.w*p.h*p.d,0),m.goldenGate(config,scale).size);
+ }
 });

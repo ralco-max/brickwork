@@ -13,8 +13,12 @@ export class Sculpt{
  private s(v:number){return Math.round(v*this.scale);}
  put(x:number,y:number,z:number,c:ColorKey){if(x>=0&&y>=0&&z>=0&&y<240)this.voxels.set(key(x,y,z),c);}
  has(x:number,y:number,z:number){return this.voxels.has(key(x,y,z));}
+ // A feature thinner than one cell at the current scale still gets one cell, so cables,
+ // suspenders and windows never vanish when a model is scaled down.
+ private span(a:number,len:number){const lo=this.s(a);return [lo,Math.max(lo+1,this.s(a+len))] as const;}
  box(x:number,y:number,z:number,w:number,h:number,d:number,c:ColorKey){
-  for(let xx=this.s(x);xx<this.s(x+w);xx++)for(let yy=this.s(y);yy<this.s(y+h);yy++)for(let zz=this.s(z);zz<this.s(z+d);zz++)this.put(xx,yy,zz,c);
+  const [x0,x1]=this.span(x,w),[y0,y1]=this.span(y,h),[z0,z1]=this.span(z,d);
+  for(let xx=x0;xx<x1;xx++)for(let yy=y0;yy<y1;yy++)for(let zz=z0;zz<z1;zz++)this.put(xx,yy,zz,c);
  }
  erase(x:number,y:number,z:number,w:number,h:number,d:number){
   for(let xx=this.s(x);xx<this.s(x+w);xx++)for(let yy=this.s(y);yy<this.s(y+h);yy++)for(let zz=this.s(z);zz<this.s(z+d);zz++)this.voxels.delete(key(xx,yy,zz));
@@ -65,7 +69,8 @@ export class Sculpt{
   for(let xx=this.s(x0);xx<this.s(x1);xx++){
    const yy=Math.round(fn(xx/this.scale)*this.scale);
    const lo=prev===null?yy:Math.min(prev,yy),hi=prev===null?yy:Math.max(prev,yy);
-   for(let y=lo;y<=hi;y++)for(let k=0;k<Math.max(1,this.s(thickness));k++)for(let zz=this.s(z);zz<this.s(z+d);zz++)this.put(xx,y+k,zz,c);
+   const [z0,z1]=this.span(z,d);
+   for(let y=lo;y<=hi;y++)for(let k=0;k<Math.max(1,this.s(thickness));k++)for(let zz=z0;zz<z1;zz++)this.put(xx,y+k,zz,c);
    prev=yy;
   }
  }
@@ -73,59 +78,78 @@ export class Sculpt{
 
 const quadrants=(dark:ColorKey,light:ColorKey)=>(angle:number)=>Math.floor(angle*4)%2===0?dark:light;
 
-/** The Golden Gate Bridge: Art Deco towers, main cables with suspenders, the anchorages, Fort Point and the Marin headlands. */
+// ---------------------------------------------------------------------------
+// Golden Gate Bridge, from a measured blueprint.
+// Source: Golden Gate Bridge Highway & Transportation District design and
+// construction statistics. Main span 4,200 ft; each side span 1,125 ft; tower
+// height 746 ft above water; deck clearance 220 ft; roadway width 90 ft.
+// The suspended length (6,450 ft) is laid out as 80 studs, so one stud is
+// 80.6 ft. Horizontal ratios are fixed. Two things are chosen explicitly:
+//  - vertical exaggeration: "true" keeps 1:1 (towers 23 plates above water),
+//    "display" doubles heights so the towers read from across a room;
+//  - roadway width: the true width is 1.1 studs; "true" uses 2 studs, "display"
+//    uses 6 so the road can carry lanes and sidewalks.
+// ---------------------------------------------------------------------------
+export const GOLDEN_GATE_BLUEPRINT={suspendedStuds:80,mainSpan:52,sideSpan:14,approach:8,towerAboveWaterPlates:23.1,deckAboveWaterPlates:6.8,trueRoadwayStuds:1.1};
+export type GoldenGateLayout={scale:number;vertical:number;roadW:number;legD:number;deckH:number;length:number;width:number;anchor:[number,number];towers:[number,number];deckY:number;deckTop:number;towerTop:number;cableZ:[number,number];suspenderStep:number};
+export function goldenGateLayout(config:Config,scale:number):GoldenGateLayout{
+ const b=GOLDEN_GATE_BLUEPRINT,trueScale=config.proportions==="true",vertical=trueScale?1:2,roadW=trueScale?2:6,legD=2,deckH=trueScale?1:2;
+ const t1=b.approach+b.sideSpan,t2=t1+b.mainSpan,length=b.approach*2+b.suspendedStuds;
+ const deckY=2+Math.round(b.deckAboveWaterPlates*vertical),towerTop=2+Math.round(b.towerAboveWaterPlates*vertical);
+ return {scale,vertical,roadW,legD,deckH,length,width:roadW+2*legD+8,anchor:[3,length-3],towers:[t1,t2],deckY,deckTop:deckY+deckH,towerTop,cableZ:[4+legD,4+legD+roadW-1],suspenderStep:trueScale?3:2};
+}
+/** The Golden Gate Bridge: towers, deck, continuous cables and suspenders built symmetrically from the blueprint above, then the setting. */
 export function goldenGate(config:Config,scale:number):VoxelMap{
- const v=new Sculpt(scale),L=128,W=20,steel=config.color,water=config.water;
- const deckY=14,deckTop=16,deckZ=3,deckW=14,towerTop=84,towers=[30,98],mid=(towers[0]+towers[1])/2,half=(towers[1]-towers[0])/2,anchor=[11,117];
+ const v=new Sculpt(scale),lay=goldenGateLayout(config,scale),{roadW,legD,deckH,length:L,width:W,anchor,towers,deckY,deckTop,towerTop,cableZ,suspenderStep}=lay,steel=config.color,water=config.water;
+ const z0=4,deckZ=z0+legD,legZ=[z0,z0+legD+roadW];   // water margin, then leg, deck, leg
  v.box(0,0,0,L,2,W,water);
- if(config.landscape){
-  // Marin headlands to the north and the Presidio shoreline to the south.
-  v.box(0,2,0,10,3,W,"tan");v.box(0,5,0,8,3,W,"green");v.box(0,8,0,6,3,W,"green");v.box(0,11,3,4,2,W-6,"green");
-  v.box(118,2,0,10,3,W,"tan");v.box(120,5,0,8,3,W,"green");v.box(122,8,0,6,3,W,"green");v.box(124,11,3,4,2,W-6,"green");
-  // Fort Point sits beneath the south approach.
-  v.box(110,2,13,7,7,6,"brown");v.box(111,9,14,5,1,4,"gray");
-  // South tower fender ring at water level.
-  v.cyl(100,2,W/2,9,10.5,1,"gray");
- }
- // Anchorage blocks and approach viaduct piers.
- for(const x of [7,115]){v.box(x,2,2,6,12,W-4,"gray");v.box(x-1,10,1,8,4,W-2,"gray");}
- for(const x of [2,124])for(const z of [5,13])v.box(x,2,z,2,12,2,"gray");
- // Stiffening truss and roadway.
- v.box(13,deckY-3,deckZ,L-26,3,deckW,steel);
- v.box(0,deckY,deckZ,L,2,deckW,steel);
- v.box(0,deckTop,deckZ+1,L,1,deckW-2,"black");
- v.box(0,deckTop,deckZ,L,1,1,"gray");v.box(0,deckTop,deckZ+deckW-1,L,1,1,"gray");
- for(let x=2;x<L;x+=4)v.box(x,deckTop,deckZ+deckW/2-1,2,1,1,"yellow");
- for(let x=1;x<L;x+=4){v.box(x,deckTop+1,deckZ,1,2,1,steel);v.box(x,deckTop+1,deckZ+deckW-1,1,2,1,steel);}
- // Towers: stepped legs joined by portal struts, one below the deck and four above.
- const legZ=[1,16],legD=3;
+ // Deck: a slender slab the full length, road surface and sidewalks in display proportions.
+ v.box(0,deckY,deckZ,L,deckH,roadW,steel);
+ if(roadW>=6){v.box(0,deckTop,deckZ+1,L,1,roadW-2,"black");v.box(0,deckTop,deckZ,L,1,1,"gray");v.box(0,deckTop,deckZ+roadW-1,L,1,1,"gray");for(let x=2;x<L;x+=4)v.box(x,deckTop,deckZ+roadW/2-1,2,1,1,"yellow");}
+ // Anchorages and approach viaduct piers, mirrored at both ends.
+ for(const end of [0,1]){const x=end?L-7:3;v.box(x,2,z0,4,deckY-2,roadW+2*legD,"gray");for(let px=end?L-2:1;end?px>x+4:px<x-1;px+=end?-3:3)v.box(px,2,deckZ,1,deckY-2,roadW,"gray");}
+ // Towers: one construction, placed twice. Paired legs, a strut below the deck and four above at the real strut heights.
+ const above=towerTop-deckY,strutFractions=[.2,.42,.62,.82];
  for(const tx of towers){
   for(const z of legZ){
-   v.box(tx-3,2,z-1,6,deckY-2,legD+2,steel);
-   v.box(tx-2.5,deckY,z,5,22,legD,steel);
-   v.box(tx-2,36,z,4,24,legD,steel);
-   v.box(tx-1.5,60,z,3,towerTop-60,legD,steel);
-   v.box(tx-2,towerTop,z-.5,4,1,legD+1,steel);v.box(tx-1,towerTop+1,z,2,1,legD,steel);
+   v.box(tx-1.5,2,z,3,deckY-2,legD,steel);                      // wider footing to the deck
+   v.box(tx-1,deckY,z,2,towerTop-deckY,legD,steel);              // leg above the deck
+   v.box(tx-1,towerTop,z<deckZ?z:z-1,2,1,legD+1,steel);          // saddle reaching over the cable line
   }
-  for(const [y,h,w] of [[7,3,6],[26,4,5],[42,4,4],[58,4,4],[74,4,3]]){v.box(tx-w/2,y,legZ[0],w,h,legZ[1]+legD-legZ[0],steel);v.box(tx-w/2+1,y+1,legZ[0]+legD,w-2,1,legZ[1]-legZ[0]-legD,"black");}
+  v.box(tx-1.5,deckY-3,legZ[0],3,2,legZ[1]+legD-legZ[0],steel);   // strut just under the deck
+  for(const f of strutFractions){const y=deckY+Math.round(above*f),h=above>=16?2:1;v.box(tx-1,y,legZ[0],2,h,legZ[1]+legD-legZ[0],steel);if(h===2&&roadW>=6)v.box(tx-.5,y+.5,legZ[0]+legD,1,1,roadW,"black");}
  }
- // Main cables: parabolic between the towers, straight to the anchorages.
+ // Cables: one continuous path per side, over both saddles, dipping to the deck at mid-span.
+ const mid=(towers[0]+towers[1])/2,half=(towers[1]-towers[0])/2,sagBottom=deckTop+1;
  const cableY=(x:number)=>{
-  if(x<towers[0])return deckY+(towerTop-1-deckY)*(x-anchor[0])/(towers[0]-anchor[0]);
-  if(x>towers[1])return deckY+(towerTop-1-deckY)*(anchor[1]-x)/(anchor[1]-towers[1]);
-  return 19+(towerTop-1-19)*((x-mid)/half)**2;
+  if(x<=towers[0])return deckY+(towerTop-deckY)*Math.max(0,(x-anchor[0]))/(towers[0]-anchor[0]);
+  if(x>=towers[1])return deckY+(towerTop-deckY)*Math.max(0,(anchor[1]-x))/(anchor[1]-towers[1]);
+  return sagBottom+(towerTop-sagBottom)*((x-mid)/half)**2;
  };
- // Each cable is two studs wide; its inner stud sits over the sidewalk so the suspenders land on the deck.
- for(const [z,hang] of [[legZ[0]+1,deckZ],[legZ[1],deckZ+deckW-1]]){
-  v.curve(anchor[0],anchor[1]+1,z,2,cableY,steel);
-  // Suspenders hang every stud on the steep side spans and every other stud across the main span.
-  for(let x=anchor[0]+2;x<anchor[1];x+=x<towers[0]-3||x>towers[1]+2?1:2){
-   if(towers.some(t=>x>=t-3&&x<t+3))continue;
-   const top=Math.floor(cableY(x));
-   if(top>deckTop+1)v.box(x,deckTop+1,hang,1,top-deckTop-1,1,steel);
-  }
+ for(const z of cableZ){
+  v.curve(anchor[0],anchor[1]+1,z,1,cableY,steel);
+  // Suspenders: repeated verticals from the deck edge up to the cable, skipping the towers.
+  for(let x=anchor[0]+suspenderStep;x<anchor[1];x+=suspenderStep){if(towers.some(t=>Math.abs(x-t)<=1.5))continue;const top=Math.floor(cableY(x));if(top>deckTop+1)v.box(x,deckTop,z,1,top-deckTop,1,steel);}
+ }
+ // Setting, added last so the bridge reads on its own.
+ if(config.landscape){
+  for(const end of [0,1]){const x=end?L-6:0;v.box(x,2,0,6,2,W,"tan");v.box(end?L-4:0,4,0,4,2,W,"green");}
+  if(config.proportions!=="true")v.box(L-12,2,z0+legD+roadW+legD,4,4,3,"brown");   // Fort Point beneath the south approach
  }
  return v.voxels;
+}
+/** Side-elevation review: measures the finished voxels against the blueprint. */
+export function goldenGateReport(config:Config,scale:number){
+ const lay=goldenGateLayout(config,scale),voxels=goldenGate(config,scale),s=(n:number)=>Math.round(n*scale);
+ const has=(x:number,y:number,z:number)=>voxels.has(`${x},${y},${z}`);
+ const cableZ=lay.cableZ.map(s),xs=[s(lay.anchor[0]),s(lay.anchor[1])];
+ let gaps=0,suspenders=0;
+ // The cable is checked where it runs clear of the deck; near the anchorages it descends to deck level by design.
+ const approach=s(GOLDEN_GATE_BLUEPRINT.approach),clear=[approach+2,s(lay.length)-approach-2];
+ for(const z of cableZ){for(let x=clear[0];x<=clear[1];x++){let any=false;for(let y=s(lay.deckTop);y<240&&!any;y++)if(has(x,y,z))any=true;if(!any)gaps++;}
+  for(let x=xs[0];x<=xs[1];x++)if(has(x,s(lay.deckTop),z)&&has(x,s(lay.deckTop)+1,z)&&!has(x-1,s(lay.deckTop)+1,z)&&!has(x+1,s(lay.deckTop)+1,z))suspenders++;}
+ const towerSpacing=s(lay.towers[1])-s(lay.towers[0]),suspended=s(GOLDEN_GATE_BLUEPRINT.suspendedStuds);
+ return {towerSpacing,sideSpan:s(lay.towers[0])-approach,suspended,mainToSuspended:towerSpacing/suspended,towerTopAboveWater:s(lay.towerTop)-2,deckAboveWater:s(lay.deckY)-2,towerToDeckRatio:(s(lay.towerTop)-2)/Math.max(1,s(lay.deckY)-2),roadwayStuds:s(lay.roadW),trueRoadwayStuds:GOLDEN_GATE_BLUEPRINT.trueRoadwayStuds*scale,deckThicknessPlates:s(lay.deckH)||1,cableGaps:gaps,suspenders,verticalExaggeration:lay.vertical};
 }
 
 /** Neuschwanstein Castle on its rock: the Palas with its two great towers, the courtyard wings and the red-brick gatehouse. */
