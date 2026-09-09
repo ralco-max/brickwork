@@ -23,7 +23,7 @@ export function IdeaBar({onGenerate,onOpen,compact=false,inline=false}:{onGenera
  <p className="idea-help">Next: choose scale, detail and must-have features. Then watch your design take shape.</p></section>;
 }
 export default function CreateBuild({open,onOpenChange,onCreate,onGenerate}:{open:boolean;onOpenChange:(open:boolean)=>void;onCreate:(creation:Creation)=>void;onGenerate:(prompt:string,image?:string)=>void}){
- const [tab,setTab]=useState("describe"),[detail,setDetail]=useState<Detail>("medium"),[color,setColor]=useState<ColorKey>("white"),[file,setFile]=useState<File|null>(null),[resolution,setResolution]=useState("24"),[axis,setAxis]=useState<"y"|"z">("y"),[busy,setBusy]=useState(false),[progress,setProgress]=useState(0),[error,setError]=useState("");
+ const [tab,setTab]=useState("describe"),[detail,setDetail]=useState<Detail>("large"),[color,setColor]=useState<ColorKey>("white"),[file,setFile]=useState<File|null>(null),[resolution,setResolution]=useState("24"),[axis,setAxis]=useState<"y"|"z">("y"),[busy,setBusy]=useState(false),[progress,setProgress]=useState(0),[error,setError]=useState("");
  useEffect(()=>{if(open){setTab("describe");setError("");setFile(null);}},[open]);
  const accept=tab==="image"?"image/png,image/jpeg,image/webp":tab==="mesh"?".stl,.obj":".json";
  function changeTab(t:string){setTab(t);setFile(null);setError("");setResolution(t==="image"?"48":"24");}

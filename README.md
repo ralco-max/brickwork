@@ -43,7 +43,7 @@ Add vertical supports tags every column it adds; Remove added supports strips ex
 
 ## Assembly and instructions
 
-The assembly is an intro that plays inside the interactive 3D view whenever a design opens in the studio, and again from Replay assembly; the viewer can orbit and zoom throughout, and Skip jumps to the finished model. The landing film also allows orbiting, and its slow camera sweep stops as soon as the viewer takes the camera. The download control in the view controls records the replay to a video. The live creation stage replays its brick arrivals. There is no separate film dialog or playback mode.
+The assembly is an intro that plays inside the interactive 3D view whenever a design opens in the studio. The Play button in the view controls plays it, pauses it mid-way, resumes, and replays once it has finished; the viewer can orbit and zoom throughout. The landing film also allows orbiting, and its slow camera sweep stops as soon as the viewer takes the camera. The download control in the view controls records the replay to a video. The live creation stage replays its brick arrivals. There is no separate film dialog or playback mode.
 
 Explode spreads the bricks out from the model's midpoint, widening the footprint, lifting layers far apart and drifting higher layers diagonally to the right; the camera reframes to the exploded extents.
 
@@ -61,7 +61,7 @@ Desk allows up to 200 pieces within 32 × 24 studs by 64 plates, Shelf up to 600
 
 ## Landmark presets
 
-The four quick picks on the landing are real landmarks sculpted in `lib/landmarks.ts` at true-ish proportions: the Golden Gate Bridge (stepped Art Deco towers with portal struts, parabolic main cables with suspenders, anchorages, the stiffening truss, Fort Point and the headlands), Neuschwanstein Castle (the Palas with its north and south towers, courtyard wings, stair tower and the red-brick gatehouse on its rock), the Cape Hatteras Lighthouse (brick base, the black-and-white spiral daymark, gallery, lantern room and keepers' quarters) and the Saturn V (all three stages with roll patterns, the Apollo spacecraft and escape tower, on the mobile launcher beside the umbilical tower). The bridge keeps the studio's size, color, bay and shoreline controls. Small, medium and large sizes scale every landmark; the Saturn V caps its scale so the large size stays under the 240-layer ceiling.
+The four quick picks on the landing are real landmarks sculpted in `lib/landmarks.ts` at true-ish proportions: the Golden Gate Bridge (stepped Art Deco towers with portal struts, parabolic main cables with suspenders, anchorages, the stiffening truss, Fort Point and the headlands), Neuschwanstein Castle (the Palas with its north and south towers, courtyard wings, stair tower and the red-brick gatehouse on its rock), the Cape Hatteras Lighthouse (brick base, the black-and-white spiral daymark, gallery, lantern room and keepers' quarters) and the Saturn V (all three stages with roll patterns, the Apollo spacecraft and escape tower, on the mobile launcher beside the umbilical tower). The bridge keeps the studio's size, color, bay and shoreline controls. Small, medium and large sizes scale every landmark, and large is the default in the studio; the Saturn V caps its scale so the large size stays under the 240-layer ceiling.
 
 ## Brick packing and cleanup
 
