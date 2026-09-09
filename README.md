@@ -47,7 +47,7 @@ The assembly is an intro that plays inside the interactive 3D view whenever a de
 
 Explode moves every brick straight away from the model's centre in all three directions, in proportion to its distance from it, up to 2.6 times the model's size, lifted so the lowest bricks stay above the floor; the camera reframes to the exploded extents.
 
-The landing shows the completed model and breathes it on a ten-second loop: three seconds assembled, two seconds exploding outward from the centre to about 1.7 times its size, three seconds held apart, two seconds closing back together. Bricks never fly off or vanish. Inline pause and expand controls remain available. It advances only while visible and pauses behind dialogs. Reduced-motion preference shows the finished model unless the viewer explicitly resumes. Playback offers replay, pause, seek and 0.5×/1×/2× speed and does not need AI.
+The landing plays the same intro as the studio: the bricks fly in and assemble over 18 seconds, then the finished model stays in place for orbiting. The control beside the title pauses and resumes the intro and, once it has landed, plays it again. Inline pause and expand controls remain available. It advances only while visible and pauses behind dialogs. Reduced-motion preference shows the finished model unless the viewer explicitly resumes. Playback offers replay, pause, seek and 0.5×/1×/2× speed and does not need AI.
 
 The landing, live creation and expanded film use a white stage with soft contact shadows and dark controls. Exported video uses the same white background and readable dark captions.
 
@@ -135,7 +135,7 @@ The landing and working studio are now separate in-page surfaces, sharing the sa
 
 Initial setup is a compact sheet with the idea, scale and a reachable sticky build action. Detail level, required features, dimensions and style remain under optional disclosures. The text-only onboarding side panel and repeated progress headings have been removed. Connecting a key during setup can start the build in the same action; that exact in-memory key is forwarded to generation and review. No key is stored or added to project files.
 
-The landing clock opens at the finished design and cycles the explode-and-close loop. Sample changes fade between models, and rapid choices cancel superseded transitions. Camera view changes ease over 520 ms and yield to pointer input. Each mounted viewport retains one WebGL renderer across incoming geometry snapshots, disposing obsolete scene geometry, materials and shadows while preserving the existing arrival ledger and camera. Renderer cleanup happens on unmount. Reduced-motion preferences skip transitions and keep the finished model visible.
+The landing clock runs the intro once and holds. Sample changes fade between models, and rapid choices cancel superseded transitions. Camera view changes ease over 520 ms and yield to pointer input. Each mounted viewport retains one WebGL renderer across incoming geometry snapshots, disposing obsolete scene geometry, materials and shadows while preserving the existing arrival ledger and camera. Renderer cleanup happens on unmount. Reduced-motion preferences skip transitions and keep the finished model visible.
 
 Animation, stream and recovery checks pass with authored geometry and mocked responses. Production bundling is the validation gate; browser/device visual QA and live account generation have not been performed.
 

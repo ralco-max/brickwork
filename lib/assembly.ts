@@ -5,16 +5,16 @@ export type AssemblyPose={x:number;y:number;z:number;rx:number;ry:number;rz:numb
 const clamp=(v:number)=>Math.max(0,Math.min(1,v));
 const hash=(n:number)=>{const v=Math.sin(n*127.1+311.7)*43758.5453;return v-Math.floor(v);};
 // Only the visible canvas advances this clock. Backgrounding a phone or opening
-// a dialog must not skip the film on return. The landing keeps the model
-// assembled and breathes it: hold, explode outward, hold expanded, close back up.
-export const LANDING_LOOP=10,LANDING_EXPLODE_PEAK=.45;
-const smooth=(u:number)=>u*u*(3-2*u);
+// a dialog must not skip the intro on return. The landing plays the same intro
+// as the studio: the bricks fly in over 18 seconds, then the finished model
+// stays put until Play runs it again.
+export const LANDING_INTRO=18;
 export class LandingAssemblyClock{
  paused=false;reduced=false;private elapsed=0;private last:number|null=null;
  reset(){this.elapsed=0;this.last=null;}
  resume(){this.last=null;}
- tick(now:number){const delta=this.last===null?0:Math.max(0,Math.min(.08,(now-this.last)/1000));this.last=now;if(!this.paused&&!this.reduced)this.elapsed=(this.elapsed+delta)%LANDING_LOOP;return 1;}
- get explode(){if(this.reduced)return 0;const e=this.elapsed;if(e<3)return 0;if(e<5)return smooth((e-3)/2)*LANDING_EXPLODE_PEAK;if(e<8)return LANDING_EXPLODE_PEAK;return (1-smooth((e-8)/2))*LANDING_EXPLODE_PEAK;}
+ tick(now:number){const delta=this.last===null?0:Math.max(0,Math.min(.08,(now-this.last)/1000));this.last=now;if(!this.paused&&!this.reduced)this.elapsed=Math.min(LANDING_INTRO,this.elapsed+delta);return this.reduced?1:Math.min(1,this.elapsed/LANDING_INTRO);}
+ get done(){return this.reduced||this.elapsed>=LANDING_INTRO;}
  get opacity(){return 1;}
 }
 export function assemblyTracks(pieces:Piece[],length:number,width:number,height:number){

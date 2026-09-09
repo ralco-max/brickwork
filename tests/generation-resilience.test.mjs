@@ -50,9 +50,9 @@ test('review route streams its real result and the parser accepts final frames w
  assert.match(response.headers.get('content-type'),/text\/event-stream/);assert.deepEqual((await collect(response.body)).filter(e=>e.type!=='budget'),[{type:'complete',review}]);assert.deepEqual(await collect(new Response(': keepalive\r\n\r\ndata: {"type":"complete"}').body),[{type:'complete'}]);
 });
 
-test('landing keeps the design assembled and breathes it: hold, explode, hold, close, looping without a blank reset',()=>{
+test('landing plays the studio intro: bricks fly in over 18 seconds, then the model stays until replayed',()=>{
  const c=new LandingAssemblyClock();let now=0;const advance=until=>{let value;for(;now<until;){now+=20;value=c.tick(now);}return value;};
- assert.equal(c.paused,false);assert.equal(c.tick(0),1);assert.equal(advance(2500),1);assert.equal(c.explode,0);
- advance(4000);assert.ok(Math.abs(c.explode-.225)<.01);advance(6500);assert.ok(Math.abs(c.explode-.45)<.001);advance(9000);assert.ok(Math.abs(c.explode-.225)<.01);advance(10100);assert.ok(c.explode<.01);assert.equal(advance(12000),1);assert.equal(c.opacity,1);
- c.paused=true;const stopped=c.explode;c.tick(now+999999);assert.equal(c.explode,stopped);c.paused=false;c.resume();c.tick(now+1000000);assert.equal(c.explode,stopped);c.reduced=true;assert.equal(c.tick(now+1000020),1);assert.equal(c.explode,0);c.reduced=false;c.reset();assert.equal(c.tick(now+1000040),1);assert.equal(c.explode,0);
+ assert.equal(c.paused,false);assert.equal(c.tick(0),0);assert.ok(Math.abs(advance(9000)-.5)<.01);assert.equal(c.done,false);assert.equal(advance(18100),1);assert.equal(c.done,true);assert.equal(advance(30000),1);assert.equal(c.opacity,1);
+ c.reset();assert.equal(c.tick(now+20),0);assert.equal(c.done,false);
+ c.paused=true;const stopped=c.tick(now+40);assert.equal(c.tick(now+999999),stopped);c.paused=false;c.resume();assert.equal(c.tick(now+1000000),stopped);c.reduced=true;assert.equal(c.tick(now+1000020),1);assert.equal(c.done,true);
 });
