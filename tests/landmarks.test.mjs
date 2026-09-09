@@ -52,3 +52,13 @@ test('smooth finish turns fully exposed plates into tiles and leaves covered pla
  assert.equal(left.part,'87079');assert.equal(right.part,'3020');assert.equal(stud.part,'3070b');
  assert.ok(smooth.filter(p=>p.y<2).every(p=>!m.isTile(p.part)));
 });
+test('a cylinder can lie on its side, giving a round wheel cross-section along x',()=>{
+ const one={count:1,offset:{x:0,y:0,z:0}},zero={x:0,y:0,z:0};
+ const scene={name:'wheel',description:'',dimensions:{x:8,y:20,z:8},shapes:[{id:'w',component:'Wheel',label:'wheel',kind:'cylinder',operation:'add',axis:'x',color:'black',position:{x:0,y:0,z:0},size:{x:4,y:20,z:8},end:zero,radius:1,repeat:one}]};
+ const v=m.sceneVoxels(scene);
+ assert.ok(v.has('0,10,4'));assert.ok(v.has('3,10,4'));assert.ok(!v.has('4,10,4'));   // full length along x, nothing beyond it
+ assert.ok(!v.has('0,0,0'));assert.ok(!v.has('0,19,7'));                                 // corners of the y-z box are outside the circle
+ assert.ok(v.has('0,0,4')&&v.has('0,19,4')&&v.has('0,10,0')&&v.has('0,10,7'));           // the rim touches all four sides
+ const slice=x=>[...v.keys()].filter(k=>k.startsWith(x+',')).length;assert.equal(slice(0),slice(3));
+ const upright={...scene,shapes:[{...scene.shapes[0],axis:'y'}]};assert.ok(m.sceneVoxels(upright).has('0,0,0')===false&&m.sceneVoxels(upright).has('2,0,4'));
+});

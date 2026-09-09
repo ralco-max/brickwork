@@ -15,7 +15,7 @@ A generation request has a 240-second server timeout and 32,000 output-token cei
 
 ## More detail and scoped revisions
 
-The scene format supports boxes, ellipsoids, vertical cylinders/cones and capsule beams with ordered addition/subtraction. Each new shape has a stable ID and named component. A repeat operation adds up to 32 instances at positive offsets, for features such as windows, scales, railings and masonry.
+The scene format supports boxes, ellipsoids, cylinders and cones along any axis (upright, left-to-right for wheels and logs, or front-to-back) and capsule beams with ordered addition/subtraction. Each new shape has a stable ID and named component. A repeat operation adds up to 32 instances at positive offsets, for features such as windows, scales, railings and masonry.
 
 Bounds: 240 definitions, 1,400 expanded instances, 80 × 160 × 80 cells, four million bounding-box evaluations, 200,000 occupied cells and 16,000 packed parts. X/Z are 8 mm studs and Y is 3.2 mm plate layers. Detailed prompts request 70–130 purposeful definitions; Signature requests 130–210 and reserves capacity for repair. These are design instructions, not guarantees of output quality.
 

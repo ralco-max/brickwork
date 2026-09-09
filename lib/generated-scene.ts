@@ -11,7 +11,7 @@ const vector=z.object({x:z.number().finite().min(0).max(80),y:z.number().finite(
 const repeatSchema=z.object({count:z.number().int().min(1).max(32),offset:vector}).strict();
 export const shapeSchema=z.object({
  id:z.string().min(1).max(80).optional(),component:z.string().min(1).max(80).optional(),repeat:repeatSchema.optional(),
- label:z.string().min(1).max(80),kind:z.enum(["box","ellipsoid","cylinder","cone","beam"]),operation:z.enum(["add","subtract"]),
+ label:z.string().min(1).max(80),kind:z.enum(["box","ellipsoid","cylinder","cone","beam"]),operation:z.enum(["add","subtract"]),axis:z.enum(["x","y","z"]).optional(),
  color:z.enum(colors),position:vector,size:vector,end:vector,radius:z.number().finite().min(.5).max(12),
 }).strict();
 export const sceneSchema=z.object({
@@ -27,7 +27,7 @@ const shortText={type:"string",minLength:1,maxLength:80};
 const dimensionJSON={type:"object",properties:{x:{type:"integer",minimum:8,maximum:80},y:{type:"integer",minimum:8,maximum:160},z:{type:"integer",minimum:8,maximum:80}},required:["x","y","z"],additionalProperties:false};
 export const sceneJSONSchema={type:"object",properties:{
  name:shortText,description:{type:"string",maxLength:500},dimensions:dimensionJSON,
- shapes:{type:"array",minItems:1,maxItems:240,items:{type:"object",properties:{id:shortText,component:shortText,label:shortText,kind:{type:"string",enum:["box","ellipsoid","cylinder","cone","beam"]},operation:{type:"string",enum:["add","subtract"]},color:{type:"string",enum:colors},position:vecJSON,size:vecJSON,end:vecJSON,radius:{type:"number",minimum:.5,maximum:12},repeat:{type:"object",properties:{count:{type:"integer",minimum:1,maximum:32},offset:vecJSON},required:["count","offset"],additionalProperties:false}},required:["id","component","label","kind","operation","color","position","size","end","radius","repeat"],additionalProperties:false}},
+ shapes:{type:"array",minItems:1,maxItems:240,items:{type:"object",properties:{id:shortText,component:shortText,label:shortText,kind:{type:"string",enum:["box","ellipsoid","cylinder","cone","beam"]},operation:{type:"string",enum:["add","subtract"]},axis:{type:"string",enum:["x","y","z"]},color:{type:"string",enum:colors},position:vecJSON,size:vecJSON,end:vecJSON,radius:{type:"number",minimum:.5,maximum:12},repeat:{type:"object",properties:{count:{type:"integer",minimum:1,maximum:32},offset:vecJSON},required:["count","offset"],additionalProperties:false}},required:["id","component","label","kind","operation","axis","color","position","size","end","radius","repeat"],additionalProperties:false}},
 },required:["name","description","dimensions","shapes"],additionalProperties:false};
 
 function bounds(s:Shape,d:GeneratedScene["dimensions"]){
@@ -54,7 +54,8 @@ export function sceneVoxels(raw:unknown):VoxelMap{
    const nx=(x+.5-s.position.x)/s.size.x,ny=(y+.5-s.position.y)/s.size.y,nz=(z+.5-s.position.z)/s.size.z;
    let inside=nx>=0&&nx<1&&ny>=0&&ny<1&&nz>=0&&nz<1;
    if(s.kind==="ellipsoid")inside=(2*nx-1)**2+(2*ny-1)**2+(2*nz-1)**2<=1;
-   if(s.kind==="cylinder"||s.kind==="cone"){const r=s.kind==="cone"?1-ny:1;inside=inside&&(2*nx-1)**2+(2*nz-1)**2<=r*r;}
+   // A cylinder or cone runs along its axis: y stands upright, x lies left to right (wheels, logs), z lies front to back.
+   if(s.kind==="cylinder"||s.kind==="cone"){const axis=s.axis||"y",[a,b,t]=axis==="y"?[nx,nz,ny]:axis==="x"?[ny,nz,nx]:[nx,ny,nz];const r=s.kind==="cone"?1-t:1;inside=inside&&(2*a-1)**2+(2*b-1)**2<=r*r;}
    if(s.kind==="beam"){
     const dx=s.end.x-s.position.x,dy=(s.end.y-s.position.y)*.4,dz=s.end.z-s.position.z;
     const px=x+.5-s.position.x,py=(y+.5-s.position.y)*.4,pz=z+.5-s.position.z;
