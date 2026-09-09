@@ -390,3 +390,6 @@ h1,.landing-film-caption h1,.project-heading h1,[data-slot=dialog-title]{text-wr
 
 /* Preset cards lead with the design's colour, not a running number. */
 .starter-swatch{display:flex;align-items:center;justify-content:center;width:22px;height:22px;border-radius:7px;margin-bottom:12px;color:var(--ink-3);border:1px solid #0000000f}
+/* Phone header stays one row; the studio button on the landing is a real button. */
+@media(max-width:760px){.topbar{flex-wrap:nowrap;gap:8px}.brand{font-size:20px;min-width:0}.brand-sub{display:none}.brand-wordmark small{display:none}.header-actions{flex-shrink:0}.header-actions>.button{padding:0 12px}.header-actions>.button.primary{font-size:13px}}
+@media(max-width:800px){.designs-first .open-design{background:var(--surface-2);border-color:var(--line)}}
