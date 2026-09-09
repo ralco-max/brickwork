@@ -43,7 +43,7 @@ Add vertical supports tags every column it adds; Remove added supports strips ex
 
 ## Assembly and instructions
 
-The assembly is an intro that plays inside the interactive 3D view whenever a design opens in the studio. The Play button in the view controls plays it, pauses it mid-way, resumes, and replays once it has finished; the viewer can orbit and zoom throughout. The landing film also allows orbiting, and its slow camera sweep stops as soon as the viewer takes the camera. The download control in the view controls records the replay to a video. The live creation stage replays its brick arrivals. There is no separate film dialog or playback mode.
+The assembly is an intro that plays inside the interactive 3D view whenever a design opens in the studio, with a Skip control in its pill. A design already seen assembling in this session plays at double speed on every return. The Play button in the view controls plays it, pauses it mid-way, resumes, and replays once it has finished; the viewer can orbit and zoom throughout. The landing film also allows orbiting, and its slow camera sweep stops as soon as the viewer takes the camera. The download control in the view controls records the replay to a video. The live creation stage replays its brick arrivals. There is no separate film dialog or playback mode.
 
 Explode moves every brick straight away from the model's centre in all three directions, in proportion to its distance from it, up to 2.6 times the model's size, lifted so the lowest bricks stay above the floor; the camera reframes to the exploded extents.
 

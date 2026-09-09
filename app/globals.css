@@ -354,3 +354,6 @@ body {margin:0;background:var(--background);color:var(--foreground);font-family:
 /* Landing: the film and the title both open the studio. */
 .landing-film-canvas.is-clickable{cursor:pointer}.landing-film-canvas.is-clickable canvas{cursor:grab}.landing-film-canvas.is-clickable canvas:active{cursor:grabbing}
 .landing-title-link{all:unset;cursor:pointer;color:inherit;font:inherit;border-radius:6px}.landing-title-link:hover{text-decoration:underline;text-decoration-thickness:2px;text-underline-offset:4px}.landing-title-link:focus-visible{outline:2px solid var(--primary);outline-offset:3px}
+
+/* Skip control in the intro pill */
+.assembly-inline-topline{pointer-events:none}.assembly-inline-topline .intro-skip{pointer-events:auto;font:inherit;font-size:12px;font-weight:600;letter-spacing:.06em;padding:6px 14px;border:1px solid var(--line);border-radius:20px;background:var(--surface);color:var(--ink);cursor:pointer}.assembly-inline-topline .intro-skip:hover{border-color:var(--line-strong)}
