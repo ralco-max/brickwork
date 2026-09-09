@@ -17,7 +17,7 @@ test('floating pieces and assemblies never pass the support gate, independent of
 test('vertical repair can anchor a floating model to the floor and reports remaining groups',()=>{const r=supportLoosePieces([piece(0,12,0,{id:0})]);assert.ok(r.added>0);assert.equal(auditModel(r.pieces).ungrounded.length,0);});
 test('repeated details preserve colors and validate every repeated extent',()=>{assert.equal(expandShapes(scene.shapes).length,7);const v=sceneVoxels(scene);for(let i=0;i<5;i++)assert.equal(v.get(`${5+i*3},8,8`),'yellow');assert.throws(()=>validateScene({...scene,shapes:[shape('windows',20,0,0,4,3,2,{repeat:{count:3,offset:{x:3,y:0,z:0}}})]}),/outside/);});
 test('paint, add, erase, then AI refinement preserve exact manual overrides and project round trip',()=>{
- const b=defaultBrief('A detailed brick facade');let model={...compileScene(scene),generation:scene,design:{brief:b,manual:emptyManual(),locked:['base'],revisions:[{request:'Add windows',summary:'Five windows',at:'2026-09-08T00:00:00.000Z'}]}};
+ const b={...defaultBrief('A detailed brick facade'),finish:'studded'};let model={...compileScene(scene),generation:scene,design:{brief:b,manual:emptyManual(),locked:['base'],revisions:[{request:'Add windows',summary:'Five windows',at:'2026-09-08T00:00:00.000Z'}]}};
  const target=model.pieces.find(p=>p.y>2);model=editModel(model,model.pieces.map(p=>p.id===target.id?{...p,color:'blue'}:p));
  model=editModel(model,addPiece(model.pieces,'3022','green',0,2,0));
  const erase=model.pieces.find(p=>p.x>10&&p.y>10);assert.ok(erase);model=editModel(model,model.pieces.filter(p=>p.id!==erase.id));

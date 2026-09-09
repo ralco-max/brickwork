@@ -42,3 +42,13 @@ test('tidyVoxels removes slivers and floating clusters but keeps columns and emb
  const removed=m.tidyVoxels(voxels);
  assert.equal(removed,3);assert.ok(voxels.has('3,8,1'));assert.equal(voxels.get('2,3,3'),'navy');assert.ok(!voxels.has('6,3,1'));assert.ok(!voxels.has('9,9,9'));
 });
+test('smooth finish turns fully exposed plates into tiles and leaves covered plates and the base alone',()=>{
+ const voxels=new Map();for(let x=0;x<8;x++)for(let z=0;z<4;z++)for(let y=0;y<2;y++)voxels.set(`${x},${y},${z}`,'gray');
+ for(let x=0;x<8;x++)for(let z=0;z<2;z++)voxels.set(`${x},2,${z}`,x<4?'red':'tan');   // a red and a tan 2x4 plate on the base
+ voxels.set('4,3,0','blue');                                                // one blue stud covers a cell of the second plate
+ const pieces=m.packVoxels(voxels),smooth=m.smoothTops(pieces);
+ assert.equal(smooth.length,pieces.length);
+ const left=smooth.find(p=>p.y===2&&p.x===0),right=smooth.find(p=>p.y===2&&p.x===4),stud=smooth.find(p=>p.y===3);
+ assert.equal(left.part,'87079');assert.equal(right.part,'3020');assert.equal(stud.part,'3070b');
+ assert.ok(smooth.filter(p=>p.y<2).every(p=>!m.isTile(p.part)));
+});

@@ -1,4 +1,5 @@
 import type {Piece} from "./bridge";
+import {isTile as tilePart} from "./bridge";
 
 // A first-order clutch simulation. Weight flows down through stud contacts;
 // pieces with nothing grounded beneath them hang from the studs above; a
@@ -11,7 +12,7 @@ const G=9.81,STUD_M=.008;
 export type ClutchJoint={piece:number;holder:number;kind:"hanging"|"cantilever";studs:number;demand:number;capacity:number;ratio:number};
 export type ClutchReport={ratios:Map<number,number>;joints:ClutchJoint[];overloaded:number[];tight:number[];floating:number[];maxRatio:number;grams:number};
 const key=(x:number,y:number,z:number)=>`${x},${y},${z}`;
-const isTile=(p:Piece)=>p.part.startsWith("306");
+const isTile=(p:Piece)=>tilePart(p.part);
 
 export function simulateClutch(pieces:Piece[]):ClutchReport{
  const n=pieces.length,cells=new Map<string,number>();

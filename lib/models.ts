@@ -1,7 +1,7 @@
 import type {GeneratedScene} from "./generated-scene";
 import {readProjectMetadata} from "./design-project";
 import type {DesignContext,ShoppingState} from "./design-project";
-import {COLORS,PARTS,STAGES,auditModel} from "./bridge";
+import {COLORS,PARTS,STAGES,auditModel,isTile} from "./bridge";
 import type {ColorKey,Piece,InventoryRow,PartId,Config} from "./bridge";
 import {goldenGate,neuschwanstein,capeHatteras,saturnV} from "./landmarks";
 
@@ -139,7 +139,7 @@ export function addPiece(pieces:Piece[],part:PartId,color:ColorKey,x:number,y:nu
  if(![x,y,z].every(Number.isInteger)||Math.min(x,y,z)<0||x+p.w>192||z+p.d>192||y+p.h>240)throw Error("Place bricks within 192 × 192 studs and 240 plate layers.");
  if(pieces.length>=16000)throw Error("This design has reached the 16,000 piece limit.");
  if(pieces.some(other=>intersects(p,other)))throw Error("That space is occupied. Choose another stud or height.");
- if(pieces.some(other=>other.part.startsWith("306")&&other.y+other.h===y&&x<other.x+other.w&&x+p.w>other.x&&z<other.z+other.d&&z+p.d>other.z))throw Error("This surface is a smooth tile. Replace it with a studded plate before building on it.");
+ if(pieces.some(other=>isTile(other.part)&&other.y+other.h===y&&x<other.x+other.w&&x+p.w>other.x&&z<other.z+other.d&&z+p.d>other.z))throw Error("This surface is a smooth tile. Replace it with a studded plate before building on it.");
  return [...pieces,p];
 }
 export function validateProject(raw:unknown):BuildModel{
@@ -160,7 +160,7 @@ export function supportLoosePieces(input:Piece[]):{pieces:Piece[];added:number}{
    outer:for(let x=p.x;x<p.x+p.w;x++)for(let z=p.z;z<p.z+p.d;z++){
     if(occupied.has(voxelKey(x,p.y-1,z)))continue;let y=p.y-1;
     while(y>=0&&!occupied.has(voxelKey(x,y,z)))y--;
-    if(y>=0&&occupied.get(voxelKey(x,y,z))!.part.startsWith("306"))continue;
+    if(y>=0&&isTile(occupied.get(voxelKey(x,y,z))!.part))continue;
     y++;while(y<p.y){if(pieces.length>=16000)return {pieces,added};const part:PartId=p.y-y>=3?"3005":"3024",s=PARTS[part];pieces.push({id:pieces.length,part,color:"gray",x,y,z,w:1,d:1,h:s.h,rotated:false,stage:0,support:true});y+=s.h;added++;}changed=true;break outer;
    }
    if(changed)break;
@@ -176,4 +176,13 @@ export function removeSupports(model:BuildModel):{model:BuildModel;removed:numbe
  if(!removed)return {model,removed:0};
  const design=model.design?{...model.design,manual:{...model.design.manual,bricks:model.design.manual.bricks.filter(p=>!p.support)}}:undefined;
  return {model:finishModel(kept,{...model,design}),removed};
+}
+
+// Master builders hide studs on finished surfaces. Any plate whose top is fully
+// exposed (nothing rests on it, and it is above the base) becomes the tile of
+// the same size, so large flat areas read as smooth instead of stud-heavy.
+const PLATE_TO_TILE:Partial<Record<PartId,PartId>>={"3024":"3070b","3023":"3069b","3022":"3068b","3710":"2431","3666":"6636","3460":"4162","3020":"87079"};
+export function smoothTops(pieces:Piece[]):Piece[]{
+ const occupied=new Set<string>();for(const p of pieces)for(let x=p.x;x<p.x+p.w;x++)for(let y=p.y;y<p.y+p.h;y++)for(let z=p.z;z<p.z+p.d;z++)occupied.add(voxelKey(x,y,z));
+ return pieces.map(p=>{const tile=PLATE_TO_TILE[p.part];if(!tile||p.h!==1||p.y<2||p.support)return p;for(let x=p.x;x<p.x+p.w;x++)for(let z=p.z;z<p.z+p.d;z++)if(occupied.has(voxelKey(x,p.y+1,z)))return p;return {...p,part:tile};});
 }

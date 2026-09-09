@@ -3,7 +3,7 @@ import {useEffect,useRef,useState} from "react";
 import * as THREE from "three";
 import {OrbitControls} from "three/addons/controls/OrbitControls.js";
 import {RoundedBoxGeometry} from "three/addons/geometries/RoundedBoxGeometry.js";
-import {COLORS,Piece} from "@/lib/bridge";
+import {COLORS,Piece,isTile} from "@/lib/bridge";
 import {reconcileArrivals,arrivalPose,brickIdentity} from "@/lib/live-arrivals";
 import type {Arrival} from "@/lib/live-arrivals";
 import {assemblyPose,assemblyTracks} from "@/lib/assembly";
@@ -45,7 +45,7 @@ export default function Viewport(props:Props){
   for(const list of groups.values()){
    const p=list[0],material=new THREE.MeshStandardMaterial({color:0xffffff,roughness:.3,metalness:0});
    const body=new THREE.InstancedMesh(new RoundedBoxGeometry(p.w-.035,p.h*.4-.018,p.d-.035,2,.032),material,list.length);body.castShadow=true;body.receiveShadow=true;body.userData.pieces=list;meshes.push(body);scene.add(body);
-   let studs:THREE.InstancedMesh|null=null;if(!p.part.startsWith("306")){studs=new THREE.InstancedMesh(new THREE.CylinderGeometry(.30,.30,.18,12),material,list.length*p.w*p.d);studs.castShadow=true;studs.receiveShadow=true;scene.add(studs);}
+   let studs:THREE.InstancedMesh|null=null;if(!isTile(p.part)){studs=new THREE.InstancedMesh(new THREE.CylinderGeometry(.30,.30,.18,12),material,list.length*p.w*p.d);studs.castShadow=true;studs.receiveShadow=true;scene.add(studs);}
    if(presentation){body.frustumCulled=false;body.instanceMatrix.setUsage(THREE.DynamicDrawUsage);if(studs){studs.frustumCulled=false;studs.instanceMatrix.setUsage(THREE.DynamicDrawUsage);}}
    batches.push({body,studs,pieces:list});
   }

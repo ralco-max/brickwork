@@ -1,6 +1,6 @@
 import {z} from "zod";
 import {COLORS} from "./bridge";
-import {finishModel,packVoxels,voxelKey} from "./models";
+import {finishModel,packVoxels,voxelKey,smoothTops} from "./models";
 import type {ColorKey} from "./bridge";
 import type {VoxelMap} from "./models";
 import {applyManual} from "./design-project";
@@ -92,7 +92,7 @@ export function tidyVoxels(voxels:VoxelMap){
  }
  return removed;
 }
-export function compileScene(raw:unknown,options:{manual?:ManualEdits;hollow?:boolean}={}){
+export function compileScene(raw:unknown,options:{manual?:ManualEdits;hollow?:boolean;smooth?:boolean}={}){
  const scene=validateScene(raw),voxels=sceneVoxels(scene);
  if(options.hollow){
   // Keep the exterior, two-cell walls, horizontal diaphragms and vertical ribs.
@@ -102,7 +102,7 @@ export function compileScene(raw:unknown,options:{manual?:ManualEdits;hollow?:bo
  }
  if(options.manual)applyManual(voxels,options.manual);
  tidyVoxels(voxels);
- const pieces=[...packVoxels(voxels),...(options.manual?.bricks||[])];if(!pieces.length)throw Error("The generated draft is empty. Try again.");if(pieces.length>16000)throw Error("The design exceeds the 16,000 piece limit.");
+ const packed=[...packVoxels(voxels),...(options.manual?.bricks||[])],pieces=options.smooth?smoothTops(packed):packed;if(!pieces.length)throw Error("The generated draft is empty. Try again.");if(pieces.length>16000)throw Error("The design exceeds the 16,000 piece limit.");
  return finishModel(pieces,{name:scene.name,description:scene.description,source:"custom"});
 }
 

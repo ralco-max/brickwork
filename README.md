@@ -61,7 +61,9 @@ Light, dark and follow-the-device themes are available from the toggle in the he
 
 ## Builder craft
 
-The design instructions carry guidance from experienced brick sculptors: silhouette first, proportion over fuss, color blocking that describes form, purposeful texture, overlapped courses and tied corners, returns for overhangs, finished bases and deliberate negative space. The visual reviewer judges with the same eye and asks for specific, buildable improvements.
+The design instructions carry guidance from experienced brick sculptors: brick math (2 studs of width equal 5 plates of height), footprint first then masses then texture, silhouette and proportion over fuss, an analogous palette with one complementary accent at the focal point, micro-texture with purpose, staggered courses and tied corners, returns for overhangs, an internal solid core in large volumes, finished bases and deliberate negative space. The visual reviewer judges with the same eye and asks for specific, buildable improvements.
+
+Smooth finish, on by default in the brief, swaps every plate whose top is fully exposed for the tile of the same size (1 × 1 to 2 × 4), so finished surfaces are not stud-heavy; the base keeps its studs. The catalog holds only studs-up bricks, plates and tiles, so the prompt tells the designer plainly that SNOT brackets, hinges, slopes, Technic and large moulded parts are unavailable, and how to get smooth, curved and angled results without them.
 
 ## Sizes and piece limits
 
@@ -73,7 +75,7 @@ The four quick picks on the landing are real landmarks sculpted in `lib/landmark
 
 ## Brick packing and cleanup
 
-The catalog includes 1 × 2 to 1 × 8 bricks and 1 × 4 to 1 × 8 plates, so thin walls, ledges and bridging courses pack into single pieces. Within each layer the packer places overhanging cells first and gives each one the piece that reaches back over something already placed, preferring placements that bridge the most unsupported span. Arches, eaves, lintels and cantilevers are anchored to the mass behind them instead of ending as loose plates. Before packing an AI scene, `tidyVoxels` deletes cells with nothing above or below and at most one side neighbour, then any cluster no longer connected to the ground; these are slivers left by curved subtractions and were the stray bricks in generated arches. Project files exported before this change may fail the saved-brick check when reopened because the same scene now packs differently.
+The catalog includes 1 × 2 to 1 × 8 bricks, 1 × 4 to 1 × 8 plates and tiles from 1 × 1 to 2 × 4, so thin walls, ledges and bridging courses pack into single pieces. Within each layer the packer places overhanging cells first and gives each one the piece that reaches back over something already placed, preferring placements that bridge the most unsupported span. Arches, eaves, lintels and cantilevers are anchored to the mass behind them instead of ending as loose plates. Before packing an AI scene, `tidyVoxels` deletes cells with nothing above or below and at most one side neighbour, then any cluster no longer connected to the ground; these are slivers left by curved subtractions and were the stray bricks in generated arches. Project files exported before this change may fail the saved-brick check when reopened because the same scene now packs differently.
 
 ## Generation flow
 

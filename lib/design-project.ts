@@ -7,9 +7,9 @@ import {validateScene,sceneVoxels,compileScene} from "./generated-scene";
 import {simulateClutch} from "./clutch";
 import type {GeneratedScene} from "./generated-scene";
 
-export const briefSchema=z.object({idea:z.string().min(3).max(2000),size:z.enum(["small","medium","large"]),detail:z.enum(["balanced","detailed","signature"]),maxPieces:z.number().int().min(100).max(16000),maxWidth:z.number().int().min(16).max(80),maxDepth:z.number().int().min(16).max(80),maxHeight:z.number().int().min(16).max(160),features:z.array(z.string().min(1).max(160)).max(12),style:z.string().max(120),hollow:z.boolean()}).strict();
+export const briefSchema=z.object({idea:z.string().min(3).max(2000),size:z.enum(["small","medium","large"]),detail:z.enum(["balanced","detailed","signature"]),maxPieces:z.number().int().min(100).max(16000),maxWidth:z.number().int().min(16).max(80),maxDepth:z.number().int().min(16).max(80),maxHeight:z.number().int().min(16).max(160),features:z.array(z.string().min(1).max(160)).max(12),style:z.string().max(120),hollow:z.boolean(),finish:z.enum(["smooth","studded"]).optional()}).strict();
 export type DesignBrief=z.infer<typeof briefSchema>;
-export const defaultBrief=(idea=""):DesignBrief=>({idea,size:"medium",detail:"detailed",maxPieces:600,maxWidth:48,maxDepth:32,maxHeight:96,features:[],style:"Sculptural display with rich surface detail",hollow:false});
+export const defaultBrief=(idea=""):DesignBrief=>({idea,size:"medium",detail:"detailed",maxPieces:600,maxWidth:48,maxDepth:32,maxHeight:96,features:[],style:"Sculptural display with rich surface detail",hollow:false,finish:"smooth"});
 export type Cuboid=Pick<Piece,"x"|"y"|"z"|"w"|"h"|"d">;
 export type ManualEdits={erase:Cuboid[];bricks:Piece[]};
 export type VisualReview={revision?:{status:"visible"|"missing"|"uncertain"|"not_requested";evidence:string};summary:string;recognizable:boolean;features:{feature:string;status:"visible"|"missing"|"uncertain";evidence:string}[];improvements:string[]};
@@ -35,7 +35,7 @@ export function editModel(model:BuildModel,pieces:Piece[]):BuildModel{
   const unique=[...new Map(erase.map(b=>[JSON.stringify(b),b])).values()];
   meta.design={...prior,manual:{erase:unique,bricks:[...prior.manual.bricks.filter(p=>!removed.some(b=>intersects(p,b))),...added]},reviewStale:true};
  }
- return finishModel(meta.generation&&meta.design?compileScene(meta.generation,{manual:meta.design.manual,hollow:meta.design.brief.hollow}).pieces:pieces,meta);
+ return finishModel(meta.generation&&meta.design?compileScene(meta.generation,{manual:meta.design.manual,hollow:meta.design.brief.hollow,smooth:meta.design.brief.finish==="smooth"}).pieces:pieces,meta);
 }
 export function applyManual(voxels:VoxelMap,manual:ManualEdits){
  for(const p of [...manual.erase,...manual.bricks])for(let x=p.x;x<p.x+p.w;x++)for(let y=p.y;y<p.y+p.h;y++)for(let z=p.z;z<p.z+p.d;z++)voxels.delete(`${x},${y},${z}`);
@@ -51,7 +51,7 @@ export function readProjectMetadata(data:Record<string,unknown>,pieces:Piece[]):
  const design=parsed?.success?parsed.data as DesignContext:undefined;
  const shop=data.shopping?shoppingSchema.safeParse(data.shopping):null;if(shop&&!shop.success)throw Error("The project's shopping data is invalid.");
  if(design&&!generation)throw Error("The project is missing its generation scene.");
- if(generation){const rebuilt=compileScene(generation,{manual:design?.manual,hollow:design?.brief.hollow});const expected=[...pieces].map(pieceKey).sort(),actual=rebuilt.pieces.map(pieceKey).sort();if(JSON.stringify(expected)!==JSON.stringify(actual))throw Error("The scene and protected edits do not match the saved bricks. Restore a complete project export.");}
+ if(generation){const rebuilt=compileScene(generation,{manual:design?.manual,hollow:design?.brief.hollow,smooth:design?.brief.finish==="smooth"});const expected=[...pieces].map(pieceKey).sort(),actual=rebuilt.pieces.map(pieceKey).sort();if(JSON.stringify(expected)!==JSON.stringify(actual))throw Error("The scene and protected edits do not match the saved bricks. Restore a complete project export.");}
  return {generation,design,detail:design?.brief.size,shopping:shop?.success?shop.data:emptyShopping()};
 }
 export function designChecks(model:BuildModel,brief:DesignBrief){
@@ -71,7 +71,7 @@ export function sceneDiff(before:GeneratedScene|undefined,after:GeneratedScene){
  if(!before)return {added:after.shapes.length,changed:0,removed:0};const prev=new Map(before.shapes.map(s=>[s.id||s.label,JSON.stringify(s)])),next=new Map(after.shapes.map(s=>[s.id||s.label,JSON.stringify(s)]));
  return {added:[...next.keys()].filter(k=>!prev.has(k)).length,changed:[...next].filter(([k,v])=>prev.has(k)&&prev.get(k)!==v).length,removed:[...prev.keys()].filter(k=>!next.has(k)).length};
 }
-export function enforceLocks(previous:GeneratedScene,next:GeneratedScene,locked:string[],options:{manual?:ManualEdits;hollow?:boolean}={}){
+export function enforceLocks(previous:GeneratedScene,next:GeneratedScene,locked:string[],options:{manual?:ManualEdits;hollow?:boolean;smooth?:boolean}={}){
  if(!locked.length)return;
  previous=validateScene(previous);next=validateScene(next);
  if(JSON.stringify(previous.dimensions)!==JSON.stringify(next.dimensions))throw Error("Locked components require the same build area. Keep the original dimensions or unlock them.");
