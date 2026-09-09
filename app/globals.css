@@ -382,3 +382,5 @@ h1,.landing-film-caption h1,.project-heading h1,[data-slot=dialog-title]{text-wr
  .designs-first .open-design{position:static;justify-content:center;border:1px solid var(--line);background:var(--surface);color:var(--ink)}
  .designs-first .landing-film-caption h1{font-size:1.6rem}
 }
+/* The no-WebGL message must be readable on the light stage. */
+.canvas-error strong{color:var(--ink);font-size:17px;font-family:var(--font-display)}
