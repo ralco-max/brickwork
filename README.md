@@ -87,13 +87,13 @@ Brickwork runs as a Cloudflare Worker with static assets, using the D1 database 
 
 1. `npx wrangler login` once, then `npx wrangler d1 migrations apply brickwork-db --remote` whenever `drizzle/` gains a migration.
 2. `npx wrangler secret put OPENAI_API_KEY` to set or rotate the shared studio key. The $10 budget is tracked per key fingerprint, so every visitor who uses the studio key shares one $10 pool; rotating the key starts a fresh pool. Also set a matching hard limit on the OpenAI project itself as a backstop.
-3. `npm run deploy` builds with vinext and deploys with Wrangler.
+3. `npm run deploy` type-checks, builds with vinext and deploys with Wrangler. A type error stops the deploy.
 
 ## Verification
 
 Run `node --test tests/landmarks.test.mjs tests/design-workflow.test.mjs tests/generation.test.mjs tests/assembly.test.mjs` for landmark presets, packer anchoring, voxel cleanup, support/overlap, protected edit and export round trips, locks, repeated features, hollow interiors, schema/stream failures, visual review contracts, inventory parity and deterministic assembly placement. The production build uses the Sites build helper.
 
-Six varied evaluation briefs live in `tests/design-benchmarks.json`. Use the same size/limits across revisions and record recognizability, required-feature coverage, grounded/support counts, piece count, total generation time, revision fidelity and export/reopen fidelity. Live AI evaluations were not run because no API key is configured. Tests use authored geometry and mocked API responses. Browser playback, video export and physical construction were not tested. Standalone TypeScript checking retains the starter's missing Cloudflare runtime type declarations; production bundling succeeds.
+Six varied evaluation briefs live in `tests/design-benchmarks.json`. Use the same size/limits across revisions and record recognizability, required-feature coverage, grounded/support counts, piece count, total generation time, revision fidelity and export/reopen fidelity. Live AI evaluations were not run because no API key is configured. Tests use authored geometry and mocked API responses. Browser playback, video export and physical construction were not tested. `types/cloudflare-workers.d.ts` declares the `cloudflare:workers` module so the standalone type-check is clean, and the deploy script runs it first.
 
 ## API references
 
