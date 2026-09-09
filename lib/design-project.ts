@@ -54,13 +54,14 @@ export function readProjectMetadata(data:Record<string,unknown>,pieces:Piece[]):
  if(generation){const rebuilt=compileScene(generation,{manual:design?.manual,hollow:design?.brief.hollow,smooth:design?.brief.finish==="smooth"});const expected=[...pieces].map(pieceKey).sort(),actual=rebuilt.pieces.map(pieceKey).sort();if(JSON.stringify(expected)!==JSON.stringify(actual))throw Error("The scene and protected edits do not match the saved bricks. Restore a complete project export.");}
  return {generation,design,detail:design?.brief.size,shopping:shop?.success?shop.data:emptyShopping()};
 }
-export function designChecks(model:BuildModel,brief:DesignBrief){
+export function designChecks(model:BuildModel,brief:DesignBrief,target?:{x:number;y:number;z:number}){
  const audit=auditModel(model.pieces),issues:string[]=[];
  if(audit.overlaps)issues.push(`${audit.overlaps} overlapping volume cells.`);
  if(audit.ungrounded.length)issues.push(`${audit.ungrounded.length} pieces have no stud path to the ground.`);
  if(audit.groups>1)issues.push(`${audit.groups} separate assemblies. Connect them with overlapping studded plates.`);
  if(audit.unsupported.length)issues.push(`${audit.unsupported.length} pieces cannot be placed with support in a bottom-up sequence.`);
  const clutch=simulateClutch(model.pieces);
+ if(target){const off=(have:number,want:number)=>Math.abs(have-want)/want>.15;const body=model.height-2;if(off(model.length,target.x)||off(model.width,target.z)||off(body,target.y))issues.push(`Proportions are off: the model is ${model.length} studs long, ${model.width} deep and ${body} plates tall above the base, but the real subject at this scale is ${target.x} × ${target.z} studs and ${target.y} plates. Reshape the body to those extents.`);}
  if(clutch.overloaded.length)issues.push(`${clutch.overloaded.length} joints exceed the estimated clutch strength of their studs (hanging or cantilevered mass). Support them from below or widen their stud contact.`);
  if(model.pieces.length>brief.maxPieces)issues.push(`${model.pieces.length} pieces exceeds the ${brief.maxPieces} piece limit.`);
  if(model.length>brief.maxWidth||model.width>brief.maxDepth||model.height>brief.maxHeight)issues.push(`Occupied dimensions ${model.length} × ${model.width} × ${model.height} exceed the ${brief.maxWidth} × ${brief.maxDepth} × ${brief.maxHeight} stud/plate limits.`);

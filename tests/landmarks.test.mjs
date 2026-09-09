@@ -77,3 +77,12 @@ test('the Golden Gate follows its blueprint: span ratios, heights, continuous ca
   assert.equal(model.pieces.reduce((n,p)=>n+p.w*p.h*p.d,0),m.goldenGate(config,scale).size);
  }
 });
+test('smooth finish splits wide exposed top plates into 2x4 tiles only when fully supported',()=>{
+ const voxels=new Map();for(let x=0;x<8;x++)for(let z=0;z<4;z++)for(let y=0;y<2;y++)voxels.set(`${x},${y},${z}`,'gray');
+ for(let x=0;x<8;x++)for(let z=0;z<4;z++)voxels.set(`${x},2,${z}`,'red');            // a 4x8 red plate fully on the base
+ for(let x=8;x<16;x++)for(let z=0;z<4;z++)voxels.set(`${x},2,${z}`,'blue');           // a 4x8 blue plate hanging in the air
+ const smooth=m.smoothTops(m.packVoxels(voxels));
+ assert.equal(smooth.filter(p=>p.color==='red'&&p.y===2).length,4);assert.ok(smooth.filter(p=>p.color==='red'&&p.y===2).every(p=>p.part==='87079'));
+ assert.ok(smooth.filter(p=>p.color==='blue').every(p=>!m.isTile(p.part)));
+ assert.equal(smooth.reduce((n,p)=>n+p.w*p.h*p.d,0),voxels.size);
+});

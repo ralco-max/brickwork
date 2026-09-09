@@ -184,5 +184,18 @@ export function removeSupports(model:BuildModel):{model:BuildModel;removed:numbe
 const PLATE_TO_TILE:Partial<Record<PartId,PartId>>={"3024":"3070b","3023":"3069b","3022":"3068b","3710":"2431","3666":"6636","3460":"4162","3020":"87079"};
 export function smoothTops(pieces:Piece[]):Piece[]{
  const occupied=new Set<string>();for(const p of pieces)for(let x=p.x;x<p.x+p.w;x++)for(let y=p.y;y<p.y+p.h;y++)for(let z=p.z;z<p.z+p.d;z++)occupied.add(voxelKey(x,y,z));
- return pieces.map(p=>{const tile=PLATE_TO_TILE[p.part];if(!tile||p.h!==1||p.y<2||p.support)return p;for(let x=p.x;x<p.x+p.w;x++)for(let z=p.z;z<p.z+p.d;z++)if(occupied.has(voxelKey(x,p.y+1,z)))return p;return {...p,part:tile};});
+ const out:Piece[]=[];
+ for(const p of pieces){
+  const exposed=p.h===1&&p.y>=2&&!p.support&&[...Array(p.w).keys()].every(a=>[...Array(p.d).keys()].every(c=>!occupied.has(voxelKey(p.x+a,p.y+1,p.z+c))));
+  const tile=PLATE_TO_TILE[p.part];
+  if(exposed&&tile){out.push({...p,part:tile});continue;}
+  // Wide top plates have no tile of their own; when every cell rests on something, they split into 2 x 4 tiles.
+  if(exposed&&(p.part==="3034"||p.part==="3035")&&[...Array(p.w).keys()].every(a=>[...Array(p.d).keys()].every(c=>occupied.has(voxelKey(p.x+a,p.y-1,p.z+c))))){
+   const along=p.w>=p.d?"x":"z";
+   for(let a=0;a<(along==="x"?p.w:p.d);a+=4)for(let c=0;c<(along==="x"?p.d:p.w);c+=2){const x=along==="x"?p.x+a:p.x+c,z=along==="x"?p.z+c:p.z+a;out.push({...p,part:"87079",x,z,w:along==="x"?4:2,d:along==="x"?2:4,rotated:along!=="x"});}
+   continue;
+  }
+  out.push(p);
+ }
+ return out.map((p,id)=>({...p,id}));
 }
