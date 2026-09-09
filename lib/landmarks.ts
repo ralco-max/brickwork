@@ -76,7 +76,7 @@ const quadrants=(dark:ColorKey,light:ColorKey)=>(angle:number)=>Math.floor(angle
 /** The Golden Gate Bridge: Art Deco towers, main cables with suspenders, the anchorages, Fort Point and the Marin headlands. */
 export function goldenGate(config:Config,scale:number):VoxelMap{
  const v=new Sculpt(scale),L=128,W=20,steel=config.color,water=config.water;
- const deckY=14,deckTop=16,deckZ=3,deckW=14,towerTop=44,towers=[30,98],mid=(towers[0]+towers[1])/2,half=(towers[1]-towers[0])/2,anchor=[11,117];
+ const deckY=14,deckTop=16,deckZ=3,deckW=14,towerTop=84,towers=[30,98],mid=(towers[0]+towers[1])/2,half=(towers[1]-towers[0])/2,anchor=[11,117];
  v.box(0,0,0,L,2,W,water);
  if(config.landscape){
   // Marin headlands to the north and the Presidio shoreline to the south.
@@ -102,12 +102,12 @@ export function goldenGate(config:Config,scale:number):VoxelMap{
  for(const tx of towers){
   for(const z of legZ){
    v.box(tx-3,2,z-1,6,deckY-2,legD+2,steel);
-   v.box(tx-2.5,deckY,z,5,11,legD,steel);
-   v.box(tx-2,25,z,4,10,legD,steel);
-   v.box(tx-1.5,35,z,3,towerTop-35,legD,steel);
+   v.box(tx-2.5,deckY,z,5,22,legD,steel);
+   v.box(tx-2,36,z,4,24,legD,steel);
+   v.box(tx-1.5,60,z,3,towerTop-60,legD,steel);
    v.box(tx-2,towerTop,z-.5,4,1,legD+1,steel);v.box(tx-1,towerTop+1,z,2,1,legD,steel);
   }
-  for(const [y,h,w] of [[7,3,6],[21,3,5],[27,3,4],[32,3,4],[38,3,3]]){v.box(tx-w/2,y,legZ[0],w,h,legZ[1]+legD-legZ[0],steel);v.box(tx-w/2+1,y+1,legZ[0]+legD,w-2,1,legZ[1]-legZ[0]-legD,"black");}
+  for(const [y,h,w] of [[7,3,6],[26,4,5],[42,4,4],[58,4,4],[74,4,3]]){v.box(tx-w/2,y,legZ[0],w,h,legZ[1]+legD-legZ[0],steel);v.box(tx-w/2+1,y+1,legZ[0]+legD,w-2,1,legZ[1]-legZ[0]-legD,"black");}
  }
  // Main cables: parabolic between the towers, straight to the anchorages.
  const cableY=(x:number)=>{
