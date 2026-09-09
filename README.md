@@ -55,6 +55,14 @@ The landing, live creation and expanded film use a white stage with soft contact
 
 Build guides now have at most 24 parts per step and expose exact X/Y/Z coordinates, rotation and a per-step parts list. Ground and earlier-piece support paths are checked. Assembly animation is cinematic; the guide still needs physical validation for strength and hand access. LDraw exports contain these same steps.
 
+## Themes
+
+Light, dark and follow-the-device themes are available from the toggle in the header, remembered in this browser. The stylesheet uses a shade system rather than raw greys: three surface levels, two line weights, three ink weights, glass, warning and accent-soft roles, each defined for both palettes, and the 3D stages read their background, fog and ground light from the same variables so the canvas changes with the theme.
+
+## Builder craft
+
+The design instructions carry guidance from experienced brick sculptors: silhouette first, proportion over fuss, color blocking that describes form, purposeful texture, overlapped courses and tied corners, returns for overhangs, finished bases and deliberate negative space. The visual reviewer judges with the same eye and asks for specific, buildable improvements.
+
 ## Sizes and piece limits
 
 Desk allows up to 200 pieces within 32 × 24 studs by 64 plates, Shelf up to 600 pieces within 48 × 32 by 96, and Statement up to 4,000 pieces within 80 × 64 by 160. These envelopes are ceilings, not targets: the designer is told to choose the footprint and height that suit the subject, long and low or tall and narrow, and to set the scene dimensions to the design's real extents. The starting foundation is a 12 × 12 placeholder the designer resizes; it no longer seeds a square base. The design instructions explain that pieces come from occupied cells, about 8 to 12 cells per piece for solid masses and one per cell for thin details, and give the designer a cell budget for each size so it plans volume rather than shape count.
