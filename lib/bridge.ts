@@ -7,7 +7,7 @@ export const PARTS = {
  "3007":{name:"Brick 2 × 8",w:8,d:2,h:3,price:0.55},"3001":{name:"Brick 2 × 4",w:4,d:2,h:3,price:0.25},"3003":{name:"Brick 2 × 2",w:2,d:2,h:3,price:0.16},"3008":{name:"Brick 1 × 8",w:8,d:1,h:3,price:0.28},"3009":{name:"Brick 1 × 6",w:6,d:1,h:3,price:0.20},"3010":{name:"Brick 1 × 4",w:4,d:1,h:3,price:0.14},"3004":{name:"Brick 1 × 2",w:2,d:1,h:3,price:0.10},"3005":{name:"Brick 1 × 1",w:1,d:1,h:3,price:0.10},"3020":{name:"Plate 2 × 4",w:4,d:2,h:1,price:0.17},"3022":{name:"Plate 2 × 2",w:2,d:2,h:1,price:0.12},"3023":{name:"Plate 1 × 2",w:2,d:1,h:1,price:0.09},"3024":{name:"Plate 1 × 1",w:1,d:1,h:1,price:0.07},"3034":{name:"Plate 2 × 8",w:8,d:2,h:1,price:0.30},"3035":{name:"Plate 4 × 8",w:8,d:4,h:1,price:0.49},"3460":{name:"Plate 1 × 8",w:8,d:1,h:1,price:0.16},"3666":{name:"Plate 1 × 6",w:6,d:1,h:1,price:0.13},"3710":{name:"Plate 1 × 4",w:4,d:1,h:1,price:0.10},"3068b":{name:"Tile 2 × 2",w:2,d:2,h:1,price:0.13},"3069b":{name:"Tile 1 × 2",w:2,d:1,h:1,price:0.10}
 };
 export type PartId = keyof typeof PARTS;
-export interface Piece {id:number;part:PartId;color:ColorKey;x:number;y:number;z:number;w:number;d:number;h:number;rotated:boolean;stage:number;}
+export interface Piece {id:number;part:PartId;color:ColorKey;x:number;y:number;z:number;w:number;d:number;h:number;rotated:boolean;stage:number;support?:boolean;}
 export interface Config {size:"compact"|"display";color:"red"|"orange"|"white";water:"blue"|"navy";landscape:boolean;}
 export interface InventoryRow {key:string;part:PartId;color:ColorKey;quantity:number;}
 export const STAGES = [

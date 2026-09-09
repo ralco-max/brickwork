@@ -4,6 +4,7 @@ import type {Piece} from "./bridge";
 import {finishModel,intersects} from "./models";
 import type {BuildModel,VoxelMap} from "./models";
 import {validateScene,sceneVoxels,compileScene} from "./generated-scene";
+import {simulateClutch} from "./clutch";
 import type {GeneratedScene} from "./generated-scene";
 
 export const briefSchema=z.object({idea:z.string().min(3).max(2000),size:z.enum(["small","medium","large"]),detail:z.enum(["balanced","detailed","signature"]),maxPieces:z.number().int().min(100).max(16000),maxWidth:z.number().int().min(16).max(80),maxDepth:z.number().int().min(16).max(80),maxHeight:z.number().int().min(16).max(160),features:z.array(z.string().min(1).max(160)).max(12),style:z.string().max(120),hollow:z.boolean()}).strict();
@@ -59,10 +60,12 @@ export function designChecks(model:BuildModel,brief:DesignBrief){
  if(audit.ungrounded.length)issues.push(`${audit.ungrounded.length} pieces have no stud path to the ground.`);
  if(audit.groups>1)issues.push(`${audit.groups} separate assemblies. Connect them with overlapping studded plates.`);
  if(audit.unsupported.length)issues.push(`${audit.unsupported.length} pieces cannot be placed with support in a bottom-up sequence.`);
+ const clutch=simulateClutch(model.pieces);
+ if(clutch.overloaded.length)issues.push(`${clutch.overloaded.length} joints exceed the estimated clutch strength of their studs (hanging or cantilevered mass). Support them from below or widen their stud contact.`);
  if(model.pieces.length>brief.maxPieces)issues.push(`${model.pieces.length} pieces exceeds the ${brief.maxPieces} piece limit.`);
  if(model.length>brief.maxWidth||model.width>brief.maxDepth||model.height>brief.maxHeight)issues.push(`Occupied dimensions ${model.length} × ${model.width} × ${model.height} exceed the ${brief.maxWidth} × ${brief.maxDepth} × ${brief.maxHeight} stud/plate limits.`);
- const bad=new Set([...audit.disconnected,...audit.unsupported]);const locations=model.pieces.filter(p=>bad.has(p.id)).slice(0,12).map(p=>`piece ${p.id}: (${p.x},${p.y},${p.z}), size ${p.w}×${p.h}×${p.d}`);
- return {audit,issues,locations,pass:issues.length===0};
+ const bad=new Set([...audit.disconnected,...audit.unsupported,...clutch.overloaded]);const locations=model.pieces.filter(p=>bad.has(p.id)).slice(0,12).map(p=>`piece ${p.id}: (${p.x},${p.y},${p.z}), size ${p.w}×${p.h}×${p.d}${clutch.ratios.has(p.id)?`, clutch load ${Math.round(clutch.ratios.get(p.id)!*100)}%`:""}`);
+ return {audit,clutch,issues,locations,pass:issues.length===0};
 }
 export function sceneDiff(before:GeneratedScene|undefined,after:GeneratedScene){
  if(!before)return {added:after.shapes.length,changed:0,removed:0};const prev=new Map(before.shapes.map(s=>[s.id||s.label,JSON.stringify(s)])),next=new Map(after.shapes.map(s=>[s.id||s.label,JSON.stringify(s)]));

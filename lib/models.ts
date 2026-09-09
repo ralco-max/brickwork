@@ -145,7 +145,7 @@ export function addPiece(pieces:Piece[],part:PartId,color:ColorKey,x:number,y:nu
 export function validateProject(raw:unknown):BuildModel{
  if(!raw||typeof raw!=="object")throw Error("Choose a Brickwork project JSON file.");const data=raw as Record<string,unknown>;
  if(!Array.isArray(data.pieces)||data.pieces.length<1||data.pieces.length>16000)throw Error("The project must contain between 1 and 16,000 pieces.");
- const pieces:Piece[]=data.pieces.map((v:unknown,id:number)=>{if(!v||typeof v!=="object")throw Error("Invalid piece.");const p=v as Piece,s=Object.hasOwn(PARTS,p.part)?PARTS[p.part]:null;if(!s||!Object.hasOwn(COLORS,p.color)||![p.x,p.y,p.z].every(n=>Number.isInteger(n)&&n>=0)||typeof p.rotated!=="boolean")throw Error("The project contains an unsupported part or invalid coordinates.");const w=p.rotated?s.d:s.w,d=p.rotated?s.w:s.d;if(p.x+w>192||p.z+d>192||p.y+s.h>240)throw Error("The project exceeds the supported dimensions.");return {id,part:p.part,color:p.color,x:p.x,y:p.y,z:p.z,w,d,h:s.h,rotated:p.rotated,stage:0};});
+ const pieces:Piece[]=data.pieces.map((v:unknown,id:number)=>{if(!v||typeof v!=="object")throw Error("Invalid piece.");const p=v as Piece,s=Object.hasOwn(PARTS,p.part)?PARTS[p.part]:null;if(!s||!Object.hasOwn(COLORS,p.color)||![p.x,p.y,p.z].every(n=>Number.isInteger(n)&&n>=0)||typeof p.rotated!=="boolean")throw Error("The project contains an unsupported part or invalid coordinates.");const w=p.rotated?s.d:s.w,d=p.rotated?s.w:s.d;if(p.x+w>192||p.z+d>192||p.y+s.h>240)throw Error("The project exceeds the supported dimensions.");return {id,part:p.part,color:p.color,x:p.x,y:p.y,z:p.z,w,d,h:s.h,rotated:p.rotated,stage:0,...(p.support===true?{support:true}:{})};});
  const occupied=new Set<string>();for(const p of pieces)for(let x=p.x;x<p.x+p.w;x++)for(let y=p.y;y<p.y+p.h;y++)for(let z=p.z;z<p.z+p.d;z++){const k=voxelKey(x,y,z);if(occupied.has(k))throw Error("The project has overlapping pieces. Repair the file before importing.");occupied.add(k);if(occupied.size>350000)throw Error("The project is too complex. Import a smaller version.");}
  return finishModel(pieces,{name:typeof data.name==="string"?data.name.slice(0,80):"Imported project",description:typeof data.description==="string"?data.description.slice(0,500):"Your editable Brickwork project",source:"custom",...readProjectMetadata(data,pieces)});
 }
@@ -161,11 +161,19 @@ export function supportLoosePieces(input:Piece[]):{pieces:Piece[];added:number}{
     if(occupied.has(voxelKey(x,p.y-1,z)))continue;let y=p.y-1;
     while(y>=0&&!occupied.has(voxelKey(x,y,z)))y--;
     if(y>=0&&occupied.get(voxelKey(x,y,z))!.part.startsWith("306"))continue;
-    y++;while(y<p.y){if(pieces.length>=16000)return {pieces,added};const part:PartId=p.y-y>=3?"3005":"3024",s=PARTS[part];pieces.push({id:pieces.length,part,color:"gray",x,y,z,w:1,d:1,h:s.h,rotated:false,stage:0});y+=s.h;added++;}changed=true;break outer;
+    y++;while(y<p.y){if(pieces.length>=16000)return {pieces,added};const part:PartId=p.y-y>=3?"3005":"3024",s=PARTS[part];pieces.push({id:pieces.length,part,color:"gray",x,y,z,w:1,d:1,h:s.h,rotated:false,stage:0,support:true});y+=s.h;added++;}changed=true;break outer;
    }
    if(changed)break;
   }
   if(!changed)break;
  }
  return {pieces,added};
+}
+
+// Strips every column added by supportLoosePieces, leaving the design as it was.
+export function removeSupports(model:BuildModel):{model:BuildModel;removed:number}{
+ const kept=model.pieces.filter(p=>!p.support),removed=model.pieces.length-kept.length;
+ if(!removed)return {model,removed:0};
+ const design=model.design?{...model.design,manual:{...model.design.manual,bricks:model.design.manual.bricks.filter(p=>!p.support)}}:undefined;
+ return {model:finishModel(kept,{...model,design}),removed};
 }

@@ -35,6 +35,12 @@ The parts manifest drives the viewport, inventory, animation and exports. CSV an
 
 A photo can be sculpted with AI: the picture is downsized to a JPEG in the browser and sent with the brief as an image input, and the designer is instructed to recreate the pictured subject's silhouette, proportions, parts, colors and details. The photo is not stored with the design. PNG/JPG/WebP imports can still become browser-local flat mosaics in a twelve-color palette. STL/OBJ imports remain browser-local closed-mesh sculptures, up to 10 MB, 60,000 triangles and 32 studs. Twelve instant procedural presets and a blank brick canvas remain available under More ways to create.
 
+## Clutch simulation and supports
+
+`lib/clutch.ts` estimates whether the bricks hold. Each piece weighs about 0.095 g per cell. Weight flows down through stud contacts to grounded pieces; a piece with nothing grounded beneath it hangs from the studs above and its load, plus everything hanging from it, is compared with 1.6 N per engaged stud; a grounded piece whose loaded centre lies outside its footing levers on those studs, and the moment is compared with the clutch couple across the footing. Tiles engage no studs. The parts audit reports the joints beyond clutch and those within a factor of two, and Show clutch map colors every rated piece green, amber or red in the 3D view. The same check feeds the design checks the AI repairs against. It is a first-order estimate, not a test build.
+
+Add vertical supports tags every column it adds; Remove added supports strips exactly those, and both actions offer Undo on their toast as well as through the editor history.
+
 ## Assembly and instructions
 
 The assembly is an intro that plays inside the interactive 3D view whenever a design opens in the studio, and again from Replay assembly; the viewer can orbit and zoom throughout, and Skip jumps to the finished model. The landing film also allows orbiting, and its slow camera sweep stops as soon as the viewer takes the camera. The download control in the view controls records the replay to a video. The live creation stage replays its brick arrivals. There is no separate film dialog or playback mode.
