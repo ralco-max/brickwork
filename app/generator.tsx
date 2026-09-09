@@ -70,13 +70,12 @@ export default function Generator({open,onOpenChange,initialPrompt,initialImage,
   const parsed=briefSchema.safeParse({...brief,idea:brief.idea.trim(),features:brief.features.map(s=>s.trim()).filter(Boolean)});if(!parsed.success){setError("Check the brief: add an idea, keep each required detail under 160 characters, and use the displayed size and piece limits.");return;}
   const b=parsed.data;if(locked.length&&lastComplete.current&&b.hollow!==lastComplete.current.brief.hollow){setError("Unlock the protected components before changing hollow interiors.");return;}const text=scene?prompt.trim()||(interrupted?continuationPrompt(b.idea):"Repair the failed checks while preserving the original design."):b.idea,original=scene||undefined;
   const runId=++requestId.current,abort=new AbortController();controller.current=abort;previewQueue.current?.cancel();startedAt.current=Date.now();setElapsed(0);setPreviewError("");setErrorCode("");partialDraft.current=interrupted&&draft&&scene?{model:draft,scene,review:null,brief:b}:null;running.current=true;setBusy(true);setMobilePanel("preview");setSetup(false);setBrief(b);setError("");setReview(null);setShapeCount(0);
-  let best:Completed|null=null,bestScore=Infinity,feedback:string[]=[],candidate=original;
+  let best:Completed|null=null,bestScore=Infinity,feedback:string[]=[],candidate=original,research=sheet;
   const alive=()=>{abort.signal.throwIfAborted();if(requestId.current!==runId)throw new DOMException("Cancelled","AbortError");};
   try{
    if(reviewOnly&&draft&&scene){const r=await visual(draft,b,abort,prompt.trim(),activeKey);alive();best={model:draft,scene,review:r,brief:b};}
    else{
     setMessages(m=>[...m,{role:"you",text}]);
-    let research=sheet;
     if(!original&&!research){
      // Real subjects get looked up first so the designer works from facts, not memory. A failed lookup is not fatal.
      setPhase("research");setStatus("Checking whether this is a real thing to look up…");
