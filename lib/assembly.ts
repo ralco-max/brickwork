@@ -10,10 +10,12 @@ const hash=(n:number)=>{const v=Math.sin(n*127.1+311.7)*43758.5453;return v-Math
 // stays put until Play runs it again.
 export const LANDING_INTRO=18;
 export class LandingAssemblyClock{
- paused=false;reduced=false;private elapsed=0;private last:number|null=null;
+ paused=false;reduced=false;speed=1;private elapsed=0;private last:number|null=null;
  reset(){this.elapsed=0;this.last=null;}
  resume(){this.last=null;}
- tick(now:number){const delta=this.last===null?0:Math.max(0,Math.min(.08,(now-this.last)/1000));this.last=now;if(!this.paused&&!this.reduced)this.elapsed=Math.min(LANDING_INTRO,this.elapsed+delta);return this.reduced?1:Math.min(1,this.elapsed/LANDING_INTRO);}
+ // Skip lands every brick at once; speed runs the same intro faster.
+ skip(){this.elapsed=LANDING_INTRO;}
+ tick(now:number){const delta=this.last===null?0:Math.max(0,Math.min(.08,(now-this.last)/1000));this.last=now;if(!this.paused&&!this.reduced)this.elapsed=Math.min(LANDING_INTRO,this.elapsed+delta*this.speed);return this.reduced?1:Math.min(1,this.elapsed/LANDING_INTRO);}
  get done(){return this.reduced||this.elapsed>=LANDING_INTRO;}
  get opacity(){return 1;}
 }

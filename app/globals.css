@@ -396,3 +396,7 @@ h1,.landing-film-caption h1,.project-heading h1,[data-slot=dialog-title]{text-wr
 
 /* One click from a finished design or a saved card to the parts list: the exports sit first in the sheet. */
 .shopping-quick{display:flex;flex-wrap:wrap;gap:8px;padding:12px 0 4px;border-bottom:1px solid var(--line);margin-bottom:12px}.shopping-quick .button{min-height:42px}
+
+/* Landing intro: skip and 2x sit with the other film controls. */
+.landing-film-controls .film-speed{font-size:.8rem;font-weight:600;letter-spacing:.02em}.landing-film-controls .film-speed[aria-pressed=true]{background:var(--ink);color:var(--surface);border-color:var(--ink)}
+.assembly-inline-topline .intro-skip[aria-pressed=true]{background:var(--ink);color:var(--surface)}
