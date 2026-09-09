@@ -10,11 +10,11 @@ test('a design packs to a project file and unpacks with its id, name and bricks 
  const back=m.unpackDesign(saved);
  assert.equal(back.libraryId,'abc');assert.equal(back.name,'My light');assert.equal(back.pieces.length,model.pieces.length);assert.deepEqual(back.pieces.map(p=>[p.part,p.x,p.y,p.z]),model.pieces.map(p=>[p.part,p.x,p.y,p.z]));
 });
-test('a saved design whose scene no longer repacks identically still opens from its bricks',()=>{
+test('a saved design whose scene no longer repacks identically is rebuilt from its scene, keeping it revisable',()=>{
  const model={...m.generateRecipe('rocket','small'),libraryId:'r1',source:'custom'};
  const saved=m.packDesign(model,'draft');
  const data=JSON.parse(saved.project);data.generation={name:'x',description:'',dimensions:{x:8,y:8,z:8},shapes:[{label:'b',kind:'box',operation:'add',color:'red',position:{x:0,y:0,z:0},size:{x:2,y:2,z:2},end:{x:0,y:0,z:0},radius:1}]};
  const back=m.unpackDesign({...saved,project:JSON.stringify(data)});
- assert.equal(back.pieces.length,model.pieces.length);assert.equal(back.libraryId,'r1');
+ assert.ok(back.generation&&back.generation.shapes.length===1);assert.equal(back.libraryId,'r1');assert.ok(back.pieces.length>0);
 });
 test('packing without a library id is refused',()=>{assert.throws(()=>m.packDesign(m.generateRecipe('castle','small'),'design'));});

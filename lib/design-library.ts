@@ -1,6 +1,7 @@
 import {projectJSON,emptyShopping} from "./design-project";
 import type {ShoppingState} from "./design-project";
-import {validateProject} from "./models";
+import {validateProject,finishModel} from "./models";
+import {validateScene,compileScene} from "./generated-scene";
 import type {BuildModel} from "./models";
 
 // Designs and in-progress drafts are kept in this browser so backing out of the
@@ -18,7 +19,16 @@ export function packDesign(model:BuildModel&{shopping?:ShoppingState},status:Sav
 export function unpackDesign(saved:SavedDesign):BuildModel{
  const data=JSON.parse(saved.project) as Record<string,unknown>;
  let model:BuildModel;
- try{model=validateProject(data);}catch{model=validateProject({...data,version:undefined,generation:undefined,design:undefined});}
+ try{model=validateProject(data);}
+ catch{
+  // The packer has changed since this was saved. Rebuild the bricks from the scene so the
+  // design keeps its brief, history and scene for revisions; fall back to the bricks alone.
+  try{
+   const generation=validateScene(data.generation),design=data.design as BuildModel["design"];
+   const rebuilt=compileScene(generation,{manual:design?.manual,hollow:design?.brief.hollow,smooth:design?.brief.finish==="smooth"});
+   model=finishModel(rebuilt.pieces,{name:String(data.name||saved.name),description:String(data.description||rebuilt.description),source:"custom",generation,design,detail:design?.brief.size});
+  }catch{model=validateProject({...data,version:undefined,generation:undefined,design:undefined});}
+ }
  return {...model,name:saved.name,libraryId:saved.id};
 }
 
