@@ -86,3 +86,10 @@ test('smooth finish splits wide exposed top plates into 2x4 tiles only when full
  assert.ok(smooth.filter(p=>p.color==='blue').every(p=>!m.isTile(p.part)));
  assert.equal(smooth.reduce((n,p)=>n+p.w*p.h*p.d,0),voxels.size);
 });
+test('cleanup drops floating debris but keeps a large mass carved free of its footing',()=>{
+ const voxels=new Map();for(let x=0;x<8;x++)for(let z=0;z<8;z++)for(let y=0;y<2;y++)voxels.set(`${x},${y},${z}`,'gray');
+ for(let x=1;x<7;x++)for(let z=1;z<7;z++)for(let y=6;y<14;y++)voxels.set(`${x},${y},${z}`,'white');   // a 6x6x8 body floating above the base
+ voxels.set('20,20,20','red');voxels.set('20,21,20','red');                                              // debris
+ const removed=m.tidyVoxels(voxels);
+ assert.equal(removed,2);assert.ok(voxels.has('3,10,3'));assert.ok(!voxels.has('20,20,20'));
+});

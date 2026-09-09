@@ -71,8 +71,11 @@ export function sceneVoxels(raw:unknown):VoxelMap{
 // Bricks only hold through stud contact, so a cell with nothing above or below
 // it and at most one neighbour beside it can never be a real brick: it is a
 // sliver left by a curved subtraction or a rounding edge. Remove those, then
-// remove any cluster of cells that no longer touches the ground through the
-// remaining cells. Both passes repeat until the volume is stable.
+// remove small clusters of cells that no longer touch the ground through the
+// remaining cells. Large floating masses are kept: a body carved free of its
+// footing is a support problem the checks report, not debris to delete.
+// Both passes repeat until the volume is stable.
+const FLOATING_DEBRIS_CELLS=48;
 export function tidyVoxels(voxels:VoxelMap){
  const at=(x:number,y:number,z:number)=>voxels.has(voxelKey(x,y,z));
  const parse=(key:string)=>key.split(",").map(Number) as [number,number,number];
@@ -89,7 +92,10 @@ export function tidyVoxels(voxels:VoxelMap){
   const seen=new Set<string>(),queue:string[]=[];
   for(const key of voxels.keys())if(parse(key)[1]===0){seen.add(key);queue.push(key);}
   while(queue.length){const [x,y,z]=parse(queue.pop()!);for(const [a,b,c] of [[1,0,0],[-1,0,0],[0,1,0],[0,-1,0],[0,0,1],[0,0,-1]]){const next=voxelKey(x+a,y+b,z+c);if(voxels.has(next)&&!seen.has(next)){seen.add(next);queue.push(next);}}}
-  for(const key of [...voxels.keys()])if(!seen.has(key)){voxels.delete(key);removed++;changed=true;}
+  // Group the unreached cells into clusters; drop only the small ones.
+  const unreached=[...voxels.keys()].filter(key=>!seen.has(key)),visited=new Set<string>();
+  for(const start of unreached){if(visited.has(start))continue;const cluster:string[]=[start];visited.add(start);for(let i=0;i<cluster.length;i++){const [x,y,z]=parse(cluster[i]);for(const [a,b,c] of [[1,0,0],[-1,0,0],[0,1,0],[0,-1,0],[0,0,1],[0,0,-1]]){const next=voxelKey(x+a,y+b,z+c);if(voxels.has(next)&&!seen.has(next)&&!visited.has(next)){visited.add(next);cluster.push(next);}}}
+   if(cluster.length<FLOATING_DEBRIS_CELLS){for(const key of cluster){voxels.delete(key);removed++;changed=true;}}}
  }
  return removed;
 }
