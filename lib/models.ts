@@ -7,7 +7,7 @@ import {goldenGate,neuschwanstein,capeHatteras,saturnV} from "./landmarks";
 
 export type Recipe = "bridge"|"castle"|"lighthouse"|"house"|"rocket"|"robot"|"car"|"tree"|"cat"|"dog"|"boat"|"skyline"|"blank";
 export type Detail = "small"|"medium"|"large";
-export type BuildModel={design?:DesignContext;shopping?:ShoppingState;generation?:GeneratedScene;name:string;description:string;source:"recipe"|"mosaic"|"mesh"|"custom";recipe?:Recipe;detail?:Detail;primary?:ColorKey;accent?:ColorKey;bridgeConfig?:Config;pieces:Piece[];inventory:InventoryRow[];length:number;width:number;height:number;stages:{title:string;text:string}[];};
+export type BuildModel={libraryId?:string;design?:DesignContext;shopping?:ShoppingState;generation?:GeneratedScene;name:string;description:string;source:"recipe"|"mosaic"|"mesh"|"custom";recipe?:Recipe;detail?:Detail;primary?:ColorKey;accent?:ColorKey;bridgeConfig?:Config;pieces:Piece[];inventory:InventoryRow[];length:number;width:number;height:number;stages:{title:string;text:string}[];};
 export const RECIPES:{id:Recipe;name:string;prompt:string;color:ColorKey;description:string}[]=[
  {id:"bridge",name:"Golden Gate Bridge",prompt:"The Golden Gate Bridge in red",color:"red",description:"Art Deco towers, suspension cables, Fort Point and the Marin headlands"},
  {id:"castle",name:"Neuschwanstein",prompt:"Neuschwanstein Castle in white with navy slate roofs",color:"white",description:"Ludwig's Bavarian castle on its rock: the Palas, its towers and the red gatehouse"},
