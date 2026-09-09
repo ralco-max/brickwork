@@ -50,8 +50,9 @@ test('review route streams its real result and the parser accepts final frames w
  assert.match(response.headers.get('content-type'),/text\/event-stream/);assert.deepEqual((await collect(response.body)).filter(e=>e.type!=='budget'),[{type:'complete',review}]);assert.deepEqual(await collect(new Response(': keepalive\r\n\r\ndata: {"type":"complete"}').body),[{type:'complete'}]);
 });
 
-test('landing shows the finished design first, reverses smoothly into assembly and loops without a blank reset',()=>{
+test('landing keeps the design assembled and breathes it: hold, explode, hold, close, looping without a blank reset',()=>{
  const c=new LandingAssemblyClock();let now=0;const advance=until=>{let value;for(;now<until;){now+=20;value=c.tick(now);}return value;};
- assert.equal(c.paused,false);assert.equal(c.tick(0),1);assert.equal(advance(1980),1);assert.ok(Math.abs(advance(3000)-.5)<.001);assert.ok(advance(4000)<.001);assert.ok(Math.abs(advance(13000)-.5)<.001);assert.ok(advance(22000)>.999);assert.equal(advance(24100),1);assert.equal(c.opacity,1);
- c.paused=true;const stopped=c.tick(now);assert.equal(c.tick(now+999999),stopped);c.paused=false;c.resume();assert.equal(c.tick(now+1000000),stopped);c.reduced=true;assert.equal(c.tick(now+1000020),1);c.reduced=false;c.reset();assert.equal(c.tick(now+1000040),1);
+ assert.equal(c.paused,false);assert.equal(c.tick(0),1);assert.equal(advance(2500),1);assert.equal(c.explode,0);
+ advance(4000);assert.ok(Math.abs(c.explode-.225)<.01);advance(6500);assert.ok(Math.abs(c.explode-.45)<.001);advance(9000);assert.ok(Math.abs(c.explode-.225)<.01);advance(10100);assert.ok(c.explode<.01);assert.equal(advance(12000),1);assert.equal(c.opacity,1);
+ c.paused=true;const stopped=c.explode;c.tick(now+999999);assert.equal(c.explode,stopped);c.paused=false;c.resume();c.tick(now+1000000);assert.equal(c.explode,stopped);c.reduced=true;assert.equal(c.tick(now+1000020),1);assert.equal(c.explode,0);c.reduced=false;c.reset();assert.equal(c.tick(now+1000040),1);assert.equal(c.explode,0);
 });

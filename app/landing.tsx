@@ -4,7 +4,7 @@ import type {ReactNode} from "react";
 import {Pause,Play,ArrowRight,Maximize2,Sparkles,Trash2,FolderOpen} from "lucide-react";
 import type {SavedDesign} from "@/lib/design-library";
 import Viewport from "./viewport";
-import {LandingAssemblyClock} from "@/lib/assembly";
+import {LandingAssemblyClock,LANDING_EXPLODE_PEAK} from "@/lib/assembly";
 import type {BuildModel,Recipe} from "@/lib/models";
 
 const relative=(iso:string)=>{const minutes=Math.max(0,Math.round((Date.now()-new Date(iso).getTime())/60000));if(minutes<1)return "just now";if(minutes<60)return `${minutes} min ago`;const hours=Math.round(minutes/60);if(hours<24)return `${hours} h ago`;const days=Math.round(hours/24);return days===1?"yesterday":`${days} days ago`;};
@@ -17,13 +17,13 @@ export default function Landing({children,onPlay,onChoose,onEdit,model,designs=[
  },[]);
  useEffect(()=>{clock.current.reset();setChanging(false);},[model.pieces]);
  useEffect(()=>()=>{if(choiceTimer.current)clearTimeout(choiceTimer.current);},[]);
- const readTime=useCallback(()=>clock.current.tick(performance.now()),[]);
+ const readTime=useCallback(()=>clock.current.tick(performance.now()),[]),readExplode=useCallback(()=>clock.current.explode,[]);
  const onFrame=useCallback(()=>{if(screen.current)screen.current.style.opacity=String(clock.current.opacity);},[]);
  function toggle(){const next=!paused;setPaused(next);clock.current.paused=next;clock.current.reduced=false;clock.current.resume();}
  function choose(recipe:Recipe){if(choiceTimer.current)clearTimeout(choiceTimer.current);if(recipe===model.recipe){setChanging(false);return;}if(window.matchMedia("(prefers-reduced-motion: reduce)").matches){onChoose(recipe);return;}setChanging(true);choiceTimer.current=setTimeout(()=>{choiceTimer.current=null;onChoose(recipe);},160);}
  return <section className="creation-landing landing-with-film designs-first" aria-label="Explore brick designs">
   <div className={`landing-film ${changing?"is-changing":""}`} role="group" aria-label={`Assembly animation of ${model.name}`}>
-   <div className="landing-film-canvas" ref={screen}><Viewport pieces={model.pieces} length={model.length} width={model.width} height={model.height} modelKey={model.name+"-landing"} suspended={suspended} explode={0} stage={100000} selected={null} view="perspective" reset={0} rotate={false} onPick={()=>{}} assembly={{time:readTime,onFrame,sweep:true}} presentation/></div>
+   <div className="landing-film-canvas" ref={screen}><Viewport pieces={model.pieces} length={model.length} width={model.width} height={model.height} modelKey={model.name+"-landing"} suspended={suspended} explode={0} stage={100000} selected={null} view="perspective" reset={0} rotate={false} onPick={()=>{}} assembly={{time:readTime,onFrame,sweep:true,explode:readExplode,explodePeak:LANDING_EXPLODE_PEAK}} presentation/></div>
    <div className="landing-film-caption"><div><span>{model.pieces.length.toLocaleString()} PIECES</span><h1>{model.name}</h1></div><div className="landing-film-controls"><button onClick={toggle} aria-label={paused?"Resume assembly animation":"Pause assembly animation"} aria-pressed={paused}>{paused?<Play size={18}/>:<Pause size={18}/>}</button><button onClick={onPlay} aria-label="Open in the studio with the assembly playing"><Maximize2 size={18}/></button></div></div>
   </div>
   <div className="design-quick-picks"><div role="group" aria-label="Preview a starting design">{([['bridge','Golden Gate'],['castle','Neuschwanstein'],['lighthouse','Cape Hatteras'],['rocket','Saturn V']] as const).map(([id,label])=><button key={id} aria-pressed={model.recipe===id} onClick={()=>choose(id)}>{label}</button>)}</div><button className="open-design" onClick={onEdit}>Open studio<ArrowRight size={15}/></button></div>
