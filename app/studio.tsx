@@ -35,14 +35,6 @@ function download(text:string,name:string,type="text/plain") {const url=URL.crea
 export default function Studio(){
  const [workspaceOpen,setWorkspaceOpen]=useState(false),[mobileSettings,setMobileSettings]=useState(false);
  // The assembly is an intro that plays inside the interactive viewport; it replays on demand.
- // A design seen assembling once plays at double speed on every return.
- const intro=useRef({time:1,playing:false,last:0,speed:1}),[introPlaying,setIntroPlaying]=useState(false),[introSpeed,setIntroSpeed]=useState(1),introDone=useRef<(()=>void)|null>(null),introSeen=useRef(new Set<string>());
- const readIntro=useCallback(()=>{const c=intro.current,now=performance.now();if(c.playing){const elapsed=c.last?Math.min(.08,(now-c.last)/1000):0;c.time=Math.min(1,c.time+elapsed*c.speed/18);if(c.time>=1){c.playing=false;setIntroPlaying(false);introDone.current?.();introDone.current=null;}}c.last=now;return c.time;},[]);
- const playIntro=useCallback(()=>{if(window.matchMedia("(prefers-reduced-motion: reduce)").matches)return;const c=intro.current,key=`${model.libraryId||model.name}:${model.pieces.length}`;c.speed=introSeen.current.has(key)?2:1;introSeen.current.add(key);setIntroSpeed(c.speed);c.time=0;c.playing=true;c.last=performance.now();setIntroPlaying(true);},[model.libraryId,model.name,model.pieces.length]);
- const pauseIntro=useCallback(()=>{intro.current.playing=false;setIntroPlaying(false);},[]);
- const resumeIntro=useCallback(()=>{const c=intro.current;c.last=performance.now();c.playing=true;setIntroPlaying(true);},[]);
- // One Play button: plays the assembly from the start, pauses it mid-way, resumes, and replays once it has finished.
- const toggleIntro=useCallback(()=>{const c=intro.current;if(c.playing)pauseIntro();else if(c.time<1)resumeIntro();else playIntro();},[pauseIntro,resumeIntro,playIntro]);
  const libraryId=useRef(newDesignId()),[designs,setDesigns]=useState<SavedDesign[]>([]);
  const refreshDesigns=useCallback(()=>{void listDesigns().then(setDesigns);},[]);
  useEffect(()=>{refreshDesigns();},[refreshDesigns]);
@@ -51,6 +43,14 @@ export default function Studio(){
  const startIdea=(prompt:string,image?:string)=>{setCreateOpen(false);setGenerationPrompt(prompt);setGenerationImage(image);setGenerationPrevious(undefined);setGenerationOpen(true);};
  const [config,setConfig]=useState<Config>({size:"display",color:"red",water:"blue",landscape:true});
  const [model,setModel]=useState<BuildModel>(()=>generateRecipe("bridge","large"));
+ // A design seen assembling once plays at double speed on every return.
+ const intro=useRef({time:1,playing:false,last:0,speed:1}),[introPlaying,setIntroPlaying]=useState(false),[introSpeed,setIntroSpeed]=useState(1),introDone=useRef<(()=>void)|null>(null),introSeen=useRef(new Set<string>());
+ const readIntro=useCallback(()=>{const c=intro.current,now=performance.now();if(c.playing){const elapsed=c.last?Math.min(.08,(now-c.last)/1000):0;c.time=Math.min(1,c.time+elapsed*c.speed/18);if(c.time>=1){c.playing=false;setIntroPlaying(false);introDone.current?.();introDone.current=null;}}c.last=now;return c.time;},[]);
+ const playIntro=useCallback(()=>{if(window.matchMedia("(prefers-reduced-motion: reduce)").matches)return;const c=intro.current,key=`${model.libraryId||model.name}:${model.pieces.length}`;c.speed=introSeen.current.has(key)?2:1;introSeen.current.add(key);setIntroSpeed(c.speed);c.time=0;c.playing=true;c.last=performance.now();setIntroPlaying(true);},[model.libraryId,model.name,model.pieces.length]);
+ const pauseIntro=useCallback(()=>{intro.current.playing=false;setIntroPlaying(false);},[]);
+ const resumeIntro=useCallback(()=>{const c=intro.current;c.last=performance.now();c.playing=true;setIntroPlaying(true);},[]);
+ // One Play button: plays the assembly from the start, pauses it mid-way, resumes, and replays once it has finished.
+ const toggleIntro=useCallback(()=>{const c=intro.current;if(c.playing)pauseIntro();else if(c.time<1)resumeIntro();else playIntro();},[pauseIntro,resumeIntro,playIntro]);
  const recorder=useAssemblyRecorder({name:model.name,pieces:model.pieces.length,onStart:()=>{playIntro();},onDone:done=>{introDone.current=done;}});
  const [createOpen,setCreateOpen]=useState(false),[detail,setDetail]=useState<Detail>("large"),[primaryColor,setPrimaryColor]=useState<ColorKey>("red"),[accentColor,setAccentColor]=useState<ColorKey>("white"),[applied,setApplied]=useState<string[]>([]);
  const [tab,setTab]=useState("model"),[selected,setSelected]=useState<string|null>(null),[explode,setExplode]=useState(0),[stage,setStage]=useState(5),[view,setView]=useState("perspective"),[reset,setReset]=useState(0),[rotate,setRotate]=useState(false),[shop,setShop]=useState(false),[owned,setOwned]=useState<Record<string,number>>({}),[elementIds,setElementIds]=useState<Record<string,string>>({}),[priceOverrides,setPriceOverrides]=useState<Record<string,number>>({});
