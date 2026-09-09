@@ -25,6 +25,8 @@ Packing prefers larger catalog bricks while rewarding seams that span multiple s
 
 ## Editing, projects and shopping
 
+Getting the bricks is one click from wherever a design is: Get the bricks under a finished design in the creation dialog opens the studio with the shopping sheet already open, and every card under Your designs on the landing has a Get the pieces action that does the same. The sheet leads with the exports (BrickLink wanted list, the BrickLink upload page, the parts CSV) before the owned-quantity and quote details.
+
 Manual additions, recolors, erasures and support columns become protected volume overrides. Subsequent AI generation packs around the overrides and restores exact edited bricks. Undo/redo restores complete model context for up to 25 changes. A manual edit invalidates the previous visual review.
 
 Every custom model in the studio and every completed or kept draft in the creation dialog is autosaved to this browser's design library (IndexedDB, the twelve most recent). The landing lists them under Your designs with Open, Continue with AI and delete; drafts are marked In progress. Untouched landmark presets are not saved. The library lives only in this browser; export a project file to move a design elsewhere.

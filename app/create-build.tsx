@@ -10,7 +10,7 @@ import type {ColorKey,Config} from "@/lib/bridge";
 import {RECIPES,generateRecipe,parseIdea,mosaicFromPixels,validateProject} from "@/lib/models";
 import type {BuildModel,Recipe,Detail} from "@/lib/models";
 
-export type Creation={model:BuildModel;detail:Detail;color:ColorKey;accent:ColorKey;bridgeConfig?:Config;applied?:string[]};
+export type Creation={model:BuildModel;detail:Detail;color:ColorKey;accent:ColorKey;bridgeConfig?:Config;applied?:string[];shop?:boolean};
 export function IdeaBar({onGenerate,onOpen,compact=false,inline=false}:{onGenerate:(prompt:string)=>void;onOpen:()=>void;compact?:boolean;inline?:boolean}){
  const inputId=useId(),[prompt,setPrompt]=useState("");
  if(inline)return <form className="quick-create" onSubmit={e=>{e.preventDefault();if(prompt.trim().length>=3)onGenerate(prompt);}}><label htmlFor={inputId}>Make something of your own</label><div className="quick-create-field"><input id={inputId} placeholder="A dragon around a castle…" maxLength={2000} value={prompt} onChange={e=>setPrompt(e.target.value)}/><button type="submit" disabled={prompt.trim().length<3} aria-label="Create a build from your idea"><Sparkles size={17}/><span>Create</span><ArrowRight size={16}/></button><button className="quick-import" type="button" onClick={onOpen} aria-label="Import an image, 3D model or project"><Upload size={18}/></button></div></form>;

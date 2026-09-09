@@ -2,14 +2,14 @@
 import {useCallback,useEffect,useRef,useState} from "react";
 import type {ReactNode} from "react";
 import type React from "react";
-import {Pause,Play,ArrowRight,Maximize2,Sparkles,Trash2,FolderOpen,RotateCcw} from "lucide-react";
+import {Pause,Play,ArrowRight,Maximize2,Sparkles,Trash2,FolderOpen,RotateCcw,ShoppingBag} from "lucide-react";
 import type {SavedDesign} from "@/lib/design-library";
 import Viewport from "./viewport";
 import {LandingAssemblyClock} from "@/lib/assembly";
 import type {BuildModel,Recipe} from "@/lib/models";
 
 const relative=(iso:string)=>{const minutes=Math.max(0,Math.round((Date.now()-new Date(iso).getTime())/60000));if(minutes<1)return "just now";if(minutes<60)return `${minutes} min ago`;const hours=Math.round(minutes/60);if(hours<24)return `${hours} h ago`;const days=Math.round(hours/24);return days===1?"yesterday":`${days} days ago`;};
-export default function Landing({children,onPlay,onChoose,onEdit,model,designs=[],onOpenSaved,onContinueSaved,onDeleteSaved,suspended=false}:{children:ReactNode;onPlay:()=>void;onChoose:(recipe:Recipe)=>void;onEdit:()=>void;model:BuildModel;designs?:SavedDesign[];onOpenSaved?:(design:SavedDesign)=>void;onContinueSaved?:(design:SavedDesign)=>void;onDeleteSaved?:(id:string)=>void;suspended?:boolean}){
+export default function Landing({children,onPlay,onChoose,onEdit,model,designs=[],onOpenSaved,onContinueSaved,onShopSaved,onDeleteSaved,suspended=false}:{children:ReactNode;onPlay:()=>void;onChoose:(recipe:Recipe)=>void;onEdit:()=>void;model:BuildModel;designs?:SavedDesign[];onOpenSaved?:(design:SavedDesign)=>void;onContinueSaved?:(design:SavedDesign)=>void;onShopSaved?:(design:SavedDesign)=>void;onDeleteSaved?:(id:string)=>void;suspended?:boolean}){
  const [paused,setPaused]=useState(false),[done,setDone]=useState(false),[changing,setChanging]=useState(false),clock=useRef(new LandingAssemblyClock()),screen=useRef<HTMLDivElement>(null),choiceTimer=useRef<ReturnType<typeof setTimeout>|null>(null);
  useEffect(()=>{
   const preference=window.matchMedia("(prefers-reduced-motion: reduce)");
@@ -35,6 +35,6 @@ export default function Landing({children,onPlay,onChoose,onEdit,model,designs=[
   </div>
   <div className="design-quick-picks"><div role="group" aria-label="Preview a starting design">{([['bridge','Golden Gate'],['castle','Neuschwanstein'],['lighthouse','Cape Hatteras'],['rocket','Saturn V']] as const).map(([id,label])=><button key={id} aria-pressed={model.recipe===id} onClick={()=>choose(id)}>{label}</button>)}</div><button className="open-design" onClick={onEdit}>Open studio<ArrowRight size={15}/></button></div>
   <div className="landing-input">{children}</div>
-  {designs.length>0&&<div className="your-designs" aria-label="Your designs"><div className="your-designs-head"><span>YOUR DESIGNS</span><small>Saved in this browser · drafts included</small></div><div className="your-designs-list">{designs.map(d=><article key={d.id} className={d.status==="draft"?"is-draft":""}><div className="your-design-meta"><strong>{d.name}</strong><span>{d.pieceCount.toLocaleString()} pieces · {d.status==="draft"?"In progress":"Saved"} · {relative(d.updatedAt)}</span></div><div className="your-design-actions"><button onClick={()=>onOpenSaved?.(d)}><FolderOpen size={14}/>Open</button><button onClick={()=>onContinueSaved?.(d)}><Sparkles size={14}/>Continue with AI</button><button className="delete" aria-label={`Delete ${d.name}`} onClick={()=>onDeleteSaved?.(d.id)}><Trash2 size={14}/></button></div></article>)}</div></div>}
+  {designs.length>0&&<div className="your-designs" aria-label="Your designs"><div className="your-designs-head"><span>YOUR DESIGNS</span><small>Saved in this browser · drafts included</small></div><div className="your-designs-list">{designs.map(d=><article key={d.id} className={d.status==="draft"?"is-draft":""}><div className="your-design-meta"><strong>{d.name}</strong><span>{d.pieceCount.toLocaleString()} pieces · {d.status==="draft"?"In progress":"Saved"} · {relative(d.updatedAt)}</span></div><div className="your-design-actions"><button onClick={()=>onOpenSaved?.(d)}><FolderOpen size={14}/>Open</button><button onClick={()=>onContinueSaved?.(d)}><Sparkles size={14}/>Continue with AI</button><button onClick={()=>onShopSaved?.(d)}><ShoppingBag size={14}/>Get the pieces</button><button className="delete" aria-label={`Delete ${d.name}`} onClick={()=>onDeleteSaved?.(d.id)}><Trash2 size={14}/></button></div></article>)}</div></div>}
  </section>;
 }
