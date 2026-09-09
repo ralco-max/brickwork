@@ -28,10 +28,19 @@ export function simulateClutch(pieces:Piece[]):ClutchReport{
  for(const i of asc)grounded[i]=pieces[i].y===0||[...below[i].keys()].some(j=>grounded[j]);
  const load=weight.slice(),momentX=pieces.map((p,i)=>weight[i]*(p.x+p.w/2)),momentZ=pieces.map((p,i)=>weight[i]*(p.z+p.d/2));
  const pass=(from:number,to:number,share:number)=>{const f=share/load[from];load[to]+=share;momentX[to]+=momentX[from]*f;momentZ[to]+=momentZ[from]*f;};
- const joints:ClutchJoint[]=[],floating:number[]=[];
+ const joints:ClutchJoint[]=[],floating:number[]=[],riding=new Set<number>();
+ // A piece pressed onto the studs of a hanging piece rides on it: its weight goes down into
+ // that piece, which then hangs with the extra load. Highest first so stacks accumulate.
+ for(const i of [...asc].reverse()){
+  if(grounded[i])continue;
+  const holders=isTile(pieces[i])?[]:[...above[i]],carriers=[...below[i]];
+  if(holders.length||!carriers.length)continue;
+  riding.add(i);const before=load[i],total=carriers.reduce((s,[,c])=>s+c,0);
+  for(const [j,c] of carriers){joints.push({piece:pieces[i].id,holder:pieces[j].id,kind:"hanging",studs:c,demand:0,capacity:c*CLUTCH_PER_STUD,ratio:0});pass(i,j,before*c/total);}
+ }
  // Hanging pieces send their weight up into the studs above them, lowest first so chains accumulate.
  for(const i of asc){
-  if(grounded[i])continue;
+  if(grounded[i]||riding.has(i))continue;
   const holders=isTile(pieces[i])?[]:[...above[i]];
   const total=holders.reduce((s,[,c])=>s+c,0);
   if(!total){floating.push(i);continue;}

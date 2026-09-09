@@ -112,7 +112,7 @@ export default function Generator({open,onOpenChange,initialPrompt,initialImage,
      if(!response.ok){const body=await response.json();throw new GenerationError(body.error||"Generation could not start.",body.code||"GENERATION_FAILED");}if(!response.body)throw Error("No generation stream was returned.");
      try{for await(const event of readEvents(response.body)){
       alive();if(event.type==="budget")setBudget(event.budget);else if(event.type==="header")header=event.header;
-      else if(event.type==="base"){shapes=event.shapes;}
+      else if(event.type==="base"){shapes=event.shapes;setShapeCount(shapes.length);}
       else if(event.type==="shape"){const at=shapes.findIndex(s=>(s.id||s.label)===(event.shape.id||event.shape.label));if(at>=0)shapes[at]=event.shape;else shapes.push(event.shape);setShapeCount(shapes.length);setStatus(`${extra.stage==="massing"?"Blocking out":"Shaping"} ${event.shape.label.toLowerCase()}…`);
        if(header)previews.push({...header,shapes:[...shapes]});
       }else if(event.type==="complete")result=event.scene;else if(event.type==="error"){if(event.code==="INVALID_GEOMETRY"||/outside the build area|no volume|too complex|duplicate shape IDs|repeats too many|shape limit|incomplete design/.test(event.message))geometryError=event.message;else throw new GenerationError(event.message,event.code||"GENERATION_FAILED");}

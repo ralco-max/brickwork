@@ -11,8 +11,11 @@ import type {VoxelMap} from "./models";
 // studs, and inverted 45 degree slopes for the same staircase on an underside.
 // A slope is only fitted where the staircase keeps rising behind it (a flat roof
 // edge stays square) and where it rests on something, so every slope piece is
-// supported and every cell it replaces was part of the surface. The cells it
-// takes are removed from the voxel map; the packer fills the rest.
+// supported and every cell it replaces was part of the surface, and only where
+// the column directly behind the step is solid: a slope leans against mass. On a
+// one-stud-thick curved skin the step is backed by void, and carving it would only
+// fragment the skin into small pieces with less clutch, so it stays as bricks.
+// The cells a slope takes are removed from the voxel map; the packer fills the rest.
 type Dir={face:Face;dx:number;dz:number;rx:number;rz:number};
 const DIRS:Dir[]=[{face:"pz",dx:0,dz:1,rx:1,rz:0},{face:"nz",dx:0,dz:-1,rx:1,rz:0},{face:"px",dx:1,dz:0,rx:0,rz:1},{face:"nx",dx:-1,dz:0,rx:0,rz:1}];
 type Match={cells:[number,number,number][];columns:[number,number][]};
@@ -25,24 +28,25 @@ export function carveSlopes(voxels:VoxelMap):Piece[]{
  const empty=(x:number,z:number,y0:number,n:number)=>{for(let i=0;i<n;i++)if(has(x,y0+i,z))return false;return true;};
  const footed=(x:number,y:number,z:number)=>y===0||has(x,y-1,z);
  const column=(x:number,z:number,y0:number,n:number):[number,number,number][]=>Array.from({length:n},(_,i)=>[x,y0+i,z]);
+ const backed=(x:number,z:number,y0:number,n:number,d:Dir)=>{for(let i=0;i<n;i++)if(!has(x-d.dx,y0+i,z-d.dz))return false;return true;};
  // Each pattern is described from its back column at (x, y0, z), looking toward the face.
  const patterns:Pattern[]=[
   // 33 degrees: a full back column, then 2 and 1 plates over the next two studs.
   {part1:"4286",part2:"3298",match:(x,y0,z,d,c)=>{const [x1,z1]=[x+d.dx,z+d.dz],[x2,z2]=[x+2*d.dx,z+2*d.dz];
    if(!filled(x,z,y0,3,c)||!filled(x1,z1,y0,2,c)||!empty(x1,z1,y0+2,1)||!filled(x2,z2,y0,1,c)||!empty(x2,z2,y0+1,2)||!empty(x+3*d.dx,z+3*d.dz,y0,1))return null;
-   if(!(has(x,y0+3,z)||has(x-d.dx,y0+3,z-d.dz)))return null;if(!footed(x,y0,z)||!footed(x1,y0,z1)||!footed(x2,y0,z2))return null;
+   if(!(has(x,y0+3,z)||has(x-d.dx,y0+3,z-d.dz)))return null;if(!footed(x,y0,z)||!footed(x1,y0,z1)||!footed(x2,y0,z2)||!backed(x,z,y0,3,d))return null;
    return {cells:[...column(x,z,y0,3),...column(x1,z1,y0,2),...column(x2,z2,y0,1)],columns:[[x,z],[x1,z1],[x2,z2]]};}},
   // Curved: two 1-plate steps over two studs, 2 plates tall.
   {part1:"11477",part2:"15068",match:(x,y0,z,d,c)=>{const [x1,z1]=[x+d.dx,z+d.dz];
    if(!filled(x,z,y0,2,c)||!empty(x,z,y0+2,1)||!filled(x1,z1,y0,1,c)||!empty(x1,z1,y0+1,2)||!empty(x+2*d.dx,z+2*d.dz,y0,1))return null;
-   if(!has(x-d.dx,y0+2,z-d.dz)||!footed(x,y0,z)||!footed(x1,y0,z1))return null;
+   if(!has(x-d.dx,y0+2,z-d.dz)||!footed(x,y0,z)||!footed(x1,y0,z1)||!backed(x,z,y0,2,d))return null;
    return {cells:[...column(x,z,y0,2),...column(x1,z1,y0,1)],columns:[[x,z],[x1,z1]]};}},
   // 45 degrees: a 3-plate step with the staircase rising behind it. Pairs only; there is no 1-stud 45 degree slope.
-  {part2:"3040",match:(x,y0,z,d,c)=>{if(!filled(x,z,y0,3,c)||!empty(x,z,y0+3,1)||!empty(x+d.dx,z+d.dz,y0,3)||!has(x-d.dx,y0+3,z-d.dz)||!footed(x,y0,z))return null;return {cells:column(x,z,y0,3),columns:[[x,z]]};}},
+  {part2:"3040",match:(x,y0,z,d,c)=>{if(!filled(x,z,y0,3,c)||!empty(x,z,y0+3,1)||!empty(x+d.dx,z+d.dz,y0,3)||!has(x-d.dx,y0+3,z-d.dz)||!footed(x,y0,z)||!backed(x,z,y0,3,d))return null;return {cells:column(x,z,y0,3),columns:[[x,z]]};}},
   // Inverted 45 degrees: the same step on an underside, held by the piece above it.
-  {part2:"3665",match:(x,y0,z,d,c)=>{if(!filled(x,z,y0,3,c)||has(x,y0-1,z)||!empty(x+d.dx,z+d.dz,y0,3)||!has(x-d.dx,y0-1,z-d.dz)||!has(x,y0+3,z))return null;return {cells:column(x,z,y0,3),columns:[[x,z]]};}},
+  {part2:"3665",match:(x,y0,z,d,c)=>{if(!filled(x,z,y0,3,c)||has(x,y0-1,z)||!empty(x+d.dx,z+d.dz,y0,3)||!has(x-d.dx,y0-1,z-d.dz)||!has(x,y0+3,z)||!backed(x,z,y0,3,d))return null;return {cells:column(x,z,y0,3),columns:[[x,z]]};}},
   // Cheese: a 2-plate step.
-  {part1:"54200",part2:"85984",match:(x,y0,z,d,c)=>{if(!filled(x,z,y0,2,c)||!empty(x,z,y0+2,1)||!empty(x+d.dx,z+d.dz,y0,2)||!has(x-d.dx,y0+2,z-d.dz)||!footed(x,y0,z))return null;return {cells:column(x,z,y0,2),columns:[[x,z]]};}},
+  {part1:"54200",part2:"85984",match:(x,y0,z,d,c)=>{if(!filled(x,z,y0,2,c)||!empty(x,z,y0+2,1)||!empty(x+d.dx,z+d.dz,y0,2)||!has(x-d.dx,y0+2,z-d.dz)||!footed(x,y0,z)||!backed(x,z,y0,2,d))return null;return {cells:column(x,z,y0,2),columns:[[x,z]]};}},
  ];
  const pieces:Piece[]=[];
  const place=(part:PartId,color:ColorKey,d:Dir,y:number,matches:Match[])=>{
