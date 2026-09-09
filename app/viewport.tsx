@@ -30,7 +30,9 @@ export default function Viewport(props:Props){
   const fill=new THREE.DirectionalLight(0xccdeff,2);fill.position.set(40,20,-40);scene.add(fill);
   const floor=new THREE.Mesh(new THREE.PlaneGeometry(600,600),new THREE.ShadowMaterial({opacity:presentation ? .12 : .15}));floor.rotation.x=-Math.PI/2;floor.position.y=-.10;floor.receiveShadow=true;scene.add(floor);
   if(presentation){scene.fog=new THREE.FogExp2(0xffffff,.0018);const rim=new THREE.DirectionalLight(0xe5edff,1.5);rim.position.set(0,30,-50);scene.add(rim);const radius=Math.max(L,W,H)+20;sun.shadow.camera.left=-radius;sun.shadow.camera.right=radius;sun.shadow.camera.top=radius;sun.shadow.camera.bottom=-radius;sun.shadow.camera.updateProjectionMatrix();}
-  const maxY=Math.max(1,...props.pieces.map(p=>p.y+p.h)),explodeRise=Math.max(30,H*2.4),explodeSpread=.7,explodeDrift=1.1;
+  // Explode scales every brick's position away from the model's centre in all directions,
+  // lifted so the lowest bricks stay above the floor.
+  const explodeSpread=1.6;
   if(props.arrivals){if(arrivalState.current.epoch!==props.arrivals.epoch)arrivalState.current={epoch:props.arrivals.epoch,clock:0,entries:new Map()};arrivalState.current.entries=reconcileArrivals(arrivalState.current.entries,props.pieces,arrivalState.current.clock,L,W,props.height??43);}
   const arrivalEnd=Math.max(0,...[...arrivalState.current.entries.values()].map(e=>e.at+1.36));
   const reducedMotion=window.matchMedia("(prefers-reduced-motion: reduce)");
@@ -51,8 +53,8 @@ export default function Viewport(props:Props){
    const assemblyTime=time??state.assembly?.time()??1,animationOnly=time!==undefined,highlighted=new Set(state.highlightIds||[]);
    for(const batch of batches){let studIndex=0;batch.pieces.forEach((p,i)=>{
     const visible=p.stage<=state.stage,key=`${p.part}:${p.color}`,selected=!state.selected||state.selected===key;
-    const e=state.explode,layer=maxY?p.y/maxY:0,cxRel=p.x+p.w/2-L/2,czRel=p.z+p.d/2-centerZ;
-    const y=p.y*.4+e*layer*explodeRise,ex=e*(cxRel*explodeSpread+layer*L*explodeDrift),ez=e*czRel*explodeSpread;
+    const e=state.explode*explodeSpread,cxRel=p.x+p.w/2-L/2,czRel=p.z+p.d/2-centerZ,cyRel=p.y*.4+p.h*.2;
+    const y=p.y*.4+e*cyRel,ex=e*cxRel,ez=e*czRel;
     const entry=state.arrivals?arrivalState.current.entries.get(brickIdentity(p)):null;
     const pose=entry?arrivalPose(entry,arrivalState.current.clock,reducedMotion.matches):tracks?assemblyPose(tracks.get(p.id)!,assemblyTime):null;
     temp.position.set(p.x+p.w/2-L/2+ex+(pose?.x??0),y+p.h*.2+(pose?.y??0),p.z+p.d/2-centerZ+ez+(pose?.z??0));temp.rotation.set(pose?.rx??0,pose?.ry??0,pose?.rz??0);temp.scale.setScalar(visible?(pose?.scale??1):0);temp.updateMatrix();batch.body.setMatrixAt(i,temp.matrix);
@@ -63,12 +65,12 @@ export default function Viewport(props:Props){
   let cameraMove:{position:THREE.Vector3;target:THREE.Vector3;toPosition:THREE.Vector3;toTarget:THREE.Vector3;start:number}|null=null;
   const setCamera=(view:string)=>{
    const aspect=Math.max(.3,node.clientWidth/Math.max(1,node.clientHeight)),vFov=THREE.MathUtils.degToRad(35),hFov=2*Math.atan(Math.tan(vFov/2)*aspect);
-   const e=latest.current.explode,displayH=H+e*explodeRise,spreadX=L/2*(1+e*explodeSpread),spreadZ=W/2*(1+e*explodeSpread),drift=e*L*explodeDrift;
-   const target=new THREE.Vector3(drift/2,displayH*.45,0);controls.target.copy(target);
+   const e=latest.current.explode*explodeSpread,displayH=H*(1+e),spreadX=L/2*(1+e),spreadZ=W/2*(1+e);
+   const target=new THREE.Vector3(0,displayH*.45,0);controls.target.copy(target);
    const direction=(view==="front"?new THREE.Vector3(0,.10,1):view==="top"?new THREE.Vector3(0,1,.001):new THREE.Vector3(.8,.72,1)).normalize();
    const right=new THREE.Vector3(0,1,0).cross(direction).normalize(),up=direction.clone().cross(right).normalize();
    let distance=1;
-   for(const x of [-spreadX,spreadX+drift])for(const y of [0,displayH])for(const z of [-spreadZ,spreadZ]){const corner=new THREE.Vector3(x,y,z).sub(target);distance=Math.max(distance,corner.dot(direction)+Math.max(Math.abs(corner.dot(right))/Math.tan(hFov/2),Math.abs(corner.dot(up))/Math.tan(vFov/2)));}
+   for(const x of [-spreadX,spreadX])for(const y of [0,displayH])for(const z of [-spreadZ,spreadZ]){const corner=new THREE.Vector3(x,y,z).sub(target);distance=Math.max(distance,corner.dot(direction)+Math.max(Math.abs(corner.dot(right))/Math.tan(hFov/2),Math.abs(corner.dot(up))/Math.tan(vFov/2)));}
    camera.position.copy(target).add(direction.multiplyScalar(distance*1.16+3));camera.lookAt(target);controls.update();
   };
   const cinematicCamera=new THREE.Vector3();let cameraRevision=0;
