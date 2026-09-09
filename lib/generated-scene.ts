@@ -1,6 +1,7 @@
 import {z} from "zod";
 import {COLORS} from "./bridge";
 import {finishModel,packVoxels,voxelKey,smoothTops} from "./models";
+import {carveSlopes} from "./slopes";
 import type {ColorKey} from "./bridge";
 import type {VoxelMap} from "./models";
 import {applyManual} from "./design-project";
@@ -15,7 +16,7 @@ export const shapeSchema=z.object({
  color:z.enum(colors),position:vector,size:vector,end:vector,radius:z.number().finite().min(.5).max(12),
 }).strict();
 export const sceneSchema=z.object({
- name:z.string().min(1).max(80),description:z.string().max(500),
+ name:z.string().min(1).max(80),description:z.string().max(500),signature:z.array(z.string().min(1).max(80)).max(4).optional(),
  dimensions:z.object({x:z.number().int().min(8).max(80),y:z.number().int().min(8).max(160),z:z.number().int().min(8).max(80)}).strict(),
  shapes:z.array(shapeSchema).min(1).max(240),
 }).strict();
@@ -99,7 +100,7 @@ export function tidyVoxels(voxels:VoxelMap){
  }
  return removed;
 }
-export function compileScene(raw:unknown,options:{manual?:ManualEdits;hollow?:boolean;smooth?:boolean}={}){
+export function compileScene(raw:unknown,options:{manual?:ManualEdits;hollow?:boolean;smooth?:boolean;slopes?:boolean}={}){
  const scene=validateScene(raw),voxels=sceneVoxels(scene);
  if(options.hollow){
   // Keep the exterior, two-cell walls, horizontal diaphragms and vertical ribs.
@@ -109,7 +110,9 @@ export function compileScene(raw:unknown,options:{manual?:ManualEdits;hollow?:bo
  }
  if(options.manual)applyManual(voxels,options.manual);
  tidyVoxels(voxels);
- const packed=[...packVoxels(voxels),...(options.manual?.bricks||[])],pieces=options.smooth?smoothTops(packed):packed;if(!pieces.length)throw Error("The generated draft is empty. Try again.");if(pieces.length>16000)throw Error("The design exceeds the 16,000 piece limit.");
+ // Stepped curves and pitches get real slope parts; the packer fills whatever is left.
+ const slopes=options.slopes===false?[]:carveSlopes(voxels);
+ const packed=[...packVoxels(voxels),...slopes,...(options.manual?.bricks||[])],pieces=options.smooth?smoothTops(packed):packed;if(!pieces.length)throw Error("The generated draft is empty. Try again.");if(pieces.length>16000)throw Error("The design exceeds the 16,000 piece limit.");
  return finishModel(pieces,{name:scene.name,description:scene.description,source:"custom"});
 }
 
@@ -118,7 +121,7 @@ export function compileScene(raw:unknown,options:{manual?:ManualEdits;hollow?:bo
 // keys, vectors as arrays, and nulls where a field does not apply, which is
 // about half the tokens of the full form. Everything inside the app still
 // uses the full Shape/GeneratedScene types.
-//   {n,d,dim:[x,y,z],rm:[ids removed],sh:[{i,c,l,k,o,a,col,p:[x,y,z],s:[x,y,z],e:[x,y,z]|null,r|null,rep:[count,dx,dy,dz]|null}]}
+//   {n,d,f:[signature features],dim:[x,y,z],rm:[ids removed],sh:[{i,c,l,k,o,a,col,p:[x,y,z],s:[x,y,z],e:[x,y,z]|null,r|null,rep:[count,dx,dy,dz]|null}]}
 // ---------------------------------------------------------------------------
 const vec3=z.tuple([z.number().finite(),z.number().finite(),z.number().finite()]);
 export const compactShapeSchema=z.object({
@@ -127,16 +130,16 @@ export const compactShapeSchema=z.object({
  p:vec3,s:vec3,e:vec3.nullable().optional(),r:z.number().finite().nullable().optional(),rep:z.tuple([z.number(),z.number(),z.number(),z.number()]).nullable().optional(),
 }).strict();
 export type CompactShape=z.infer<typeof compactShapeSchema>;
-export type CompactScene={n:string;d:string;dim:[number,number,number];rm?:string[]|null;sh:CompactShape[]};
+export type CompactScene={n:string;d:string;f:string[];dim:[number,number,number];rm?:string[]|null;sh:CompactShape[]};
 const vec3JSON={type:"array",items:{type:"number"},minItems:3,maxItems:3};
 const nullable=(schema:Record<string,unknown>)=>({anyOf:[schema,{type:"null"}]});
 export const compactJSONSchema={type:"object",additionalProperties:false,properties:{
- n:shortText,d:{type:"string",maxLength:500},dim:vec3JSON,rm:{type:"array",items:{type:"string"}},
+ n:shortText,d:{type:"string",maxLength:500},f:{type:"array",items:shortText,maxItems:4},dim:vec3JSON,rm:{type:"array",items:{type:"string"}},
  sh:{type:"array",maxItems:240,items:{type:"object",additionalProperties:false,properties:{
   i:shortText,c:shortText,l:shortText,k:{type:"string",enum:["box","ellipsoid","cylinder","cone","beam"]},o:{type:"string",enum:["add","subtract"]},a:nullable({type:"string",enum:["x","y","z"]}),col:{type:"string",enum:colors},
   p:vec3JSON,s:vec3JSON,e:nullable(vec3JSON),r:nullable({type:"number",minimum:.5,maximum:12}),rep:nullable({type:"array",items:{type:"number"},minItems:4,maxItems:4}),
  },required:["i","c","l","k","o","a","col","p","s","e","r","rep"]}},
-},required:["n","d","dim","rm","sh"]};
+},required:["n","d","f","dim","rm","sh"]};
 const clampAxis=(v:number,max:number)=>Math.min(max,Math.max(0,Number.isFinite(v)?v:0));
 const toVec=(v:[number,number,number])=>({x:clampAxis(v[0],80),y:clampAxis(v[1],160),z:clampAxis(v[2],80)});
 export function expandCompactShape(c:CompactShape):Shape{
@@ -151,10 +154,11 @@ export function compactShape(s:Shape):CompactShape{
  const beam=s.kind==="beam",rep=s.repeat&&s.repeat.count>1?s.repeat:null;
  return {i:s.id||s.label,c:s.component||s.label,l:s.label,k:s.kind,o:s.operation,a:s.axis&&s.axis!=="y"?s.axis:null,col:s.color,p:[s.position.x,s.position.y,s.position.z],s:[s.size.x,s.size.y,s.size.z],e:beam?[s.end.x,s.end.y,s.end.z]:null,r:beam?s.radius:null,rep:rep?[rep.count,rep.offset.x,rep.offset.y,rep.offset.z]:null};
 }
-export function compactScene(scene:GeneratedScene):CompactScene{return {n:scene.name,d:scene.description,dim:[scene.dimensions.x,scene.dimensions.y,scene.dimensions.z],rm:[],sh:scene.shapes.map(compactShape)};}
-export function expandCompactHeader(raw:{n?:unknown;d?:unknown;dim?:unknown}):SceneHeader{
+export function compactScene(scene:GeneratedScene):CompactScene{return {n:scene.name,d:scene.description,f:scene.signature||[],dim:[scene.dimensions.x,scene.dimensions.y,scene.dimensions.z],rm:[],sh:scene.shapes.map(compactShape)};}
+export function expandCompactHeader(raw:{n?:unknown;d?:unknown;f?:unknown;dim?:unknown}):SceneHeader{
  const dim=Array.isArray(raw.dim)&&raw.dim.length===3?raw.dim as number[]:[0,0,0];
- return {name:String(raw.n??"Untitled design").slice(0,80),description:String(raw.d??"").slice(0,500),dimensions:{x:Number(dim[0]),y:Number(dim[1]),z:Number(dim[2])}};
+ const signature=Array.isArray(raw.f)?raw.f.filter(x=>typeof x==="string"&&x.trim()).map(x=>String(x).trim().slice(0,80)).slice(0,4):[];
+ return {name:String(raw.n??"Untitled design").slice(0,80),description:String(raw.d??"").slice(0,500),...(signature.length?{signature}:{}),dimensions:{x:Number(dim[0]),y:Number(dim[1]),z:Number(dim[2])}};
 }
 // A revision returns only new and changed shapes plus the ids it removed; the
 // result is the previous scene with those applied, changed shapes keeping their
@@ -163,7 +167,8 @@ export function mergeRevision(previous:GeneratedScene,header:SceneHeader,removed
  const gone=new Set(removed),incoming=new Map(shapes.map(s=>[s.id||s.label,s]));
  const kept=previous.shapes.filter(s=>!gone.has(s.id||s.label)).map(s=>incoming.get(s.id||s.label)||s);
  const seen=new Set(kept.map(s=>s.id||s.label));
- return {...header,shapes:[...kept,...shapes.filter(s=>!seen.has(s.id||s.label))]};
+ // A revision that names no signature features keeps the ones already declared.
+ return {...header,...(header.signature?.length?{}:previous.signature?.length?{signature:previous.signature}:{}),shapes:[...kept,...shapes.filter(s=>!seen.has(s.id||s.label))]};
 }
 
 // Extract only completed shape objects from streamed compact JSON. Braces

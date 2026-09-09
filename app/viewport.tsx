@@ -2,8 +2,8 @@
 import {useEffect,useRef,useState} from "react";
 import * as THREE from "three";
 import {OrbitControls} from "three/addons/controls/OrbitControls.js";
-import {RoundedBoxGeometry} from "three/addons/geometries/RoundedBoxGeometry.js";
-import {COLORS,Piece,isTile} from "@/lib/bridge";
+import {COLORS,Piece,studCells} from "@/lib/bridge";
+import {pieceGeometry} from "@/lib/brick-geometry";
 import {reconcileArrivals,arrivalPose,brickIdentity} from "@/lib/live-arrivals";
 import type {Arrival} from "@/lib/live-arrivals";
 import {assemblyPose,assemblyTracks} from "@/lib/assembly";
@@ -42,14 +42,14 @@ export default function Viewport(props:Props){
   const arrivalEnd=Math.max(0,...[...arrivalState.current.entries.values()].map(e=>e.at+1.36));
   const reducedMotion=window.matchMedia("(prefers-reduced-motion: reduce)");
   const tracks=assemblyTracks(props.pieces,L,W,props.height??43);
-  const groups=new Map<string,Piece[]>();for(const p of props.pieces){const k=`${p.part}:${p.color}:${p.rotated}`;const list=groups.get(k)||[];list.push(p);groups.set(k,list);}
-  const batches:{body:THREE.InstancedMesh;studs:THREE.InstancedMesh|null;pieces:Piece[]}[]=[],meshes:THREE.InstancedMesh[]=[];
+  const groups=new Map<string,Piece[]>();for(const p of props.pieces){const k=`${p.part}:${p.color}:${p.rotated}:${p.face||""}`;const list=groups.get(k)||[];list.push(p);groups.set(k,list);}
+  const batches:{body:THREE.InstancedMesh;studs:THREE.InstancedMesh|null;pieces:Piece[];studded:[number,number][]}[]=[],meshes:THREE.InstancedMesh[]=[];
   for(const list of groups.values()){
-   const p=list[0],material=new THREE.MeshStandardMaterial({color:0xffffff,roughness:.3,metalness:0});
-   const body=new THREE.InstancedMesh(new RoundedBoxGeometry(p.w-.035,p.h*.4-.018,p.d-.035,2,.032),material,list.length);body.castShadow=true;body.receiveShadow=true;body.userData.pieces=list;meshes.push(body);scene.add(body);
-   let studs:THREE.InstancedMesh|null=null;if(!isTile(p.part)){studs=new THREE.InstancedMesh(new THREE.CylinderGeometry(.30,.30,.18,12),material,list.length*p.w*p.d);studs.castShadow=true;studs.receiveShadow=true;scene.add(studs);}
+   const p=list[0],material=new THREE.MeshStandardMaterial({color:0xffffff,roughness:.3,metalness:0}),studded=studCells(p);
+   const body=new THREE.InstancedMesh(pieceGeometry(p),material,list.length);body.castShadow=true;body.receiveShadow=true;body.userData.pieces=list;meshes.push(body);scene.add(body);
+   let studs:THREE.InstancedMesh|null=null;if(studded.length){studs=new THREE.InstancedMesh(new THREE.CylinderGeometry(.30,.30,.18,12),material,list.length*studded.length);studs.castShadow=true;studs.receiveShadow=true;scene.add(studs);}
    if(presentation){body.frustumCulled=false;body.instanceMatrix.setUsage(THREE.DynamicDrawUsage);if(studs){studs.frustumCulled=false;studs.instanceMatrix.setUsage(THREE.DynamicDrawUsage);}}
-   batches.push({body,studs,pieces:list});
+   batches.push({body,studs,pieces:list,studded});
   }
   const temp=new THREE.Object3D(),studLocal=new THREE.Matrix4(),studWorld=new THREE.Matrix4(),baseColor=new THREE.Color(),dimColor=new THREE.Color("#c2cbd0");
   const update=(state:Props,time?:number)=>{
@@ -63,7 +63,7 @@ export default function Viewport(props:Props){
     const pose=entry?arrivalPose(entry,arrivalState.current.clock,reducedMotion.matches):e>0?assemblyPose(track,track.start+(1-e*EXPLODE_REACH)*.175):cinematic?assemblyPose(track,assemblyTime):null;
     temp.position.set(p.x+p.w/2-L/2+(pose?.x??0),y+p.h*.2+(pose?.y??0),p.z+p.d/2-centerZ+(pose?.z??0));temp.rotation.set(pose?.rx??0,pose?.ry??0,pose?.rz??0);temp.scale.setScalar(visible?(pose?.scale??1):0);temp.updateMatrix();batch.body.setMatrixAt(i,temp.matrix);
     if(!animationOnly){baseColor.set(COLORS[p.color].hex);if(state.heat){const r=state.heat.get(p.id);if(r===undefined)baseColor.lerp(dimColor,.8);else baseColor.set(r>1?"#e5484d":r>.5?"#f2b134":"#3f9d5a");}else if(highlighted.size){if(highlighted.has(p.id))baseColor.set("#fb541e");else baseColor.lerp(dimColor,.85);}else if(!selected)baseColor.lerp(dimColor,.85);batch.body.setColorAt(i,baseColor);}
-    if(batch.studs)for(let x=0;x<p.w;x++)for(let z=0;z<p.d;z++){studLocal.makeTranslation(x+.5-p.w/2,p.h*.2+.07,z+.5-p.d/2);studWorld.multiplyMatrices(temp.matrix,studLocal);batch.studs.setMatrixAt(studIndex,studWorld);if(!animationOnly)batch.studs.setColorAt(studIndex,baseColor);studIndex++;}
+    if(batch.studs)for(const [x,z] of batch.studded){studLocal.makeTranslation(x+.5-p.w/2,p.h*.2+.07,z+.5-p.d/2);studWorld.multiplyMatrices(temp.matrix,studLocal);batch.studs.setMatrixAt(studIndex,studWorld);if(!animationOnly)batch.studs.setColorAt(studIndex,baseColor);studIndex++;}
    });batch.body.instanceMatrix.needsUpdate=true;if(!animationOnly){if(batch.body.instanceColor)batch.body.instanceColor.needsUpdate=true;if(!presentation)batch.body.computeBoundingSphere();}if(batch.studs){batch.studs.instanceMatrix.needsUpdate=true;if(!animationOnly){if(batch.studs.instanceColor)batch.studs.instanceColor.needsUpdate=true;if(!presentation)batch.studs.computeBoundingSphere();}}}
   };
   let cameraMove:{position:THREE.Vector3;target:THREE.Vector3;toPosition:THREE.Vector3;toTarget:THREE.Vector3;start:number}|null=null;

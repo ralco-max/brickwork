@@ -1,3 +1,4 @@
+import {z} from "zod";
 import {upstreamError} from "./generation-errors";
 
 // Before the first design of a real, searchable subject, a short web lookup
@@ -5,7 +6,32 @@ import {upstreamError} from "./generation-errors";
 // dimensions, defining proportions, colors mapped to the palette, silhouette
 // and distinctive details, with sources. Generic or imaginary ideas skip it.
 export type SubjectKind="building"|"monument"|"bridge"|"site"|"vehicle"|"aircraft"|"ship"|"animal"|"plant"|"character"|"object";
-export type ReferenceSheet={searchable:boolean;kind:SubjectKind;subject:string;summary:string;length_m:number|null;width_m:number|null;height_m:number|null;proportions:string;colors:string[];silhouette:string[];distinctive:string[];sources:string[];target?:{x:number;y:number;z:number;vertical:number}};
+export type ShellPlan={walls:number;estimate:number;fits:boolean;recommend?:{x:number;y:number;z:number}};
+export type ReferenceSheet={searchable:boolean;kind:SubjectKind;subject:string;summary:string;length_m:number|null;width_m:number|null;height_m:number|null;proportions:string;colors:string[];silhouette:string[];distinctive:string[];sources:string[];target?:{x:number;y:number;z:number;vertical:number};plan?:ShellPlan};
+export const referenceSheetSchema=z.object({searchable:z.boolean(),kind:z.string().max(20),subject:z.string().max(120),summary:z.string().max(300),length_m:z.number().nullable(),width_m:z.number().nullable(),height_m:z.number().nullable(),proportions:z.string().max(300),colors:z.array(z.string().max(200)).max(6),silhouette:z.array(z.string().max(200)).max(8),distinctive:z.array(z.string().max(200)).max(8),sources:z.array(z.string().max(200)).max(4),target:z.object({x:z.number().int().min(1).max(80),y:z.number().int().min(1).max(160),z:z.number().int().min(1).max(80),vertical:z.number().min(1).max(3)}).optional(),plan:z.object({walls:z.number().int().min(0).max(4),estimate:z.number().int().min(0).max(100000),fits:z.boolean(),recommend:z.object({x:z.number().int().min(1).max(80),y:z.number().int().min(1).max(160),z:z.number().int().min(1).max(80)}).optional()}).optional()});
+// An architect settles scale before drawing. Piece counts were measured on the
+// packer: a boxy shell packs at about 21 cells per piece with 1-stud walls, 30
+// with 2-stud walls and 40 solid; a curved skin is all slivers, about 0.29 pieces
+// per shell cell once slopes are fitted, and thicker walls barely change that
+// because the surface is the cost. So a box gets the thickest walls that fit,
+// a curved subject always gets 2-stud walls for structure, and when the target
+// does not fit at all the plan names the largest extents that do (surface area
+// scales with the square of size) instead of letting the designer shrink
+// silently or promise a size that cannot be built. 15 percent of the budget is
+// held back for detail.
+const CURVATURE:Record<SubjectKind,"box"|"mixed"|"curved">={building:"box",bridge:"box",site:"box",ship:"mixed",vehicle:"mixed",aircraft:"mixed",monument:"curved",animal:"curved",plant:"curved",character:"curved",object:"curved"};
+export function shellPlan(target:{x:number;y:number;z:number},maxPieces:number,kind:SubjectKind="object"):ShellPlan{
+ const budget=maxPieces*.85,curvature=CURVATURE[kind]||"curved",base=(x:number,z:number)=>Math.ceil(x*z/16);
+ const cells=(x:number,y:number,z:number,t:number)=>{if(t===0)return x*z*y;const slab=Math.round(2.5*t),top=2*x*z*slab,sides=2*(x+z)*Math.max(0,y-2*slab)*t;return Math.min(x*z*y,top+sides);};
+ const boxy=(x:number,y:number,z:number,t:number)=>cells(x,y,z,t)/(t===0?40:t===1?21:t===2?30:36);
+ const curved=(x:number,y:number,z:number,t:number)=>cells(x,y,z,1)*.65*.29*(t===0?1.3:1);
+ const estimate=(x:number,y:number,z:number,t:number)=>Math.ceil((curvature==="box"?boxy(x,y,z,t):curvature==="curved"?curved(x,y,z,t):(boxy(x,y,z,t)+curved(x,y,z,t))/2)+base(x,z));
+ const {x,y,z}=target;
+ if(x*y*z<=2500&&estimate(x,y,z,0)<=budget)return {walls:0,estimate:estimate(x,y,z,0),fits:true};
+ for(const t of curvature==="curved"?[2]:[3,2,1]){const e=estimate(x,y,z,t);if(e<=budget)return {walls:t,estimate:e,fits:true};}
+ const walls=curvature==="curved"?2:1,e=estimate(x,y,z,walls),s=Math.sqrt(budget/e);
+ return {walls,estimate:e,fits:false,recommend:{x:Math.max(4,Math.round(x*s)),y:Math.max(3,Math.round(y*s)),z:Math.max(2,Math.round(z*s))}};
+}
 // Real metres become a target in studs (x length, z width) and plates (y height) that fits the brief's envelope.
 // Sites and bridges are far longer than tall, so their heights are exaggerated (up to 3x) the way
 // architectural models do, and their footprint fills the envelope; everything else stays 1:1.

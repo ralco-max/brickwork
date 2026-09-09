@@ -1,5 +1,5 @@
 import type {Piece} from "./bridge";
-import {isTile as tilePart} from "./bridge";
+import {isTile as tilePart,studCells} from "./bridge";
 
 // A first-order clutch simulation. Weight flows down through stud contacts;
 // pieces with nothing grounded beneath them hang from the studs above; a
@@ -20,7 +20,9 @@ export function simulateClutch(pieces:Piece[]):ClutchReport{
  const weight=pieces.map(p=>p.w*p.d*p.h*GRAM_PER_CELL*G/1000);
  // Contact cells between each piece and the pieces directly beneath and above it.
  const below=pieces.map(()=>new Map<number,number>()),above=pieces.map(()=>new Map<number,number>()),footing=pieces.map(()=>[] as [number,number][]);
- pieces.forEach((p,i)=>{for(let x=p.x;x<p.x+p.w;x++)for(let z=p.z;z<p.z+p.d;z++){const j=cells.get(key(x,p.y-1,z));if(j===undefined||j===i)continue;below[i].set(j,(below[i].get(j)||0)+1);above[j].set(i,(above[j].get(i)||0)+1);footing[i].push([x,z]);}});
+ // A stud joint exists where a piece's bottom cell meets a studded cell of the piece beneath it.
+ const studded=new Set<string>();pieces.forEach(p=>{for(const [a,c] of studCells(p))studded.add(key(p.x+a,p.y+p.h,p.z+c));});
+ pieces.forEach((p,i)=>{for(let x=p.x;x<p.x+p.w;x++)for(let z=p.z;z<p.z+p.d;z++){const j=cells.get(key(x,p.y-1,z));if(j===undefined||j===i||!studded.has(key(x,p.y,z)))continue;below[i].set(j,(below[i].get(j)||0)+1);above[j].set(i,(above[j].get(i)||0)+1);footing[i].push([x,z]);}});
  // Compression paths: a piece is grounded when it stands on the ground or on a grounded piece.
  const asc=pieces.map((_,i)=>i).sort((a,b)=>pieces[a].y-pieces[b].y),grounded=new Array<boolean>(n).fill(false);
  for(const i of asc)grounded[i]=pieces[i].y===0||[...below[i].keys()].some(j=>grounded[j]);
@@ -30,7 +32,7 @@ export function simulateClutch(pieces:Piece[]):ClutchReport{
  // Hanging pieces send their weight up into the studs above them, lowest first so chains accumulate.
  for(const i of asc){
   if(grounded[i])continue;
-  const holders=[...above[i]].filter(([k])=>!isTile(pieces[i]));
+  const holders=isTile(pieces[i])?[]:[...above[i]];
   const total=holders.reduce((s,[,c])=>s+c,0);
   if(!total){floating.push(i);continue;}
   const before=load[i];
@@ -46,7 +48,7 @@ export function simulateClutch(pieces:Piece[]):ClutchReport{
    const leverX=Math.max(0,minX-cx,cx-maxX),leverZ=Math.max(0,minZ-cz,cz-maxZ);
    if(leverX>0||leverZ>0){
     const alongX=leverX>=leverZ,lever=(alongX?leverX:leverZ)*STUD_M,extent=(alongX?maxX-minX:maxZ-minZ)*STUD_M;
-    const studs=supporters.reduce((s,[j,c])=>s+(isTile(pieces[j])?0:c),0),demand=load[i]*lever,capacity=studs*CLUTCH_PER_STUD*extent/2;
+    const studs=supporters.reduce((s,[,c])=>s+c,0),demand=load[i]*lever,capacity=studs*CLUTCH_PER_STUD*extent/2;
     joints.push({piece:pieces[i].id,holder:pieces[supporters[0][0]].id,kind:"cantilever",studs,demand,capacity,ratio:capacity?demand/capacity:Infinity});
    }
    const before=load[i];for(const [j,c] of supporters)pass(i,j,before*c/total);

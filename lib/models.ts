@@ -1,8 +1,8 @@
 import type {GeneratedScene} from "./generated-scene";
 import {readProjectMetadata} from "./design-project";
 import type {DesignContext,ShoppingState} from "./design-project";
-import {COLORS,PARTS,STAGES,auditModel,isTile} from "./bridge";
-import type {ColorKey,Piece,InventoryRow,PartId,Config} from "./bridge";
+import {COLORS,PARTS,STAGES,auditModel,isTile,isSlope,studless} from "./bridge";
+import type {ColorKey,Piece,InventoryRow,PartId,Config,Face} from "./bridge";
 import {goldenGate,neuschwanstein,capeHatteras,saturnV} from "./landmarks";
 
 export type Recipe = "bridge"|"castle"|"lighthouse"|"house"|"rocket"|"robot"|"car"|"tree"|"cat"|"dog"|"boat"|"skyline"|"blank";
@@ -134,18 +134,18 @@ export function mosaicFromPixels(data:ArrayLike<number>,width:number,height:numb
  return finishModel(packVoxels(voxels),{name,description:`${width} × ${height} stud mosaic · 12-color brick palette`,source:"mosaic"});
 }
 export function intersects(a:Piece,b:Piece){return a.x<b.x+b.w&&a.x+a.w>b.x&&a.y<b.y+b.h&&a.y+a.h>b.y&&a.z<b.z+b.d&&a.z+a.d>b.z;}
-export function addPiece(pieces:Piece[],part:PartId,color:ColorKey,x:number,y:number,z:number,rotated=false):Piece[]{
- const s=PARTS[part],p:Piece={id:pieces.length,part,color,x,y,z,w:rotated?s.d:s.w,d:rotated?s.w:s.d,h:s.h,rotated,stage:5};
+export function addPiece(pieces:Piece[],part:PartId,color:ColorKey,x:number,y:number,z:number,rotated=false,face?:Face):Piece[]{
+ const s=PARTS[part],p:Piece={id:pieces.length,part,color,x,y,z,w:rotated?s.d:s.w,d:rotated?s.w:s.d,h:s.h,rotated,stage:5,...(isSlope(part)?{face:face||(rotated?"px":"pz")}:{})};
  if(![x,y,z].every(Number.isInteger)||Math.min(x,y,z)<0||x+p.w>192||z+p.d>192||y+p.h>240)throw Error("Place bricks within 192 × 192 studs and 240 plate layers.");
  if(pieces.length>=16000)throw Error("This design has reached the 16,000 piece limit.");
  if(pieces.some(other=>intersects(p,other)))throw Error("That space is occupied. Choose another stud or height.");
- if(pieces.some(other=>isTile(other.part)&&other.y+other.h===y&&x<other.x+other.w&&x+p.w>other.x&&z<other.z+other.d&&z+p.d>other.z))throw Error("This surface is a smooth tile. Replace it with a studded plate before building on it.");
+ if(pieces.some(other=>studless(other.part)&&other.y+other.h===y&&x<other.x+other.w&&x+p.w>other.x&&z<other.z+other.d&&z+p.d>other.z))throw Error("This surface is a smooth tile. Replace it with a studded plate before building on it.");
  return [...pieces,p];
 }
 export function validateProject(raw:unknown):BuildModel{
  if(!raw||typeof raw!=="object")throw Error("Choose a Brickwork project JSON file.");const data=raw as Record<string,unknown>;
  if(!Array.isArray(data.pieces)||data.pieces.length<1||data.pieces.length>16000)throw Error("The project must contain between 1 and 16,000 pieces.");
- const pieces:Piece[]=data.pieces.map((v:unknown,id:number)=>{if(!v||typeof v!=="object")throw Error("Invalid piece.");const p=v as Piece,s=Object.hasOwn(PARTS,p.part)?PARTS[p.part]:null;if(!s||!Object.hasOwn(COLORS,p.color)||![p.x,p.y,p.z].every(n=>Number.isInteger(n)&&n>=0)||typeof p.rotated!=="boolean")throw Error("The project contains an unsupported part or invalid coordinates.");const w=p.rotated?s.d:s.w,d=p.rotated?s.w:s.d;if(p.x+w>192||p.z+d>192||p.y+s.h>240)throw Error("The project exceeds the supported dimensions.");return {id,part:p.part,color:p.color,x:p.x,y:p.y,z:p.z,w,d,h:s.h,rotated:p.rotated,stage:0,...(p.support===true?{support:true}:{})};});
+ const pieces:Piece[]=data.pieces.map((v:unknown,id:number)=>{if(!v||typeof v!=="object")throw Error("Invalid piece.");const p=v as Piece,s=Object.hasOwn(PARTS,p.part)?PARTS[p.part]:null;if(!s||!Object.hasOwn(COLORS,p.color)||![p.x,p.y,p.z].every(n=>Number.isInteger(n)&&n>=0)||typeof p.rotated!=="boolean")throw Error("The project contains an unsupported part or invalid coordinates.");const w=p.rotated?s.d:s.w,d=p.rotated?s.w:s.d;if(p.x+w>192||p.z+d>192||p.y+s.h>240)throw Error("The project exceeds the supported dimensions.");const face=isSlope(p.part)?(["px","nx","pz","nz"].includes(String(p.face))?p.face:p.rotated?"px":"pz"):undefined;return {id,part:p.part,color:p.color,x:p.x,y:p.y,z:p.z,w,d,h:s.h,rotated:p.rotated,stage:0,...(p.support===true?{support:true}:{}),...(face?{face}:{})};});
  const occupied=new Set<string>();for(const p of pieces)for(let x=p.x;x<p.x+p.w;x++)for(let y=p.y;y<p.y+p.h;y++)for(let z=p.z;z<p.z+p.d;z++){const k=voxelKey(x,y,z);if(occupied.has(k))throw Error("The project has overlapping pieces. Repair the file before importing.");occupied.add(k);if(occupied.size>350000)throw Error("The project is too complex. Import a smaller version.");}
  return finishModel(pieces,{name:typeof data.name==="string"?data.name.slice(0,80):"Imported project",description:typeof data.description==="string"?data.description.slice(0,500):"Your editable Brickwork project",source:"custom",...readProjectMetadata(data,pieces)});
 }
@@ -160,7 +160,7 @@ export function supportLoosePieces(input:Piece[]):{pieces:Piece[];added:number}{
    outer:for(let x=p.x;x<p.x+p.w;x++)for(let z=p.z;z<p.z+p.d;z++){
     if(occupied.has(voxelKey(x,p.y-1,z)))continue;let y=p.y-1;
     while(y>=0&&!occupied.has(voxelKey(x,y,z)))y--;
-    if(y>=0&&isTile(occupied.get(voxelKey(x,y,z))!.part))continue;
+    if(y>=0&&studless(occupied.get(voxelKey(x,y,z))!.part))continue;
     y++;while(y<p.y){if(pieces.length>=16000)return {pieces,added};const part:PartId=p.y-y>=3?"3005":"3024",s=PARTS[part];pieces.push({id:pieces.length,part,color:"gray",x,y,z,w:1,d:1,h:s.h,rotated:false,stage:0,support:true});y+=s.h;added++;}changed=true;break outer;
    }
    if(changed)break;

@@ -1,19 +1,26 @@
 import * as THREE from "three";
 import type {BuildModel} from "./models";
-import {COLORS,isTile} from "./bridge";
+import type {Piece} from "./bridge";
+import {COLORS,studCells} from "./bridge";
+import {pieceGeometry} from "./brick-geometry";
 
-// Render the actual packed bricks for the visual critic, including all protected edits.
+// Render the actual packed pieces, slopes included, for the visual critic.
 export function renderReviewViews(model:BuildModel):string[]{
  const renderer=new THREE.WebGLRenderer({antialias:true,preserveDrawingBuffer:true});
  renderer.setSize(640,640);renderer.setPixelRatio(1);renderer.setClearColor(0xe9edf2,1);renderer.outputColorSpace=THREE.SRGBColorSpace;
- const scene=new THREE.Scene(),geometry=new THREE.BoxGeometry(1,1,1),studGeometry=new THREE.CylinderGeometry(.3,.3,.18,8),material=new THREE.MeshStandardMaterial({roughness:.45});
- const body=new THREE.InstancedMesh(geometry,material,model.pieces.length),studCount=model.pieces.reduce((n,p)=>n+(isTile(p.part)?0:p.w*p.d),0),studs=new THREE.InstancedMesh(studGeometry,material,studCount),temp=new THREE.Object3D(),color=new THREE.Color();
- scene.add(body,studs,new THREE.HemisphereLight(0xffffff,0x6e829b,3));const light=new THREE.DirectionalLight(0xffffff,3);light.position.set(-40,90,80);scene.add(light);
- let index=0;const h=model.height*.4;
- model.pieces.forEach((p,i)=>{temp.position.set(p.x+p.w/2-model.length/2,p.y*.4+p.h*.2-h/2,p.z+p.d/2-model.width/2);temp.scale.set(p.w-.035,p.h*.4-.018,p.d-.035);temp.updateMatrix();body.setMatrixAt(i,temp.matrix);color.set(COLORS[p.color].hex);body.setColorAt(i,color);
-  if(!isTile(p.part))for(let x=0;x<p.w;x++)for(let z=0;z<p.d;z++){temp.position.set(p.x+x+.5-model.length/2,(p.y+p.h)*.4+.07-h/2,p.z+z+.5-model.width/2);temp.scale.setScalar(1);temp.updateMatrix();studs.setMatrixAt(index,temp.matrix);studs.setColorAt(index++,color);}
- });
+ const scene=new THREE.Scene(),studGeometry=new THREE.CylinderGeometry(.3,.3,.18,8),material=new THREE.MeshStandardMaterial({roughness:.45}),temp=new THREE.Object3D(),color=new THREE.Color();
+ scene.add(new THREE.HemisphereLight(0xffffff,0x6e829b,3));const light=new THREE.DirectionalLight(0xffffff,3);light.position.set(-40,90,80);scene.add(light);
+ const h=model.height*.4,groups=new Map<string,Piece[]>();for(const p of model.pieces){const k=`${p.part}:${p.rotated}:${p.face||""}`;const list=groups.get(k)||[];list.push(p);groups.set(k,list);}
+ const geometries:THREE.BufferGeometry[]=[];
+ for(const list of groups.values()){
+  const first=list[0],studded=studCells(first),geometry=pieceGeometry(first);geometries.push(geometry);
+  const body=new THREE.InstancedMesh(geometry,material,list.length),studs=studded.length?new THREE.InstancedMesh(studGeometry,material,list.length*studded.length):null;let index=0;
+  list.forEach((p,i)=>{temp.position.set(p.x+p.w/2-model.length/2,p.y*.4+p.h*.2-h/2,p.z+p.d/2-model.width/2);temp.rotation.set(0,0,0);temp.scale.setScalar(1);temp.updateMatrix();body.setMatrixAt(i,temp.matrix);color.set(COLORS[p.color].hex);body.setColorAt(i,color);
+   if(studs)for(const [x,z] of studded){temp.position.set(p.x+x+.5-model.length/2,(p.y+p.h)*.4+.07-h/2,p.z+z+.5-model.width/2);temp.updateMatrix();studs.setMatrixAt(index,temp.matrix);studs.setColorAt(index++,color);}
+  });
+  scene.add(body);if(studs)scene.add(studs);
+ }
  const radius=Math.hypot(model.length,model.width,h)/2+2,camera=new THREE.OrthographicCamera(-radius,radius,radius,-radius,.1,radius*8),out:string[]=[];
- try{for(const direction of [[0,.08,1],[.9,.65,1],[-.8,.55,-1]]){camera.position.set(...direction as [number,number,number]).normalize().multiplyScalar(radius*3);camera.lookAt(0,0,0);renderer.render(scene,camera);out.push(renderer.domElement.toDataURL("image/jpeg",.82));}}finally{geometry.dispose();studGeometry.dispose();material.dispose();renderer.dispose();renderer.forceContextLoss();}
+ try{for(const direction of [[0,.08,1],[.9,.65,1],[-.8,.55,-1]]){camera.position.set(...direction as [number,number,number]).normalize().multiplyScalar(radius*3);camera.lookAt(0,0,0);renderer.render(scene,camera);out.push(renderer.domElement.toDataURL("image/jpeg",.82));}}finally{for(const g of geometries)g.dispose();studGeometry.dispose();material.dispose();renderer.dispose();renderer.forceContextLoss();}
  return out;
 }
