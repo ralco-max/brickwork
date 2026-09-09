@@ -2,7 +2,7 @@ import {compactJSONSchema,compactScene,mergeRevision,validateScene,SceneStreamPa
 import type {GeneratedScene} from "./generated-scene";
 import {readEvents} from "./generation-stream";
 import type {DesignBrief} from "./design-project";
-import {GenerationError,upstreamError} from "./generation-errors";
+import {GenerationError,generationFailure,upstreamError} from "./generation-errors";
 
 export type GenerationInput={prompt:string;detail:"small"|"medium"|"large";reference?:string;research?:unknown;previous?:GeneratedScene;brief?:DesignBrief;locked?:string[];feedback?:string[];history?:{request:string;summary:string}[]};
 export const DESIGN_INSTRUCTIONS=`You design original, recognizable brick sculptures from ANY user idea. Never select a predefined recipe or refuse a subject for lacking a template. Compose a bespoke scene from shapes. Return only the supplied compact JSON, fields in schema order, with sh last: n name, d description, dim [x,y,z] scene extents, rm ids removed (empty for a new design), sh shapes. Each shape: i unique stable id, c component name, l label, k kind (box, ellipsoid, cylinder, cone, beam), o operation (add or subtract), a axis for cylinders and cones (null means upright y), col color, p [x,y,z] position, s [x,y,z] size, e [x,y,z] end for beams else null, r radius for beams else null, rep [count,dx,dy,dz] for repeated shapes else null.
@@ -21,17 +21,19 @@ export async function* generateScene(input:GenerationInput,key:string,model:stri
  const response=await fetcher("https://api.openai.com/v1/responses",{method:"POST",signal,headers:{"Authorization":`Bearer ${key}`,"Content-Type":"application/json"},body:JSON.stringify({model,store:false,stream:true,max_output_tokens:32000,instructions:DESIGN_INSTRUCTIONS,input:[{role:"user",content:[{type:"input_text",text:JSON.stringify({idea:input.prompt,detail:input.detail,brief:input.brief,referenceSheet:input.research,referencePhoto:Boolean(input.reference),previous:input.previous?compactScene(input.previous):undefined,lockedComponents:input.locked,repairFeedback:input.feedback,recentHistory:input.history})},...(input.reference?[{type:"input_image",image_url:input.reference,detail:"high"}]:[])]}],text:{format:{type:"json_schema",name:"brickwork_scene",strict:true,schema:compactJSONSchema}}})});
  if(!response.ok)throw await upstreamError(response);
  if(!response.body)throw Error("The AI service did not return a stream.");
- yield {type:"status",message:"Designing your custom model…"};const parser=new SceneStreamParser();let sent=0,headerSent=false,completed=false;
+ yield {type:"status",message:"Designing your custom model…"};const parser=new SceneStreamParser();let sent=0,headerSent=false,completed=false,parseError:Error|null=null;
  for await(const event of readEvents(response.body)){
   if(["response.completed","response.incomplete","response.failed"].includes(event.type)&&event.response?.usage)await onUsage?.(event.response.usage);
   if(event.type==="response.output_text.delta"){
-   parser.push(event.delta);if(parser.header&&!headerSent){yield {type:"header",header:parser.header};headerSent=true;if(input.previous){const gone=new Set(parser.removed);yield {type:"base",shapes:input.previous.shapes.filter(s=>!gone.has(s.id||s.label))};}}
+   if(parseError)continue;
+   try{parser.push(event.delta);}catch(e){parseError=e instanceof Error?e:Error(String(e));continue;}if(parser.header&&!headerSent){yield {type:"header",header:parser.header};headerSent=true;if(input.previous){const gone=new Set(parser.removed);yield {type:"base",shapes:input.previous.shapes.filter(s=>!gone.has(s.id||s.label))};}}
    while(sent<parser.shapes.length){const shape=parser.shapes[sent++];yield {type:"shape",shape,index:sent};}
   }else if(event.type==="response.refusal.delta"||event.type==="response.refusal.done")throw new GenerationError("The AI service declined this idea. Try a different description.","AI_REFUSAL");
   else if(event.type==="response.incomplete")throw new GenerationError("The builder reached its response limit. Continue the saved draft to finish the remaining details.","INCOMPLETE_RESPONSE");
   else if(["response.failed","error"].includes(event.type))throw new GenerationError("The AI service interrupted this design. Your draft is kept. Try again in a moment.","AI_UNAVAILABLE");
   else if(event.type==="response.completed"){if(event.response?.status!=="completed")throw Error("The AI response was not completed.");completed=true;}
  }
+ if(parseError){const failure=generationFailure(parseError);throw new GenerationError(failure.message,failure.code);}
  if(!completed)throw new GenerationError("The connection ended before the model finished. Continue from the saved draft when you’re ready.","CONNECTION_LOST");
  const parsed=parser.finish();const scene=validateScene(input.previous?mergeRevision(input.previous,parsed.header,parsed.removed,parsed.shapes):{...parsed.header,shapes:parsed.shapes});yield {type:"complete",scene};
 }

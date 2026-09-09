@@ -133,7 +133,12 @@ export const compactJSONSchema={type:"object",additionalProperties:false,propert
 },required:["n","d","dim","rm","sh"]};
 const toVec=(v:[number,number,number])=>({x:v[0],y:v[1],z:v[2]});
 export function expandCompactShape(c:CompactShape):Shape{
- return shapeSchema.parse({id:c.i,component:c.c,label:c.l,kind:c.k,operation:c.o,...(c.a?{axis:c.a}:{}),color:c.col,position:toVec(c.p),size:toVec(c.s),end:c.e?toVec(c.e):{x:0,y:0,z:0},radius:c.r??1,repeat:c.rep?{count:c.rep[0],offset:{x:c.rep[1],y:c.rep[2],z:c.rep[3]}}:{count:1,offset:{x:0,y:0,z:0}}});
+ const beam=c.k==="beam",round=c.k==="cylinder"||c.k==="cone";
+ // Fields that do not apply to this kind are ignored rather than failing the design: a model that
+ // writes r: 0 for a box, or an axis for an ellipsoid, has not drawn anything wrong.
+ const radius=beam?Math.min(12,Math.max(.5,Number(c.r)||1)):1;
+ const rep=c.rep&&c.rep[0]>1?{count:Math.min(32,Math.max(1,Math.round(c.rep[0]))),offset:{x:Math.max(0,c.rep[1]),y:Math.max(0,c.rep[2]),z:Math.max(0,c.rep[3])}}:{count:1,offset:{x:0,y:0,z:0}};
+ return shapeSchema.parse({id:c.i,component:c.c,label:c.l,kind:c.k,operation:c.o,...(round&&c.a?{axis:c.a}:{}),color:c.col,position:toVec(c.p),size:beam?{x:1,y:1,z:1}:toVec(c.s),end:beam&&c.e?toVec(c.e):{x:0,y:0,z:0},radius,repeat:rep});
 }
 export function compactShape(s:Shape):CompactShape{
  const beam=s.kind==="beam",rep=s.repeat&&s.repeat.count>1?s.repeat:null;
