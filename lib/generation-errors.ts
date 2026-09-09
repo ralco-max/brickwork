@@ -10,9 +10,10 @@ export async function upstreamError(response:Response){
  if(status===400)return new GenerationError("The AI service rejected the design request. Your draft is kept. Please report this message so we can fix the request.","AI_REQUEST",status,id);
  return new GenerationError("The AI service is unavailable. Your draft is kept. Try again in a moment.","AI_UNAVAILABLE",status,id);
 }
+function describeZod(error:Error){const issues=(error as unknown as {issues?:{path?:(string|number)[];message?:string}[]}).issues||[];const first=issues[0];if(!first)return "schema mismatch";return `${(first.path||[]).join(".")||"shape"} ${String(first.message||"").slice(0,80)}`.trim();}
 export function generationFailure(error:unknown){
  if(error instanceof GenerationError)return {message:error.message,code:error.code,upstreamStatus:error.upstreamStatus,upstreamRequestId:error.upstreamRequestId};
  if(error instanceof TypeError||error instanceof Error&&/network|fetch|connection|terminated/i.test(error.message))return {message:"The connection to the builder was interrupted. Continue from the saved draft when you’re ready.",code:"CONNECTION_LOST"};
- if(error instanceof Error&&(/outside the build area|no volume|too complex|duplicate shape IDs|repeats too many|shape limit|incomplete design|too large/.test(error.message)||error.name==="ZodError"||error instanceof SyntaxError))return {message:error.name==="ZodError"||error instanceof SyntaxError?"A generated shape was invalid. The builder needs to repair the geometry.":error.message,code:"INVALID_GEOMETRY"};
+ if(error instanceof Error&&(/outside the build area|no volume|too complex|duplicate shape IDs|repeats too many|shape limit|incomplete design|too large/.test(error.message)||error.name==="ZodError"||error instanceof SyntaxError))return {message:error.name==="ZodError"?`A generated shape was invalid: ${describeZod(error)}. The builder needs to repair the geometry.`:error instanceof SyntaxError?"A generated shape was invalid. The builder needs to repair the geometry.":error.message,code:"INVALID_GEOMETRY"};
  return {message:"The builder could not finish this request. Your existing draft is kept. Try again.",code:"GENERATION_FAILED"};
 }

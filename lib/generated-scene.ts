@@ -137,7 +137,8 @@ export const compactJSONSchema={type:"object",additionalProperties:false,propert
   p:vec3JSON,s:vec3JSON,e:nullable(vec3JSON),r:nullable({type:"number",minimum:.5,maximum:12}),rep:nullable({type:"array",items:{type:"number"},minItems:4,maxItems:4}),
  },required:["i","c","l","k","o","a","col","p","s","e","r","rep"]}},
 },required:["n","d","dim","rm","sh"]};
-const toVec=(v:[number,number,number])=>({x:v[0],y:v[1],z:v[2]});
+const clampAxis=(v:number,max:number)=>Math.min(max,Math.max(0,Number.isFinite(v)?v:0));
+const toVec=(v:[number,number,number])=>({x:clampAxis(v[0],80),y:clampAxis(v[1],160),z:clampAxis(v[2],80)});
 export function expandCompactShape(c:CompactShape):Shape{
  const beam=c.k==="beam",round=c.k==="cylinder"||c.k==="cone";
  // Fields that do not apply to this kind are ignored rather than failing the design: a model that

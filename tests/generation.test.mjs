@@ -26,9 +26,14 @@ test('compact shapes are read leniently and a bad shape mid-stream still settles
  assert.equal(box.radius,1);assert.equal(box.axis,undefined);assert.equal(box.repeat.count,1);
  const beam=expandCompactShape({i:'w',c:'W',l:'beam',k:'beam',o:'add',a:null,col:'red',p:[0,0,0],s:[9,9,9],e:[4,0,0],r:40,rep:null});
  assert.equal(beam.radius,12);assert.deepEqual(beam.size,{x:1,y:1,z:1});
- const bad=JSON.stringify({n:'x',d:'',dim:[8,8,8],rm:[],sh:[{i:'a',c:'A',l:'a',k:'box',o:'add',a:null,col:'red',p:[0,0,0],s:[900,1,1],e:null,r:null,rep:null}]});
+ const bad=JSON.stringify({n:'x',d:'',dim:[8,8,8],rm:[],sh:[{i:'a',c:'A',l:'a',k:'box',o:'add',a:null,col:'purple',p:[0,0,0],s:[2,1,1],e:null,r:null,rep:null}]});
  const frames=[{type:'response.output_text.delta',delta:bad},{type:'response.completed',response:{status:'completed',usage:{input_tokens:100,output_tokens:50}}}];
  let usage=null;const fetcher=async()=>new Response(frames.map(e=>'data: '+JSON.stringify(e)+'\n\n').join(''));
  await assert.rejects(async()=>{for await(const _ of generateScene({prompt:'x',detail:'small'},'k','m',new AbortController().signal,fetcher,async u=>{usage=u;})){}},{code:'INVALID_GEOMETRY'});
  assert.deepEqual(usage,{input_tokens:100,output_tokens:50});
+});
+test('out-of-range compact coordinates are clamped, and a schema failure names the field',()=>{
+ const s=expandCompactShape({i:'q',c:'Q',l:'q',k:'box',o:'add',a:null,col:'red',p:[95,-3,4],s:[200,4,4],e:null,r:null,rep:null});
+ assert.deepEqual(s.position,{x:80,y:0,z:4});assert.equal(s.size.x,80);
+ assert.throws(()=>expandCompactShape({i:'q',c:'Q',l:'q',k:'box',o:'add',a:null,col:'purple',p:[0,0,0],s:[1,1,1],e:null,r:null,rep:null}));
 });
