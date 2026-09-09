@@ -4,7 +4,7 @@ import {build} from 'esbuild';
 import {budgetDb} from './helpers/budget-db.mjs';
 
 const bundle=await build({stdin:{contents:'export {env as testEnv} from "cloudflare:workers";export * from "./lib/server-events";export * from "./lib/generation-errors";export * from "./lib/generation-stream";export * from "./lib/generation-provider";export * from "./lib/generation-recovery";export * from "./lib/generated-scene";export * from "./lib/assembly";export {defaultBrief} from "./lib/design-project";export {foundationScene} from "./lib/live-arrivals";export {POST as reviewPOST} from "./app/api/review/route";',resolveDir:process.cwd(),loader:'ts'},bundle:true,platform:'node',format:'esm',write:false,plugins:[{name:'fixture-env',setup(b){b.onResolve({filter:/^cloudflare:workers$/},()=>({path:'env',namespace:'fixture'}));b.onLoad({filter:/.*/,namespace:'fixture'},()=>({contents:'export const env={};',loader:'js'}));}}]});
-const {testEnv,eventResponse,GenerationError,upstreamError,readEvents,generateScene,canKeepPartial,continuationPrompt,compileScene,defaultBrief,foundationScene,LandingAssemblyClock,reviewPOST}=await import('data:text/javascript;base64,'+Buffer.from(bundle.outputFiles[0].text).toString('base64'));
+const {testEnv,eventResponse,GenerationError,upstreamError,readEvents,generateScene,canKeepPartial,continuationPrompt,compileScene,defaultBrief,foundationScene,LandingAssemblyClock,reviewPOST,compactScene}=await import('data:text/javascript;base64,'+Buffer.from(bundle.outputFiles[0].text).toString('base64'));
 const request=()=>new Request('https://brickwork.test/api/generate',{headers:{'cf-ray':'fixture-ray'}});
 const collect=async stream=>{const items=[];for await(const item of readEvents(stream))items.push(item);return items;};
 
@@ -36,7 +36,7 @@ test('consumer cancellation aborts the upstream request without a false error',a
 
 test('truncated generation retains usable subject geometry and can send a valid continuation',async()=>{
  const brief=defaultBrief('A tower'),foundation=foundationScene(brief),scene={...foundation,name:'Tower in progress',shapes:[...foundation.shapes,{...foundation.shapes[0],id:'tower-body',label:'Tower body',component:'Tower',position:{x:8,y:2,z:8},size:{x:8,y:18,z:8},color:'tan'}]};
- const frames=[{type:'response.output_text.delta',delta:JSON.stringify(scene)},{type:'response.incomplete',response:{incomplete_details:{reason:'max_output_tokens'}}}];
+ const frames=[{type:'response.output_text.delta',delta:JSON.stringify(compactScene(scene))},{type:'response.incomplete',response:{incomplete_details:{reason:'max_output_tokens'}}}];
  const fetcher=async()=>new Response(frames.map(e=>'data: '+JSON.stringify(e)+'\n\n').join(''));let header,shapes=[],failure;
  try{for await(const event of generateScene({prompt:brief.idea,detail:'medium'},'fixture-key','fixture-model',new AbortController().signal,fetcher)){if(event.type==='header')header=event.header;if(event.type==='shape')shapes.push(event.shape);}}catch(e){failure=e;}
  assert.equal(failure.code,'INCOMPLETE_RESPONSE');const snapshot={...header,shapes},model=compileScene(snapshot);assert.ok(canKeepPartial(snapshot,model));assert.equal(canKeepPartial(foundation,compileScene(foundation)),false);assert.ok(continuationPrompt('x'.repeat(2000)).length<=2000);

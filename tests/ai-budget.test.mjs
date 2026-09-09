@@ -6,8 +6,8 @@ import {join} from 'node:path';
 import {build} from 'esbuild';
 import {budgetDb} from './helpers/budget-db.mjs';
 
-const bundle=await build({stdin:{contents:'export * from "./lib/ai-budget";export * from "./lib/generation-stream";export * from "./lib/generation-provider";export {defaultBrief} from "./lib/design-project";export {foundationScene} from "./lib/live-arrivals";export {env as testEnv} from "cloudflare:workers";export {POST as generatePOST} from "./app/api/generate/route";export {POST as reviewPOST} from "./app/api/review/route";export {GET as budgetGET} from "./app/api/budget/route";',resolveDir:process.cwd(),loader:'ts'},bundle:true,platform:'node',format:'esm',write:false,plugins:[{name:'fixture-env',setup(b){b.onResolve({filter:/^cloudflare:workers$/},()=>({path:'env',namespace:'fixture'}));b.onLoad({filter:/.*/,namespace:'fixture'},()=>({contents:'export const env={};',loader:'js'}));}}]});
-const {BUDGET_NANOS,BUDGET_MODEL,keyFingerprint,budgetSnapshot,reserveBudget,tokenCost,budgetedProvider,readEvents,generateScene,defaultBrief,foundationScene,testEnv,generatePOST,reviewPOST,budgetGET}=await import('data:text/javascript;base64,'+Buffer.from(bundle.outputFiles[0].text).toString('base64'));
+const bundle=await build({stdin:{contents:'export {compactScene} from "./lib/generated-scene";export * from "./lib/ai-budget";export * from "./lib/generation-stream";export * from "./lib/generation-provider";export {defaultBrief} from "./lib/design-project";export {foundationScene} from "./lib/live-arrivals";export {env as testEnv} from "cloudflare:workers";export {POST as generatePOST} from "./app/api/generate/route";export {POST as reviewPOST} from "./app/api/review/route";export {GET as budgetGET} from "./app/api/budget/route";',resolveDir:process.cwd(),loader:'ts'},bundle:true,platform:'node',format:'esm',write:false,plugins:[{name:'fixture-env',setup(b){b.onResolve({filter:/^cloudflare:workers$/},()=>({path:'env',namespace:'fixture'}));b.onLoad({filter:/.*/,namespace:'fixture'},()=>({contents:'export const env={};',loader:'js'}));}}]});
+const {BUDGET_NANOS,BUDGET_MODEL,keyFingerprint,budgetSnapshot,reserveBudget,tokenCost,budgetedProvider,readEvents,generateScene,defaultBrief,foundationScene,testEnv,generatePOST,reviewPOST,budgetGET,compactScene}=await import('data:text/javascript;base64,'+Buffer.from(bundle.outputFiles[0].text).toString('base64'));
 const url='https://api.openai.com/v1/responses',key='fixture-personal-api-key-123',signal=()=>new AbortController().signal;
 const payload=(extra={})=>({method:'POST',signal:signal(),headers:{Authorization:`Bearer ${key}`},body:JSON.stringify({model:BUDGET_MODEL,input:'A castle',max_output_tokens:32000,...extra})});
 const collect=async response=>{const result=[];for await(const event of readEvents(response.body))result.push(event);return result;};
@@ -75,7 +75,7 @@ test('generation, review and budget routes share the personal key ledger instead
  const brief=defaultBrief('A castle'),scene=foundationScene(brief),review={summary:'Castle visible',recognizable:true,features:[],improvements:[],revision:{status:'not_requested',evidence:'No revision'}},calls=[];
  t.mock.method(globalThis,'fetch',async(u,init)=>{calls.push([u,init]);if(u.endsWith('/input_tokens'))return Response.json({input_tokens:1000});
   const body=JSON.parse(init.body);if(!body.stream)return Response.json({status:'completed',usage:{input_tokens:1000,output_tokens:1000},output:[{content:[{type:'output_text',text:JSON.stringify(review)}]}]});
-  return new Response([{type:'response.output_text.delta',delta:JSON.stringify(scene)},{type:'response.completed',response:{status:'completed',usage:{input_tokens:1000,output_tokens:1000}}}].map(e=>'data: '+JSON.stringify(e)+'\n\n').join(''));
+  return new Response([{type:'response.output_text.delta',delta:JSON.stringify(compactScene(scene))},{type:'response.completed',response:{status:'completed',usage:{input_tokens:1000,output_tokens:1000}}}].map(e=>'data: '+JSON.stringify(e)+'\n\n').join(''));
  });
  const req=(route,body)=>new Request('https://brickwork.test/api/'+route,{method:'POST',headers:{'x-brickwork-api-key':key},body:JSON.stringify(body)});
  const generated=await collect(await generatePOST(req('generate',{prompt:brief.idea,detail:'medium',brief})));assert.equal(generated.at(-1).type,'complete');assert.equal(generated.filter(e=>e.type==='budget').length,2);
@@ -105,5 +105,5 @@ test('the best-quality model is priced at its own rates and unknown models are r
  await provider.recordUsage({input_tokens:1000,output_tokens:1000});
  assert.ok(Math.abs((await budgetSnapshot(db,await keyFingerprint(key))).spent-(1000*10000+1000*50000)/1e9)<1e-9);
  const other=budgetedProvider(db,key,()=>{},async()=>Response.json({ok:true}));
- await assert.rejects(other.fetch(url,payload({model:'gpt-5.6-sol'})),{code:'BUDGET_MODEL'});
+ await assert.rejects(other.fetch(url,payload({model:'gpt-4o'})),{code:'BUDGET_MODEL'});
 });

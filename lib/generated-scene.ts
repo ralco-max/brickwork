@@ -107,21 +107,73 @@ export function compileScene(raw:unknown,options:{manual?:ManualEdits;hollow?:bo
  return finishModel(pieces,{name:scene.name,description:scene.description,source:"custom"});
 }
 
-// Extract only completed shape objects from streamed JSON. Braces inside strings
-// and escaped quotes must never finish a shape early.
+// ---------------------------------------------------------------------------
+// Wire format. The model reads and writes a compact form of the scene: short
+// keys, vectors as arrays, and nulls where a field does not apply, which is
+// about half the tokens of the full form. Everything inside the app still
+// uses the full Shape/GeneratedScene types.
+//   {n,d,dim:[x,y,z],rm:[ids removed],sh:[{i,c,l,k,o,a,col,p:[x,y,z],s:[x,y,z],e:[x,y,z]|null,r|null,rep:[count,dx,dy,dz]|null}]}
+// ---------------------------------------------------------------------------
+const vec3=z.tuple([z.number().finite(),z.number().finite(),z.number().finite()]);
+export const compactShapeSchema=z.object({
+ i:z.string().min(1).max(80),c:z.string().min(1).max(80),l:z.string().min(1).max(80),
+ k:z.enum(["box","ellipsoid","cylinder","cone","beam"]),o:z.enum(["add","subtract"]),a:z.enum(["x","y","z"]).nullable().optional(),col:z.enum(colors),
+ p:vec3,s:vec3,e:vec3.nullable().optional(),r:z.number().finite().nullable().optional(),rep:z.tuple([z.number(),z.number(),z.number(),z.number()]).nullable().optional(),
+}).strict();
+export type CompactShape=z.infer<typeof compactShapeSchema>;
+export type CompactScene={n:string;d:string;dim:[number,number,number];rm?:string[]|null;sh:CompactShape[]};
+const vec3JSON={type:"array",items:{type:"number"},minItems:3,maxItems:3};
+const nullable=(schema:Record<string,unknown>)=>({anyOf:[schema,{type:"null"}]});
+export const compactJSONSchema={type:"object",additionalProperties:false,properties:{
+ n:shortText,d:{type:"string",maxLength:500},dim:vec3JSON,rm:{type:"array",items:{type:"string"}},
+ sh:{type:"array",maxItems:240,items:{type:"object",additionalProperties:false,properties:{
+  i:shortText,c:shortText,l:shortText,k:{type:"string",enum:["box","ellipsoid","cylinder","cone","beam"]},o:{type:"string",enum:["add","subtract"]},a:nullable({type:"string",enum:["x","y","z"]}),col:{type:"string",enum:colors},
+  p:vec3JSON,s:vec3JSON,e:nullable(vec3JSON),r:nullable({type:"number",minimum:.5,maximum:12}),rep:nullable({type:"array",items:{type:"number"},minItems:4,maxItems:4}),
+ },required:["i","c","l","k","o","a","col","p","s","e","r","rep"]}},
+},required:["n","d","dim","rm","sh"]};
+const toVec=(v:[number,number,number])=>({x:v[0],y:v[1],z:v[2]});
+export function expandCompactShape(c:CompactShape):Shape{
+ return shapeSchema.parse({id:c.i,component:c.c,label:c.l,kind:c.k,operation:c.o,...(c.a?{axis:c.a}:{}),color:c.col,position:toVec(c.p),size:toVec(c.s),end:c.e?toVec(c.e):{x:0,y:0,z:0},radius:c.r??1,repeat:c.rep?{count:c.rep[0],offset:{x:c.rep[1],y:c.rep[2],z:c.rep[3]}}:{count:1,offset:{x:0,y:0,z:0}}});
+}
+export function compactShape(s:Shape):CompactShape{
+ const beam=s.kind==="beam",rep=s.repeat&&s.repeat.count>1?s.repeat:null;
+ return {i:s.id||s.label,c:s.component||s.label,l:s.label,k:s.kind,o:s.operation,a:s.axis&&s.axis!=="y"?s.axis:null,col:s.color,p:[s.position.x,s.position.y,s.position.z],s:[s.size.x,s.size.y,s.size.z],e:beam?[s.end.x,s.end.y,s.end.z]:null,r:beam?s.radius:null,rep:rep?[rep.count,rep.offset.x,rep.offset.y,rep.offset.z]:null};
+}
+export function compactScene(scene:GeneratedScene):CompactScene{return {n:scene.name,d:scene.description,dim:[scene.dimensions.x,scene.dimensions.y,scene.dimensions.z],rm:[],sh:scene.shapes.map(compactShape)};}
+export function expandCompactHeader(raw:{n?:unknown;d?:unknown;dim?:unknown}):SceneHeader{
+ const dim=Array.isArray(raw.dim)&&raw.dim.length===3?raw.dim as number[]:[0,0,0];
+ return {name:String(raw.n??"Untitled design").slice(0,80),description:String(raw.d??"").slice(0,500),dimensions:{x:Number(dim[0]),y:Number(dim[1]),z:Number(dim[2])}};
+}
+// A revision returns only new and changed shapes plus the ids it removed; the
+// result is the previous scene with those applied, changed shapes keeping their
+// place in the operation order and new ones appended in the order given.
+export function mergeRevision(previous:GeneratedScene,header:SceneHeader,removed:string[],shapes:Shape[]):GeneratedScene{
+ const gone=new Set(removed),incoming=new Map(shapes.map(s=>[s.id||s.label,s]));
+ const kept=previous.shapes.filter(s=>!gone.has(s.id||s.label)).map(s=>incoming.get(s.id||s.label)||s);
+ const seen=new Set(kept.map(s=>s.id||s.label));
+ return {...header,shapes:[...kept,...shapes.filter(s=>!seen.has(s.id||s.label))]};
+}
+
+// Extract only completed shape objects from streamed compact JSON. Braces
+// inside strings and escaped quotes must never finish a shape early.
 export class SceneStreamParser{
  private text="";private cursor=0;private shapeStart=-1;private depth=0;private quoted=false;private escaped=false;private inShapes=false;
- header:SceneHeader|null=null;shapes:Shape[]=[];
+ header:SceneHeader|null=null;removed:string[]=[];shapes:Shape[]=[];
  push(delta:string){
   this.text+=delta;if(this.text.length>350000)throw Error("The generated response is too large.");
-  if(!this.inShapes){const match=/"shapes"\s*:\s*\[/.exec(this.text);if(!match)return;
-   const prefix=this.text.slice(0,match.index);this.header=JSON.parse(prefix+'"shapes":[]}');this.cursor=match.index+match[0].length;this.inShapes=true;}
+  if(!this.inShapes){const match=/"sh"\s*:\s*\[/.exec(this.text);if(!match)return;
+   const prefix=this.text.slice(0,match.index);const raw=JSON.parse(prefix+'"sh":[]}');this.header=expandCompactHeader(raw);this.removed=Array.isArray(raw.rm)?raw.rm.filter((x:unknown)=>typeof x==="string").slice(0,240):[];this.cursor=match.index+match[0].length;this.inShapes=true;}
   for(;this.cursor<this.text.length;this.cursor++){
    const c=this.text[this.cursor];if(this.quoted){if(this.escaped)this.escaped=false;else if(c==="\\")this.escaped=true;else if(c==='"')this.quoted=false;continue;}
-   if(c==='"'){this.quoted=true;continue;}if(c==="{"){if(this.depth===0)this.shapeStart=this.cursor;this.depth++;}else if(c==="}"){this.depth--;if(this.depth===0&&this.shapeStart>=0){const s=shapeSchema.parse(JSON.parse(this.text.slice(this.shapeStart,this.cursor+1)));this.shapes.push(s);if(this.shapes.length>240)throw Error("The generator exceeded the shape limit.");this.shapeStart=-1;}}else if(c==="]"&&this.depth===0){this.cursor++;break;}
+   if(c==='"'){this.quoted=true;continue;}if(c==="{"){if(this.depth===0)this.shapeStart=this.cursor;this.depth++;}else if(c==="}"){this.depth--;if(this.depth===0&&this.shapeStart>=0){const s=expandCompactShape(compactShapeSchema.parse(JSON.parse(this.text.slice(this.shapeStart,this.cursor+1))));this.shapes.push(s);if(this.shapes.length>240)throw Error("The generator exceeded the shape limit.");this.shapeStart=-1;}}else if(c==="]"&&this.depth===0){this.cursor++;break;}
   }
  }
- finish(){return validateScene(JSON.parse(this.text));}
+ // The complete compact document, expanded. Callers merge revisions and validate.
+ finish():{header:SceneHeader;removed:string[];shapes:Shape[]}{
+  const raw=JSON.parse(this.text);const header=expandCompactHeader(raw);
+  const shapes=(Array.isArray(raw.sh)?raw.sh:[]).map((c:unknown)=>expandCompactShape(compactShapeSchema.parse(c)));
+  return {header,removed:Array.isArray(raw.rm)?raw.rm.filter((x:unknown)=>typeof x==="string"):[],shapes};
+ }
 }
 
 export function normalizeScene(scene:GeneratedScene):GeneratedScene{const taken=new Set(scene.shapes.filter(s=>s.id).map(s=>s.id));return {...scene,shapes:scene.shapes.map((s,i)=>{let id=s.id||`shape-${i+1}`;while(!s.id&&taken.has(id))id+="-legacy";taken.add(id);return {...s,id,component:s.component||s.label,repeat:s.repeat||{count:1,offset:{x:0,y:0,z:0}}};})};}

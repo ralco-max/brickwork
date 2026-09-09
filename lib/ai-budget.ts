@@ -8,8 +8,9 @@ export const BUDGET_NANOS=10_000_000_000;
 export const BUDGET_MODEL="gpt-5.6-terra";
 // Standard rates in nanodollars per token for every model the ledger will pay for.
 // GPT-6 Astra: https://developers.openai.com/api/docs/models/gpt-6-astra ($10 / $1 cached / $50).
-export const PRICED_MODELS:Record<string,{input:number;cached:number;output:number}>={"gpt-5.6-terra":{input:2000,cached:200,output:12000},"gpt-6-astra":{input:10000,cached:1000,output:50000}};
-export const BEST_MODEL="gpt-6-astra";
+export const PRICED_MODELS:Record<string,{input:number;cached:number;output:number}>={"gpt-5.6-terra":{input:2000,cached:200,output:12000},"gpt-5.6-sol":{input:4000,cached:400,output:20000},"gpt-6-astra":{input:10000,cached:1000,output:50000}};
+export const QUALITY_MODELS={standard:"gpt-5.6-terra",better:"gpt-5.6-sol",best:"gpt-6-astra"} as const;
+export const BEST_MODEL=QUALITY_MODELS.best;
 const INPUT=2000,CACHED_INPUT=200,OUTPUT=12000;
 // The built-in web search tool: $10 per 1,000 calls, and its page content is billed as input tokens.
 const SEARCH_CALL_NANOS=10_000_000,SEARCH_CONTENT_TOKENS=30000;
