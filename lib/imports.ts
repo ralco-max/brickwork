@@ -56,3 +56,11 @@ export async function imagePixels(file:File,maxWidth:number):Promise<{data:Uint8
   const canvas=document.createElement("canvas");canvas.width=width;canvas.height=height;const ctx=canvas.getContext("2d");if(!ctx)throw Error("Image processing is unavailable in this browser.");ctx.fillStyle="#fff";ctx.fillRect(0,0,width,height);ctx.drawImage(img,0,0,width,height);return {data:ctx.getImageData(0,0,width,height).data,width,height};
  }finally{URL.revokeObjectURL(url);}
 }
+
+// A downsized JPEG data URL for the AI designer: large enough to read details, small enough to send.
+export async function imageDataURL(file:File,maxSize=1024):Promise<string>{
+ const pixels=await imagePixels(file,maxSize);
+ const canvas=document.createElement("canvas");canvas.width=pixels.width;canvas.height=pixels.height;const ctx=canvas.getContext("2d");if(!ctx)throw Error("Image processing is unavailable in this browser.");
+ ctx.putImageData(new ImageData(new Uint8ClampedArray(pixels.data),pixels.width,pixels.height),0,0);
+ const url=canvas.toDataURL("image/jpeg",.86);if(url.length>1500000)throw Error("This photo is too detailed to send. Try a smaller picture.");return url;
+}

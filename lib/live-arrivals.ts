@@ -6,8 +6,9 @@ import type {DesignBrief} from "./design-project";
 export function foundationScene(brief:DesignBrief):GeneratedScene{
  // This is real starting geometry supplied to the designer, not a progress prop.
  // Keep its plate count modest even when the requested overall bounds are large.
- const limit=Math.max(8,Math.floor(Math.sqrt(brief.maxPieces*8)/4)*4),x=Math.min(brief.maxWidth,limit),z=Math.min(brief.maxDepth,limit);
- return {name:"Display foundation",description:"A two-layer studded foundation for the requested design. Develop the requested subject above it; adjust its footprint if the design needs it.",dimensions:{x:brief.maxWidth,y:brief.maxHeight,z:brief.maxDepth},shapes:[{id:"display-foundation",component:"Foundation",label:"Display foundation",kind:"box",operation:"add",color:"gray",position:{x:0,y:0,z:0},size:{x,y:2,z},end:{x:0,y:0,z:0},radius:1,repeat:{count:1,offset:{x:0,y:0,z:0}}}]};
+ // A small placeholder so the stage is never empty; the designer resizes it to the subject.
+ const x=Math.min(brief.maxWidth,12),z=Math.min(brief.maxDepth,12);
+ return {name:"Display foundation",description:"A placeholder two-layer foundation. Resize or replace it so the base fits the design's own footprint; its size is not a requirement.",dimensions:{x:brief.maxWidth,y:brief.maxHeight,z:brief.maxDepth},shapes:[{id:"display-foundation",component:"Foundation",label:"Display foundation",kind:"box",operation:"add",color:"gray",position:{x:0,y:0,z:0},size:{x,y:2,z},end:{x:0,y:0,z:0},radius:1,repeat:{count:1,offset:{x:0,y:0,z:0}}}]};
 }
 export type Arrival={track:AssemblyTrack;at:number};
 export const brickIdentity=(p:Piece)=>`${p.part}:${p.color}:${p.x}:${p.y}:${p.z}:${p.w}:${p.h}:${p.d}:${p.rotated}`;

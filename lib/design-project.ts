@@ -8,7 +8,7 @@ import type {GeneratedScene} from "./generated-scene";
 
 export const briefSchema=z.object({idea:z.string().min(3).max(2000),size:z.enum(["small","medium","large"]),detail:z.enum(["balanced","detailed","signature"]),maxPieces:z.number().int().min(100).max(16000),maxWidth:z.number().int().min(16).max(80),maxDepth:z.number().int().min(16).max(80),maxHeight:z.number().int().min(16).max(160),features:z.array(z.string().min(1).max(160)).max(12),style:z.string().max(120),hollow:z.boolean()}).strict();
 export type DesignBrief=z.infer<typeof briefSchema>;
-export const defaultBrief=(idea=""):DesignBrief=>({idea,size:"medium",detail:"detailed",maxPieces:600,maxWidth:24,maxDepth:24,maxHeight:64,features:[],style:"Sculptural display with rich surface detail",hollow:false});
+export const defaultBrief=(idea=""):DesignBrief=>({idea,size:"medium",detail:"detailed",maxPieces:600,maxWidth:48,maxDepth:32,maxHeight:96,features:[],style:"Sculptural display with rich surface detail",hollow:false});
 export type Cuboid=Pick<Piece,"x"|"y"|"z"|"w"|"h"|"d">;
 export type ManualEdits={erase:Cuboid[];bricks:Piece[]};
 export type VisualReview={revision?:{status:"visible"|"missing"|"uncertain"|"not_requested";evidence:string};summary:string;recognizable:boolean;features:{feature:string;status:"visible"|"missing"|"uncertain";evidence:string}[];improvements:string[]};

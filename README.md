@@ -33,11 +33,13 @@ Version 3 project JSON saves the name, description, generation scene, original b
 
 The parts manifest drives the viewport, inventory, animation and exports. CSV and BrickLink wanted-list XML subtract owned quantities. Pick a Brick CSV uses manually entered color-specific element IDs. Seller quote entries record an HTTPS product URL, available quantity, unit price and check time. Coverage shows which quantities have sufficient stock in those user-entered quotes. Stock and prices are not fetched automatically, and no shopping cart or store account is connected. Shipping and taxes are outside the subtotal.
 
-PNG/JPG/WebP imports remain browser-local flat mosaics in a twelve-color palette. STL/OBJ imports remain browser-local closed-mesh sculptures, up to 10 MB, 60,000 triangles and 32 studs. Twelve instant procedural presets and a blank brick canvas remain available under More ways to create.
+A photo can be sculpted with AI: the picture is downsized to a JPEG in the browser and sent with the brief as an image input, and the designer is instructed to recreate the pictured subject's silhouette, proportions, parts, colors and details. The photo is not stored with the design. PNG/JPG/WebP imports can still become browser-local flat mosaics in a twelve-color palette. STL/OBJ imports remain browser-local closed-mesh sculptures, up to 10 MB, 60,000 triangles and 32 studs. Twelve instant procedural presets and a blank brick canvas remain available under More ways to create.
 
 ## Assembly and instructions
 
-The assembly plays inside the model's own canvas. In the studio, Play assembly (or the expand button on the landing) switches the 3D view into playback with a floating bar for play, pause, replay, scrubbing, speed and Make video; Done returns to the interactive model. The live creation stage has the same inline playback for a finished draft. There is no separate film dialog.
+The assembly is an intro that plays inside the interactive 3D view whenever a design opens in the studio, and again from Replay assembly; the viewer can orbit and zoom throughout, and Skip jumps to the finished model. The landing film also allows orbiting, and its slow camera sweep stops as soon as the viewer takes the camera. The download control in the view controls records the replay to a video. The live creation stage replays its brick arrivals. There is no separate film dialog or playback mode.
+
+Explode spreads the bricks out from the model's midpoint, widening the footprint, lifting layers far apart and drifting higher layers diagonally to the right; the camera reframes to the exploded extents.
 
 The landing first shows the completed model, then smoothly releases the bricks into an automatic 18-second assembly. A short hold joins each loop without a blank cut. Inline pause and expand controls remain available. It advances only while visible and pauses behind dialogs. Reduced-motion preference shows the finished model unless the viewer explicitly resumes. Playback offers replay, pause, seek and 0.5×/1×/2× speed and does not need AI.
 
@@ -49,7 +51,7 @@ Build guides now have at most 24 parts per step and expose exact X/Y/Z coordinat
 
 ## Sizes and piece limits
 
-Desk allows up to 200 pieces in 16 × 16 studs by 40 plates, Shelf up to 600 pieces in 24 × 24 by 64, and Statement up to 4,000 pieces in 48 × 40 by 120. Fine-tune limits can raise any of these. The design instructions explain that pieces come from occupied cells, about 8 to 12 cells per piece for solid masses and one per cell for thin details, and give the designer a cell budget for each size so it plans volume rather than shape count.
+Desk allows up to 200 pieces within 32 × 24 studs by 64 plates, Shelf up to 600 pieces within 48 × 32 by 96, and Statement up to 4,000 pieces within 80 × 64 by 160. These envelopes are ceilings, not targets: the designer is told to choose the footprint and height that suit the subject, long and low or tall and narrow, and to set the scene dimensions to the design's real extents. The starting foundation is a 12 × 12 placeholder the designer resizes; it no longer seeds a square base. The design instructions explain that pieces come from occupied cells, about 8 to 12 cells per piece for solid masses and one per cell for thin details, and give the designer a cell budget for each size so it plans volume rather than shape count.
 
 ## Landmark presets
 
