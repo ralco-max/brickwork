@@ -387,3 +387,6 @@ h1,.landing-film-caption h1,.project-heading h1,[data-slot=dialog-title]{text-wr
 /* Header controls meet the 44px target on every width. */
 .header-actions>.button{min-height:44px}.theme-toggle{width:44px;height:44px}
 @media(max-width:760px){.header-actions>.button{height:44px;min-height:44px}.header-actions>.secondary{width:44px}}
+
+/* Preset cards lead with the design's colour, not a running number. */
+.starter-swatch{display:flex;align-items:center;justify-content:center;width:22px;height:22px;border-radius:7px;margin-bottom:12px;color:var(--ink-3);border:1px solid #0000000f}
