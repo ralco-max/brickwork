@@ -384,3 +384,6 @@ h1,.landing-film-caption h1,.project-heading h1,[data-slot=dialog-title]{text-wr
 }
 /* The no-WebGL message must be readable on the light stage. */
 .canvas-error strong{color:var(--ink);font-size:17px;font-family:var(--font-display)}
+/* Header controls meet the 44px target on every width. */
+.header-actions>.button{min-height:44px}.theme-toggle{width:44px;height:44px}
+@media(max-width:760px){.header-actions>.button{height:44px;min-height:44px}.header-actions>.secondary{width:44px}}
