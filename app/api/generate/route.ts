@@ -25,5 +25,5 @@ export async function POST(request:Request){
   const provider=budgetedProvider(requireBudgetDb(config.db),key,budget=>send({type:"budget",budget}));
   const chosen=input.brief?.quality==="best"?BEST_MODEL:model;
   for await(const event of generateScene(input,key,chosen,signal,provider.fetch,provider.recordUsage))send(event);
- },{timeoutMs:240000});
+ },{timeoutMs:input.brief?.quality==="best"?420000:240000});
 }

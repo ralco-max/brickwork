@@ -11,7 +11,7 @@ A custom brick design studio using React, Three.js and Vinext.
 5. With automatic improvement enabled, make up to two further geometry requests containing exact failed checks, affected piece locations and visual feedback. Recheck every candidate. Keep the best completed candidate; cancellation preserves it. Failed checks remain visible after the cap. API service/authentication errors do not trigger automatic paid retries.
 6. Inspect the outcome. Only a model with passing digital checks and visual review gets “Continue to studio.” Other compiled models can be kept explicitly as working drafts. These checks do not certify physical strength, clutch fit, insertion access, mechanisms or live part availability.
 
-A generation request has a 240-second server timeout and 32,000 output-token ceiling. A visual review has a 120-second timeout and 4,000 output-token ceiling. Requests use `store: false`. One run is one lookup call (real subjects only), one generation call and one review call.
+A generation request has a 240-second server timeout (420 seconds for the Best designer, which reasons for a minute or more before it streams) and 32,000 output-token ceiling. A visual review has a 120-second timeout and 4,000 output-token ceiling. Requests use `store: false`. One run is one lookup call (real subjects only), one generation call and one review call.
 
 ## More detail and scoped revisions
 
