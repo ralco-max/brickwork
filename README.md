@@ -11,7 +11,7 @@ A custom brick design studio using React, Three.js and Vinext.
 5. With automatic improvement enabled, make up to two further geometry requests containing exact failed checks, affected piece locations and visual feedback. Recheck every candidate. Keep the best completed candidate; cancellation preserves it. Failed checks remain visible after the cap. API service/authentication errors do not trigger automatic paid retries.
 6. Inspect the outcome. Only a model with passing digital checks and visual review gets “Continue to studio.” Other compiled models can be kept explicitly as working drafts. These checks do not certify physical strength, clutch fit, insertion access, mechanisms or live part availability.
 
-A generation request has a 240-second server timeout and 32,000 output-token ceiling. A visual review has a 120-second timeout and 4,000 output-token ceiling. Requests use `store: false`. Auto improvement can use up to three generation calls plus three visual review calls; the UI explains this before starting.
+A generation request has a 240-second server timeout and 32,000 output-token ceiling. A visual review has a 120-second timeout and 4,000 output-token ceiling. Requests use `store: false`. One run is one generation call and one review call.
 
 ## More detail and scoped revisions
 
@@ -79,7 +79,7 @@ The catalog includes 1 × 2 to 1 × 8 bricks, 1 × 4 to 1 × 8 plates and tiles 
 
 ## Generation flow
 
-Only the first pass streams into the canvas. Auto-refine keeps the finished draft on screen while it reviews the model and reworks it, and swaps in the improved result once it compiles, so the model is never rebuilt from the foundation in view. The interface no longer counts passes; it reports composing, checking, refining and finished states. When a run finishes, the status bar under the canvas reads Finished and carries the actions to open the design in the studio, review again or repair remaining issues. Generation and visual review are pinned to `gpt-5.6-terra` with the standard service tier.
+A run is one pass: compose, pack, check, one visual review, finished. There are no automatic repair passes. Under the result sits a text box to say what is wrong or what should change in your own words; Revise design sends that with the failed checks and the review to the designer as a revision of the same scene, and leaving it blank repairs only the flagged checks. Review again re-runs the visual review, and Open in studio (or Keep as working draft) hands the model to the studio. Generation and visual review are pinned to `gpt-5.6-terra` with the standard service tier.
 
 ## Deploying to Cloudflare
 
