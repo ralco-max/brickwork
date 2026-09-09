@@ -96,3 +96,14 @@ test('a web search lookup reserves per-call fees and content tokens, settles on 
  const other=budgetedProvider(db,key,()=>{},async()=>Response.json({ok:true}));
  await assert.rejects(other.fetch(url,payload({tools:[{type:'function',name:'x'}]})),{code:'BUDGET_MODEL'});
 });
+
+test('the best-quality model is priced at its own rates and unknown models are refused',async t=>{
+ const {db,sqlite}=budgetDb();t.after(()=>sqlite.close());const events=[];
+ const provider=budgetedProvider(db,key,b=>events.push(b),async u=>u.endsWith('/input_tokens')?Response.json({input_tokens:1000}):Response.json({ok:true}));
+ await provider.fetch(url,payload({model:'gpt-6-astra',max_output_tokens:2000}));
+ assert.ok(events[0].held>.15&&events[0].held<.2,String(events[0].held));    // 2,000 output at $50/M is $0.10, plus about 5,100 input at $10/M
+ await provider.recordUsage({input_tokens:1000,output_tokens:1000});
+ assert.ok(Math.abs((await budgetSnapshot(db,await keyFingerprint(key))).spent-(1000*10000+1000*50000)/1e9)<1e-9);
+ const other=budgetedProvider(db,key,()=>{},async()=>Response.json({ok:true}));
+ await assert.rejects(other.fetch(url,payload({model:'gpt-5.6-sol'})),{code:'BUDGET_MODEL'});
+});

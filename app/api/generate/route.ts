@@ -1,6 +1,6 @@
 import {z} from "zod";
 import {aiSettings,requireBudgetDb} from "@/lib/ai-settings";
-import {budgetedProvider} from "@/lib/ai-budget";
+import {budgetedProvider,BEST_MODEL} from "@/lib/ai-budget";
 import {generationFailure} from "@/lib/generation-errors";
 import {generateScene} from "@/lib/generation-provider";
 import {validateScene} from "@/lib/generated-scene";
@@ -23,6 +23,7 @@ export async function POST(request:Request){
  return eventResponse(request,async(signal,send)=>{
   send({type:"status",message:"Connecting to your builder…"});
   const provider=budgetedProvider(requireBudgetDb(config.db),key,budget=>send({type:"budget",budget}));
-  for await(const event of generateScene(input,key,model,signal,provider.fetch,provider.recordUsage))send(event);
+  const chosen=input.brief?.quality==="best"?BEST_MODEL:model;
+  for await(const event of generateScene(input,key,chosen,signal,provider.fetch,provider.recordUsage))send(event);
  },{timeoutMs:240000});
 }

@@ -7,7 +7,7 @@ import {validateScene,sceneVoxels,compileScene} from "./generated-scene";
 import {simulateClutch} from "./clutch";
 import type {GeneratedScene} from "./generated-scene";
 
-export const briefSchema=z.object({idea:z.string().min(3).max(2000),size:z.enum(["small","medium","large"]),detail:z.enum(["balanced","detailed","signature"]),maxPieces:z.number().int().min(100).max(16000),maxWidth:z.number().int().min(16).max(80),maxDepth:z.number().int().min(16).max(80),maxHeight:z.number().int().min(16).max(160),features:z.array(z.string().min(1).max(160)).max(12),style:z.string().max(120),hollow:z.boolean(),finish:z.enum(["smooth","studded"]).optional()}).strict();
+export const briefSchema=z.object({idea:z.string().min(3).max(2000),size:z.enum(["small","medium","large"]),detail:z.enum(["balanced","detailed","signature"]),maxPieces:z.number().int().min(100).max(16000),maxWidth:z.number().int().min(16).max(80),maxDepth:z.number().int().min(16).max(80),maxHeight:z.number().int().min(16).max(160),features:z.array(z.string().min(1).max(160)).max(12),style:z.string().max(120),hollow:z.boolean(),finish:z.enum(["smooth","studded"]).optional(),quality:z.enum(["standard","best"]).optional()}).strict();
 export type DesignBrief=z.infer<typeof briefSchema>;
 export const defaultBrief=(idea=""):DesignBrief=>({idea,size:"medium",detail:"detailed",maxPieces:600,maxWidth:48,maxDepth:48,maxHeight:96,features:[],style:"Sculptural display with rich surface detail",hollow:false,finish:"smooth"});
 export type Cuboid=Pick<Piece,"x"|"y"|"z"|"w"|"h"|"d">;

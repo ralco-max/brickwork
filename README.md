@@ -91,7 +91,7 @@ The catalog includes 1 × 2 to 1 × 8 bricks, 1 × 4 to 1 × 8 plates and tiles 
 
 ## Generation flow
 
-A run is one pass: compose, pack, check, one visual review, finished. There are no automatic repair passes. Under the result sits a text box to say what is wrong or what should change in your own words; Revise design sends that with the failed checks and the review to the designer as a revision of the same scene, and leaving it blank repairs only the flagged checks. Review again re-runs the visual review, Rebuild bigger starts over at Statement size with the same idea and facts, and Open in studio (or Keep as working draft) hands the model to the studio. Generation and visual review are pinned to `gpt-5.6-terra` with the standard service tier.
+A run is one pass: compose, pack, check, one visual review, finished. There are no automatic repair passes. Under the result sits a text box to say what is wrong or what should change in your own words; Revise design sends that with the failed checks and the review to the designer as a revision of the same scene, and leaving it blank repairs only the flagged checks. Review again re-runs the visual review, Rebuild bigger starts over at Statement size with the same idea and facts, and Open in studio (or Keep as working draft) hands the model to the studio. Generation runs on `gpt-5.6-terra` by default; the brief's Designer choice switches the design call to `gpt-6-astra` (Best), about five times the price per token, while the lookup and the review stay on Terra. Both models are priced in the ledger at their published standard rates.
 
 ## Deploying to Cloudflare
 
