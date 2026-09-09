@@ -1,4 +1,12 @@
-// The runtime provides this module inside Workers; this keeps the standalone type-check honest.
+// The Workers runtime provides these; declaring the parts this app touches keeps the
+// standalone type-check honest without pulling in the full runtime type package.
 declare module "cloudflare:workers" {
   export const env: Record<string, unknown>;
 }
+type Fetcher = { fetch(input: Request | string, init?: RequestInit): Promise<Response> };
+interface D1PreparedStatement {
+  bind(...values: (string | number | null)[]): D1PreparedStatement;
+  run(): Promise<{ meta: { changes?: number } }>;
+  first<T>(): Promise<T | null>;
+}
+interface D1Database { prepare(query: string): D1PreparedStatement }
