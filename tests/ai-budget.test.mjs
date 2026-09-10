@@ -82,7 +82,7 @@ test('generation, review and budget routes share the personal key ledger instead
  const reviewed=await collect(await reviewPOST(req('review',{brief,images:Array(3).fill('data:image/jpeg;base64,YQ==')})));assert.deepEqual(reviewed.at(-1),{type:'complete',review});
  assert.equal(calls.length,4);assert.ok(calls.every(([,init])=>new Headers(init.headers).get('Authorization')===`Bearer ${key}`));
  const response=await budgetGET(new Request('https://brickwork.test/api/budget',{headers:{'x-brickwork-api-key':key}}));assert.match(response.headers.get('cache-control'),/no-store/);
- assert.equal((await response.json()).budget.spent,.028);assert.equal((await budgetSnapshot(db,await keyFingerprint('fixture-server-key'))).spent,0);
+ assert.equal((await response.json()).budget.spent,.038);   // the default brief designs on Sol ($4/$20 per million: 2.4¢) and reviews on Terra ($2/$12: 1.4¢)assert.equal((await budgetSnapshot(db,await keyFingerprint('fixture-server-key'))).spent,0);
 });
 
 test('a web search lookup reserves per-call fees and content tokens, settles on the calls that ran, and other tools stay refused',async t=>{
