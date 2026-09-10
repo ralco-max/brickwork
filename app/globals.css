@@ -400,3 +400,6 @@ h1,.landing-film-caption h1,.project-heading h1,[data-slot=dialog-title]{text-wr
 /* Landing intro: skip and 2x sit with the other film controls. */
 .landing-film-controls .film-speed{font-size:.8rem;font-weight:600;letter-spacing:.02em}.landing-film-controls .film-speed[aria-pressed=true]{background:var(--ink);color:var(--surface);border-color:var(--ink)}
 .assembly-inline-topline .intro-skip[aria-pressed=true]{background:var(--ink);color:var(--surface)}
+
+/* Assembly speed and skip live in the right-hand view strip with the other playback controls. */
+.view-controls>button.intro-speed{font:inherit;font-size:12px;font-weight:600;letter-spacing:.02em}.view-controls>button.intro-speed[aria-pressed=true]{color:var(--primary);background:var(--surface)}
