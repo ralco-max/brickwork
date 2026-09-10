@@ -21,14 +21,17 @@ const DIRS:Dir[]=[{face:"pz",dx:0,dz:1,rx:1,rz:0},{face:"nz",dx:0,dz:-1,rx:1,rz:
 type Match={cells:[number,number,number][];columns:[number,number][]};
 type Pattern={part1?:PartId;part2:PartId;match:(x:number,y:number,z:number,d:Dir,c:ColorKey)=>Match|null};
 
-export function carveSlopes(voxels:VoxelMap):Piece[]{
+export function carveSlopes(voxels:VoxelMap,protect:Set<string>=new Set()):Piece[]{
  const at=(x:number,y:number,z:number)=>voxels.get(voxelKey(x,y,z));
  const has=(x:number,y:number,z:number)=>voxels.has(voxelKey(x,y,z));
  const filled=(x:number,z:number,y0:number,n:number,c:ColorKey)=>{for(let i=0;i<n;i++)if(at(x,y0+i,z)!==c)return false;return true;};
  const empty=(x:number,z:number,y0:number,n:number)=>{for(let i=0;i<n;i++)if(has(x,y0+i,z))return false;return true;};
  const footed=(x:number,y:number,z:number)=>y===0||has(x,y-1,z);
  const column=(x:number,z:number,y0:number,n:number):[number,number,number][]=>Array.from({length:n},(_,i)=>[x,y0+i,z]);
- const backed=(x:number,z:number,y0:number,n:number,d:Dir)=>{for(let i=0;i<n;i++)if(!has(x-d.dx,y0+i,z-d.dz))return false;return true;};
+ // Solid mass behind the step, and that mass must stand on something itself: on a leaning member the
+ // cell behind is an overhang that only holds because it shares a brick with this one, so carving
+ // this one into a slope would leave it hanging.
+ const backed=(x:number,z:number,y0:number,n:number,d:Dir)=>{if(!footed(x-d.dx,y0,z-d.dz))return false;for(let i=0;i<n;i++)if(!has(x-d.dx,y0+i,z-d.dz))return false;return true;};
  // Each pattern is described from its back column at (x, y0, z), looking toward the face.
  const patterns:Pattern[]=[
   // 33 degrees: a full back column, then 2 and 1 plates over the next two studs.
@@ -43,8 +46,10 @@ export function carveSlopes(voxels:VoxelMap):Piece[]{
    return {cells:[...column(x,z,y0,2),...column(x1,z1,y0,1)],columns:[[x,z],[x1,z1]]};}},
   // 45 degrees: a 3-plate step with the staircase rising behind it. Pairs only; there is no 1-stud 45 degree slope.
   {part2:"3040",match:(x,y0,z,d,c)=>{if(!filled(x,z,y0,3,c)||!empty(x,z,y0+3,1)||!empty(x+d.dx,z+d.dz,y0,3)||!has(x-d.dx,y0+3,z-d.dz)||!footed(x,y0,z)||!backed(x,z,y0,3,d))return null;return {cells:column(x,z,y0,3),columns:[[x,z]]};}},
-  // Inverted 45 degrees: the same step on an underside, held by the piece above it.
-  {part2:"3665",match:(x,y0,z,d,c)=>{if(!filled(x,z,y0,3,c)||has(x,y0-1,z)||!empty(x+d.dx,z+d.dz,y0,3)||!has(x-d.dx,y0-1,z-d.dz)||!has(x,y0+3,z)||!backed(x,z,y0,3,d))return null;return {cells:column(x,z,y0,3),columns:[[x,z]]};}},
+  // Inverted 45 degrees: the same step on an underside, held by the piece above it. The course above
+  // must also cover the column behind, so it keeps a stud path down through that column once this
+  // one no longer shares a brick with it (a leaning member's underside stays as bricks).
+  {part2:"3665",match:(x,y0,z,d,c)=>{if(!filled(x,z,y0,3,c)||has(x,y0-1,z)||!empty(x+d.dx,z+d.dz,y0,3)||!has(x-d.dx,y0-1,z-d.dz)||!has(x,y0+3,z)||!has(x-d.dx,y0+3,z-d.dz)||!backed(x,z,y0,3,d))return null;return {cells:column(x,z,y0,3),columns:[[x,z]]};}},
   // Cheese: a 2-plate step.
   {part1:"54200",part2:"85984",match:(x,y0,z,d,c)=>{if(!filled(x,z,y0,2,c)||!empty(x,z,y0+2,1)||!empty(x+d.dx,z+d.dz,y0,2)||!has(x-d.dx,y0+2,z-d.dz)||!footed(x,y0,z)||!backed(x,z,y0,2,d))return null;return {cells:column(x,z,y0,2),columns:[[x,z]]};}},
  ];
@@ -60,8 +65,8 @@ export function carveSlopes(voxels:VoxelMap):Piece[]{
   let done=false;
   for(const d of DIRS){if(done)break;
    for(const pattern of patterns){
-    const first=pattern.match(x,y,z,d,c);if(!first)continue;
-    const second=pattern.match(x+d.rx,y,z+d.rz,d,c);
+    const first=pattern.match(x,y,z,d,c);if(!first||first.cells.some(([cx,cy,cz])=>protect.has(voxelKey(cx,cy,cz))))continue;
+    let second=pattern.match(x+d.rx,y,z+d.rz,d,c);if(second&&second.cells.some(([cx,cy,cz])=>protect.has(voxelKey(cx,cy,cz))))second=null;
     // An inverted pair takes overhanging cells. A neighbouring overhang cell along the ridge that
     // will not become a slope itself must keep these cells to bridge back into the mass, so the
     // pair is refused rather than leaving a corner plate with nothing to hold it.

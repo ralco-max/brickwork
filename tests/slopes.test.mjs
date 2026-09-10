@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import {build} from 'esbuild';
 const bundle=await build({stdin:{contents:'export * from "./lib/generated-scene";export {auditModel,SLOPES,PARTS,studCells} from "./lib/bridge";export {simulateClutch} from "./lib/clutch";export {validateProject,addPiece,finishModel} from "./lib/models";export {shellPlan} from "./lib/design-research";export {generateScene,MASSING_INSTRUCTIONS,DETAIL_INSTRUCTIONS} from "./lib/generation-provider";export {critiqueMassing} from "./lib/design-review";export {defaultBrief} from "./lib/design-project";',resolveDir:process.cwd(),loader:'ts'},bundle:true,platform:'node',format:'esm',write:false});
-const {compileScene,sceneVoxels,auditModel,SLOPES,PARTS,studCells,simulateClutch,validateProject,addPiece,shellPlan,SceneStreamParser,compactScene,mergeRevision,generateScene,MASSING_INSTRUCTIONS,DETAIL_INSTRUCTIONS,critiqueMassing,defaultBrief}=await import('data:text/javascript;base64,'+Buffer.from(bundle.outputFiles[0].text).toString('base64'));
+const {compileScene,sceneVoxels,auditModel,SLOPES,PARTS,studCells,simulateClutch,validateProject,addPiece,shellPlan,SceneStreamParser,compactScene,mergeRevision,generateScene,MASSING_INSTRUCTIONS,DETAIL_INSTRUCTIONS,critiqueMassing,defaultBrief,expandCompactShape,validateScene}=await import('data:text/javascript;base64,'+Buffer.from(bundle.outputFiles[0].text).toString('base64'));
 const shape=(label,kind,color,position,size,extra={})=>({label,kind,color,position,size,operation:'add',end:{x:0,y:0,z:0},radius:1,...extra});
 const house={name:'House',description:'',dimensions:{x:24,y:40,z:24},shapes:[shape('base','box','gray',{x:0,y:0,z:0},{x:24,y:2,z:24}),shape('walls','box','tan',{x:4,y:2,z:4},{x:16,y:18,z:12}),...Array.from({length:6},(_,i)=>shape('roof'+i,'box','red',{x:3,y:20+i*3,z:3+i},{x:18,y:3,z:14-2*i}))]};
 const box={name:'Box',description:'',dimensions:{x:16,y:20,z:16},shapes:[shape('base','box','gray',{x:0,y:0,z:0},{x:16,y:2,z:16}),shape('block','box','blue',{x:2,y:2,z:2},{x:12,y:15,z:12})]};
@@ -64,4 +64,15 @@ test('the blockout critique is parsed defensively and judges only scale, proport
  const critique=await critiqueMassing(defaultBrief('Cloud Gate'),{searchable:true,kind:'monument',subject:'Cloud Gate',summary:'',length_m:20,width_m:13,height_m:10,proportions:'',colors:[],silhouette:[],distinctive:[],sources:[],target:{x:46,y:56,z:30,vertical:1}},['the seamless skin'],['data:image/jpeg;base64,AAAA','data:image/jpeg;base64,AAAA','data:image/jpeg;base64,AAAA'],'k','m',new AbortController().signal,fetcher);
  assert.equal(critique.scale,'too_small');assert.equal(critique.ready,false);assert.equal(critique.corrections.length,2);assert.ok(critique.corrections[1].length<=400);
  assert.ok(sent.instructions.includes('massing study'));assert.equal(sent.input[0].content.length,4);assert.deepEqual(JSON.parse(sent.input[0].content[0].text).signatureFeatures,['the seamless skin']);
+});
+
+test('a lean compiles into stepped courses that overlap, so splayed legs and braces stand on their own',()=>{
+ const base=shape('base','box','gray',{x:0,y:0,z:0},{x:40,y:2,z:24});
+ const lean=(label,from,to,w=2,ch=3)=>({...shape(label,'lean','brown',from,{x:w,y:ch,z:1},{end:to}),id:label,component:'Legs'});
+ const scene={name:'Legs',description:'',dimensions:{x:40,y:60,z:24},shapes:[base,lean('left',{x:4,y:2,z:12},{x:18,y:50,z:12}),lean('right',{x:36,y:2,z:12},{x:22,y:50,z:12}),lean('diag',{x:6,y:2,z:3},{x:20,y:44,z:20},2),lean('plates',{x:34,y:2,z:4},{x:26,y:30,z:4},1,1),shape('deck','box','gray',{x:16,y:50,z:10},{x:8,y:3,z:4})]};
+ const m=compileScene(scene),audit=auditModel(m.pieces),clutch=simulateClutch(m.pieces);
+ assert.equal(audit.ungrounded.length,0,'every course of a lean stands on the course below');assert.equal(audit.groups,1);assert.equal(audit.unsupported.length,0);assert.equal(clutch.floating.length,0);
+ const wire=compactScene(scene);assert.deepEqual(wire.sh[1].e,[18,50,12]);assert.equal(wire.sh[1].k,'lean');
+ const back=expandCompactShape({i:'l',c:'L',l:'l',k:'lean',o:'add',a:null,col:'brown',p:[4,2,12],s:[2,3,0],e:[18,50,12],r:null,rep:null});assert.deepEqual(back.end,{x:18,y:50,z:12});assert.deepEqual(back.size,{x:2,y:3,z:1});
+ assert.throws(()=>validateScene({...scene,shapes:[lean('out',{x:4,y:2,z:12},{x:90,y:50,z:12})]}),/outside/);
 });
