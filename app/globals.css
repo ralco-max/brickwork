@@ -426,7 +426,7 @@ h1,.landing-film-caption h1,.project-heading h1,[data-slot=dialog-title]{text-wr
 @media(max-width:900px){
  .command-bar{padding:8px 10px;gap:6px;flex-wrap:nowrap}.command-bar .quick-create{order:0;flex:1;min-width:0}.command-bar>button span:not(.button-count){display:none}.command-bar>button{padding:0 11px;min-height:44px;border-radius:10px}.command-bar>button .button-count{display:none}
  .command-bar .quick-create-field{padding:3px;gap:3px}.command-bar .quick-create-field input{min-width:0;font-size:16px}.command-bar .quick-create-field button[type=submit] span{display:none}.command-bar .quick-create-field button{min-width:40px}
- .stage-layout{display:flex;flex-direction:column;margin:12px;gap:12px;transition:none}
+ .stage-layout{display:flex;flex-direction:column;align-items:stretch;margin:12px;gap:12px;transition:none}.stage-main,.designs-drawer,#designs-drawer{width:100%;min-width:0}
  .designs-drawer{display:none}.drawer-open .designs-drawer{display:block}.designs-drawer-inner{width:auto;margin:0}
  /* The tools panel is a bottom sheet on a phone: it slides over the stage and scrolls on its own, with its own close button. */
  .tools-panel{position:fixed;left:0;right:0;bottom:0;z-index:40;max-height:76dvh;overflow:auto;background:var(--surface);border-top:1px solid var(--line);border-radius:18px 18px 0 0;box-shadow:0 -14px 40px #00000026;padding-bottom:env(safe-area-inset-bottom)}
