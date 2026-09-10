@@ -39,6 +39,7 @@ test('the scale plan sizes a subject to its budget: a full-size bean at 600 piec
  const bean=shellPlan({x:46,y:56,z:30},600,'monument');assert.equal(bean.fits,false);assert.equal(bean.walls,2);assert.ok(bean.estimate>2500&&bean.estimate<3600,'measured: about 3,100 pieces with slopes');assert.ok(bean.recommend.x>=18&&bean.recommend.x<=24);
  const big=shellPlan({x:46,y:56,z:30},4000,'monument');assert.equal(big.fits,true);assert.equal(big.walls,2);
  const tower=shellPlan({x:24,y:120,z:24},4000,'building');assert.equal(tower.fits,true);assert.ok(tower.walls>=2);
+ const skin=shellPlan({x:40,y:120,z:40},600,'monument'),lattice=shellPlan({x:40,y:120,z:40},600,'monument',.85);assert.ok(lattice.fits||lattice.recommend.y>skin.recommend.y*1.8,'an open lattice tower is priced by its members, so it builds far larger than a skin would');
  const wall=shellPlan({x:46,y:56,z:30},600,'building');assert.equal(wall.fits,false);assert.equal(wall.walls,1);assert.ok(wall.recommend.x>bean.recommend.x,'a boxy shell packs far better than a curved one');
 });
 test('signature features travel in the compact header and survive a revision that names none',()=>{

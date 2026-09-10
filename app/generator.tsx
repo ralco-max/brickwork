@@ -29,7 +29,7 @@ type Completed={model:BuildModel;scene:GeneratedScene;review:VisualReview|null;b
 // even thin walls do not fit, the target itself is reduced so the checks and the designer agree.
 function planSheet(sheet:ReferenceSheet,b:DesignBrief):ReferenceSheet{
  const target=targetExtents(sheet,b);if(!target)return {...sheet,target:undefined,plan:undefined};
- const plan=shellPlan(target,b.maxPieces,sheet.kind);
+ const plan=shellPlan(target,b.maxPieces,sheet.kind,sheet.openness??null);
  return {...sheet,target:plan.fits||!plan.recommend?target:{...target,...plan.recommend},plan};
 }
 export default function Generator({open,onOpenChange,initialPrompt,initialImage,previous,onCreate}:Props){
