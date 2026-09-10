@@ -6,7 +6,7 @@ import {COLORS,Piece,studCells} from "@/lib/bridge";
 import {pieceGeometry} from "@/lib/brick-geometry";
 import {reconcileArrivals,arrivalPose,brickIdentity} from "@/lib/live-arrivals";
 import type {Arrival} from "@/lib/live-arrivals";
-import {assemblyPose,assemblyTracks} from "@/lib/assembly";
+import {assemblyPose,assemblyTracks,assemblyReach} from "@/lib/assembly";
 
 export type BrickHit={piece:Piece;point:{x:number;y:number;z:number};normal:{x:number;y:number;z:number}};
 type Props={arrivals?:{epoch:number;paused:boolean};suspended?:boolean;light?:number;pieces:Piece[];length:number;width?:number;height?:number;modelKey?:string;editMode?:string;onBrick?:(hit:BrickHit)=>void;highlightIds?:number[];heat?:Map<number,number>;explode:number;stage:number;selected:string|null;view:string;reset:number;rotate:boolean;onPick:(key:string|null)=>void;assembly?:{time:()=>number;onFrame?:(canvas:HTMLCanvasElement,time:number)=>void;sweep?:boolean};presentation?:boolean;onCanvas?:(canvas:HTMLCanvasElement|null)=>void};
@@ -42,7 +42,7 @@ export default function Viewport(props:Props){
   // Explode is the intro run backwards: the slider scrubs the whole assembly timeline from the
   // finished model (0) to the first frame (1), so the last bricks to land are the first to lift
   // off, each flying back out along its own path to where it waited in the air.
-  const flightMax=Math.max(10,Math.max(L,W)*.24)*1.45,liftMax=Math.max(12,H*.4*.5)+10;
+  const reach=assemblyReach(L,W,props.height??43),flightMax=reach.distance*1.4,liftMax=reach.lift+50;
   if(props.arrivals){if(arrivalState.current.epoch!==props.arrivals.epoch)arrivalState.current={epoch:props.arrivals.epoch,clock:0,entries:new Map()};arrivalState.current.entries=reconcileArrivals(arrivalState.current.entries,props.pieces,arrivalState.current.clock,L,W,props.height??43);}
   const arrivalEnd=Math.max(0,...[...arrivalState.current.entries.values()].map(e=>e.at+1.36));
   const reducedMotion=window.matchMedia("(prefers-reduced-motion: reduce)");

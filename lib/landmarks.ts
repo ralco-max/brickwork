@@ -9,19 +9,22 @@ const TAU=Math.PI*2;
 
 export class Sculpt{
  readonly voxels:VoxelMap=new Map();
- constructor(readonly scale=1){}
+ // scale is uniform; vertical multiplies heights on top of it, the way display models stretch the skyline.
+ constructor(readonly scale=1,readonly vertical=1){}
  private s(v:number){return Math.round(v*this.scale);}
+ private sy(v:number){return Math.round(v*this.scale*this.vertical);}
+ private spanY(a:number,len:number){const lo=this.sy(a);return [lo,Math.max(lo+1,this.sy(a+len))] as const;}
  put(x:number,y:number,z:number,c:ColorKey){if(x>=0&&y>=0&&z>=0&&y<240)this.voxels.set(key(x,y,z),c);}
  has(x:number,y:number,z:number){return this.voxels.has(key(x,y,z));}
  // A feature thinner than one cell at the current scale still gets one cell, so cables,
  // suspenders and windows never vanish when a model is scaled down.
  private span(a:number,len:number){const lo=this.s(a);return [lo,Math.max(lo+1,this.s(a+len))] as const;}
  box(x:number,y:number,z:number,w:number,h:number,d:number,c:ColorKey){
-  const [x0,x1]=this.span(x,w),[y0,y1]=this.span(y,h),[z0,z1]=this.span(z,d);
+  const [x0,x1]=this.span(x,w),[y0,y1]=this.spanY(y,h),[z0,z1]=this.span(z,d);
   for(let xx=x0;xx<x1;xx++)for(let yy=y0;yy<y1;yy++)for(let zz=z0;zz<z1;zz++)this.put(xx,yy,zz,c);
  }
  erase(x:number,y:number,z:number,w:number,h:number,d:number){
-  for(let xx=this.s(x);xx<this.s(x+w);xx++)for(let yy=this.s(y);yy<this.s(y+h);yy++)for(let zz=this.s(z);zz<this.s(z+d);zz++)this.voxels.delete(key(xx,yy,zz));
+  for(let xx=this.s(x);xx<this.s(x+w);xx++)for(let yy=this.sy(y);yy<this.sy(y+h);yy++)for(let zz=this.s(z);zz<this.s(z+d);zz++)this.voxels.delete(key(xx,yy,zz));
  }
  // One horizontal disc in scaled space. `paint` may return undefined to skip a cell.
  private disc(cx:number,yy:number,cz:number,rx:number,rz:number,paint:(angle:number,ring:number)=>ColorKey|undefined){
@@ -35,26 +38,26 @@ export class Sculpt{
  }
  // Elliptical cylinder. `paint` can vary the color by angle (0..1) and height (0..1).
  cyl(cx:number,y:number,cz:number,rx:number,rz:number,h:number,c:ColorKey|((angle:number,t:number,ring:number)=>ColorKey|undefined)){
-  const y0=this.s(y),y1=Math.max(y0+1,this.s(y+h));
+  const y0=this.sy(y),y1=Math.max(y0+1,this.sy(y+h));
   for(let yy=y0;yy<y1;yy++){const t=(yy-y0)/Math.max(1,y1-y0-1);this.disc(cx,yy,cz,rx,rz,(a,ring)=>typeof c==="string"?c:c(a,t,ring));}
  }
  // Round cone or frustum: radius runs from r0 at the bottom to r1 at the top.
  cone(cx:number,y:number,cz:number,r0:number,r1:number,h:number,c:ColorKey|((angle:number,t:number)=>ColorKey|undefined)){
-  const y0=this.s(y),y1=Math.max(y0+1,this.s(y+h));
+  const y0=this.sy(y),y1=Math.max(y0+1,this.sy(y+h));
   for(let yy=y0;yy<y1;yy++){const t=(yy-y0)/Math.max(1,y1-y0-1),r=r0+(r1-r0)*t;this.disc(cx,yy,cz,r,r,a=>typeof c==="string"?c:c(a,t));}
  }
  // Pitched roof with its ridge along X (insets Z) or along Z (insets X).
  gable(x:number,y:number,z:number,w:number,d:number,h:number,c:ColorKey,along:"x"|"z"="x"){
-  const y0=this.s(y),y1=Math.max(y0+1,this.s(y+h));
+  const y0=this.sy(y),y1=Math.max(y0+1,this.sy(y+h));
   for(let yy=y0;yy<y1;yy++){const t=(yy-y0)/Math.max(1,y1-y0);
-   if(along==="x"){const inset=t*(d/2-.5);this.box(x,yy/this.scale,z+inset,w,1/this.scale,d-2*inset,c);}
-   else{const inset=t*(w/2-.5);this.box(x+inset,yy/this.scale,z,w-2*inset,1/this.scale,d,c);}
+   if(along==="x"){const inset=t*(d/2-.5);this.box(x,yy/(this.scale*this.vertical),z+inset,w,1/(this.scale*this.vertical),d-2*inset,c);}
+   else{const inset=t*(w/2-.5);this.box(x+inset,yy/(this.scale*this.vertical),z,w-2*inset,1/(this.scale*this.vertical),d,c);}
   }
  }
  // Pyramid roof insetting on all sides.
  hip(x:number,y:number,z:number,w:number,d:number,h:number,c:ColorKey){
-  const y0=this.s(y),y1=Math.max(y0+1,this.s(y+h)),m=Math.min(w,d)/2-.5;
-  for(let yy=y0;yy<y1;yy++){const inset=(yy-y0)/Math.max(1,y1-y0)*m;this.box(x+inset,yy/this.scale,z+inset,w-2*inset,1/this.scale,d-2*inset,c);}
+  const y0=this.sy(y),y1=Math.max(y0+1,this.sy(y+h)),m=Math.min(w,d)/2-.5;
+  for(let yy=y0;yy<y1;yy++){const inset=(yy-y0)/Math.max(1,y1-y0)*m;this.box(x+inset,yy/(this.scale*this.vertical),z+inset,w-2*inset,1/(this.scale*this.vertical),d-2*inset,c);}
  }
  // Open lattice tower: four corner posts with horizontal platforms every `step` plates.
  // Platforms are two studs wide so they pack into plates that rest on the posts.
@@ -154,7 +157,8 @@ export function goldenGateReport(config:Config,scale:number){
 
 /** Neuschwanstein Castle on its rock: the Palas with its two great towers, the courtyard wings and the red-brick gatehouse. */
 export function neuschwanstein(scale:number,wall:ColorKey="white",roof:ColorKey="navy"):VoxelMap{
- const v=new Sculpt(scale),G=10;
+ // Display proportions: heights at 1.6x so the towers climb the way they do above the gorge.
+ const v=new Sculpt(scale,1.6),G=10;
  // The rock ledge above the Pöllat gorge.
  v.box(0,0,0,64,2,32,"green");v.box(2,2,1,62,2,30,"tan");v.box(3,4,2,61,2,28,"gray");v.box(4,6,3,60,2,26,"gray");v.box(5,8,4,59,2,24,"tan");
  for(const [x,z] of [[1,3],[2,29],[30,1],[34,31],[1,16]])v.cone(x,2,z,2.5,.5,7,"green");
