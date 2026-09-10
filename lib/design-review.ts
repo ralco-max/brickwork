@@ -9,7 +9,7 @@ export async function reviewDesign(brief:DesignBrief,images:string[],key:string,
  if(!response.ok)throw await upstreamError(response);
  const data=await response.json();await onUsage?.(data.usage);if(data.status!=="completed")throw Error("The visual review was incomplete.");
  const text=(data.output||[]).flatMap((item:{content?:{type:string;text?:string}[]})=>item.content||[]).filter((item:{type:string})=>item.type==="output_text").map((item:{text:string})=>item.text).join("");
- const review={...reviewSchema.parse(JSON.parse(text)),thinking:reasoningSummary(data.output)};if(revision&&(!review.revision||review.revision.status==="not_requested"))throw Error("The review did not assess your requested change.");
+ const thinking=reasoningSummary(data.output),review={...reviewSchema.parse(JSON.parse(text)),...(thinking?{thinking}:{})};if(revision&&(!review.revision||review.revision.status==="not_requested"))throw Error("The review did not assess your requested change.");
  if(review.features.length!==brief.features.length||review.features.some((f,i)=>f.feature!==brief.features[i]))throw Error("Visual review did not cover every required feature. Run the review again.");
  return review;
 }
@@ -26,5 +26,6 @@ export async function critiqueMassing(brief:DesignBrief,sheet:ReferenceSheet|und
  const data=await response.json();await onUsage?.(data.usage);if(data.status!=="completed")throw Error("The blockout review was incomplete.");
  const text=(data.output||[]).flatMap((item:{content?:{type:string;text?:string}[]})=>item.content||[]).filter((item:{type:string})=>item.type==="output_text").map((item:{text:string})=>item.text).join("");
  const raw=JSON.parse(text) as Partial<MassingCritique>;
- return {thinking:reasoningSummary(data.output),summary:String(raw.summary||"").slice(0,600),scale:raw.scale==="too_small"||raw.scale==="too_large"?raw.scale:"right",ready:raw.ready===true,corrections:(Array.isArray(raw.corrections)?raw.corrections:[]).filter(c=>typeof c==="string"&&c.trim()).map(c=>String(c).trim().slice(0,400)).slice(0,5)};
+ const thinking=reasoningSummary(data.output);
+ return {...(thinking?{thinking}:{}),summary:String(raw.summary||"").slice(0,600),scale:raw.scale==="too_small"||raw.scale==="too_large"?raw.scale:"right",ready:raw.ready===true,corrections:(Array.isArray(raw.corrections)?raw.corrections:[]).filter(c=>typeof c==="string"&&c.trim()).map(c=>String(c).trim().slice(0,400)).slice(0,5)};
 }
