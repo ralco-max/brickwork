@@ -24,7 +24,9 @@ export function assemblyTracks(pieces:Piece[],length:number,width:number,height:
  sorted.forEach((p,rank)=>{const seed=p.id+1,angle=hash(seed)*Math.PI*2;tracks.set(p.id,{start:.025+.70*rank/Math.max(1,sorted.length-1),angle,distance:Math.max(10,Math.max(length,width)*.24)*(1+hash(seed+9)*.45),lift:Math.max(12,height*.4*.5)+hash(seed+3)*10,rx:(hash(seed+5)-.5)*1.5,ry:(hash(seed+7)-.5)*2.6,rz:(hash(seed+11)-.5)*1.3});});return tracks;
 }
 export function assemblyPose(track:AssemblyTrack,time:number):AssemblyPose{
+ // Every brick is in the air from the first frame, waiting at the far end of its own path, so the
+ // late arrivals are already part of the picture instead of appearing out of nowhere.
  const u=clamp((time-track.start)/.175);if(u>=1)return {x:0,y:0,z:0,rx:0,ry:0,rz:0,scale:1,settled:true};
  const eased=u*u*u*(u*(u*6-15)+10),remaining=1-eased,arc=Math.sin(Math.PI*u),spin=remaining*remaining;
- return {x:Math.cos(track.angle)*track.distance*remaining+Math.sin(track.angle)*arc*2.5,y:track.lift*remaining+arc*4,z:Math.sin(track.angle)*track.distance*remaining-Math.cos(track.angle)*arc*2.5,rx:track.rx*spin,ry:track.ry*spin,rz:track.rz*spin,scale:time<track.start?0:Math.min(1,u*9),settled:false};
+ return {x:Math.cos(track.angle)*track.distance*remaining+Math.sin(track.angle)*arc*2.5,y:track.lift*remaining+arc*4,z:Math.sin(track.angle)*track.distance*remaining-Math.cos(track.angle)*arc*2.5,rx:track.rx*spin,ry:track.ry*spin,rz:track.rz*spin,scale:1,settled:false};
 }
