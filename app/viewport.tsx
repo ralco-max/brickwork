@@ -42,7 +42,7 @@ export default function Viewport(props:Props){
   // Explode is the intro run backwards: the slider scrubs the whole assembly timeline from the
   // finished model (0) to the first frame (1), so the last bricks to land are the first to lift
   // off, each flying back out along its own path to where it waited in the air.
-  const reach=assemblyReach(L,W,props.height??43),flightMax=reach.distance*1.4,liftMax=reach.lift+50;
+  const reach=assemblyReach(L,W,props.height??43),flightMax=reach.distance*1.2,backMax=reach.back*1.3,liftMax=reach.lift+14+reach.peak*1.3;
   if(props.arrivals){if(arrivalState.current.epoch!==props.arrivals.epoch)arrivalState.current={epoch:props.arrivals.epoch,clock:0,entries:new Map()};arrivalState.current.entries=reconcileArrivals(arrivalState.current.entries,props.pieces,arrivalState.current.clock,L,W,props.height??43);}
   const arrivalEnd=Math.max(0,...[...arrivalState.current.entries.values()].map(e=>e.at+1.36));
   const reducedMotion=window.matchMedia("(prefers-reduced-motion: reduce)");
@@ -76,7 +76,7 @@ export default function Viewport(props:Props){
   let cameraMove:{position:THREE.Vector3;target:THREE.Vector3;toPosition:THREE.Vector3;toTarget:THREE.Vector3;start:number}|null=null;
   const setCamera=(view:string)=>{
    const aspect=Math.max(.3,node.clientWidth/Math.max(1,node.clientHeight)),vFov=THREE.MathUtils.degToRad(35),hFov=2*Math.atan(Math.tan(vFov/2)*aspect);
-   const e=latest.current.explode,displayH=H+e*liftMax+4,spreadX=L/2+e*flightMax,spreadZ=W/2+e*flightMax;
+   const e=latest.current.explode,displayH=H+e*liftMax+4,spreadX=L/2+e*flightMax,spreadZ=W/2+e*backMax;
    const target=new THREE.Vector3(0,displayH*.45,0);controls.target.copy(target);
    const direction=(view==="front"?new THREE.Vector3(0,.10,1):view==="top"?new THREE.Vector3(0,1,.001):new THREE.Vector3(.8,.72,1)).normalize();
    const right=new THREE.Vector3(0,1,0).cross(direction).normalize(),up=direction.clone().cross(right).normalize();
