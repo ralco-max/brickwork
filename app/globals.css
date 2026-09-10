@@ -456,3 +456,10 @@ h1,.landing-film-caption h1,.project-heading h1,[data-slot=dialog-title]{text-wr
 
 /* Sunlight slider beside Explode: dawn on the left, sunset on the right. */
 .light-control label{display:inline-flex;align-items:center;gap:6px}.light-control{min-width:170px}
+
+/* The builder's notes: what it looked up, how it scaled the subject, its reasoning as it streams, the architect's critique and the judge's verdict. */
+.builder-notes{border:1px solid var(--line);border-radius:12px;background:var(--surface-2)}.builder-notes>summary{padding:10px 14px;font-size:13px;font-weight:600;color:var(--ink);cursor:pointer;list-style:none}.builder-notes>summary::-webkit-details-marker{display:none}
+.builder-notes-list{max-height:340px;overflow:auto;padding:0 14px 12px;display:grid;gap:10px}
+.builder-note{display:grid;grid-template-columns:76px minmax(0,1fr);gap:10px;font-size:12.5px;line-height:1.5;color:var(--ink-2)}.builder-note>span{font-size:10.5px;letter-spacing:.1em;text-transform:uppercase;color:var(--ink-3);padding-top:2px}.builder-note>p{margin:0;white-space:pre-wrap;overflow-wrap:anywhere}
+.builder-note.is-live>p::after{content:"▍";color:var(--accent-deep);animation:note-blink 1s steps(2) infinite}@keyframes note-blink{50%{opacity:0}}
+@media(prefers-reduced-motion:reduce){.builder-note.is-live>p::after{animation:none}}

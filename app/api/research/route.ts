@@ -14,7 +14,7 @@ export async function POST(request:Request){
  let budget:BudgetSnapshot|null=null;
  try{
   const provider=budgetedProvider(requireBudgetDb(config.db),key,b=>{budget=b;});
-  const sheet=await researchSubject(input.idea,key,model,request.signal,provider.fetch,provider.recordUsage);
-  return Response.json({sheet,budget},{headers:{"Cache-Control":"no-store"}});
+  const {thinking,searches,...sheet}=await researchSubject(input.idea,key,model,request.signal,provider.fetch,provider.recordUsage);
+  return Response.json({sheet,thinking,searches,budget},{headers:{"Cache-Control":"no-store"}});
  }catch(error){const failure=generationFailure(error);console.error(JSON.stringify({event:"brickwork_request_failed",route:"/api/research",code:failure.code,upstreamStatus:failure.upstreamStatus}));return Response.json({error:failure.message,code:failure.code,budget},{status:503,headers:{"Cache-Control":"no-store"}});}
 }
