@@ -74,5 +74,5 @@ test('a lean compiles into stepped courses that overlap, so splayed legs and bra
  assert.equal(audit.ungrounded.length,0,'every course of a lean stands on the course below');assert.equal(audit.groups,1);assert.equal(audit.unsupported.length,0);assert.equal(clutch.floating.length,0);
  const wire=compactScene(scene);assert.deepEqual(wire.sh[1].e,[18,50,12]);assert.equal(wire.sh[1].k,'lean');
  const back=expandCompactShape({i:'l',c:'L',l:'l',k:'lean',o:'add',a:null,col:'brown',p:[4,2,12],s:[2,3,0],e:[18,50,12],r:null,rep:null});assert.deepEqual(back.end,{x:18,y:50,z:12});assert.deepEqual(back.size,{x:2,y:3,z:1});
- assert.throws(()=>validateScene({...scene,shapes:[lean('out',{x:4,y:2,z:12},{x:90,y:50,z:12})]}),/outside/);
+ assert.throws(()=>validateScene({...scene,shapes:[lean('out',{x:4,y:2,z:12},{x:60,y:50,z:12})]}),/outside/);
 });
