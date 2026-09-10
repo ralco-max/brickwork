@@ -159,17 +159,13 @@ A successfully compiled streaming snapshot with subject geometry can be kept aft
 
 ## Designs first
 
-The home screen now opens directly on the current build's autoplaying 3D assembly. The marketing headline, introductory prose, prompt suggestions, and repeated assembly promotion have been removed from the landing. A compact prompt field sits below the model. Four quick picks expose the existing Bridge, Castle, Lighthouse, and Rocket designs immediately; choosing one updates the actual studio model and retains the previous project in undo history. Edit this build jumps directly to the studio. Build descriptions stay collapsed until requested. On phones the canvas comes immediately after the compact header, with no introduction above it.
+There is one stage. The page opens on the current model assembling itself in the same 3D view the studio uses, with the designs drawer open beside it: the four landmark presets and everything saved in this browser, drafts included. Choosing a landmark or opening a saved design swaps the model in place and plays its assembly; nothing leaves the page. A command bar under the top bar holds the three things you can always do: open or close the designs drawer, describe something new (the idea field, with an import button for photos, 3D models and project files), and open or close the tools.
+
 
 ## Focused, continuous experience
 
-The landing and working studio are now separate in-page surfaces, sharing the same current project. Open studio reveals editing, inventory and guide controls without another copy of the landing above them. Back to designs returns to the current build, and clicking the brand does not reload or discard the project. Imports and accepted AI drafts open the studio automatically. The hidden studio is unmounted, avoiding a second idle WebGL canvas while browsing.
+Opening the tools does not change pages. The tools panel slides in on the right, the drawer folds away to make room, and the 3D view stays exactly where it was, camera included: the assembly intro only plays when a new model arrives, never because a panel opened. With the tools open the stage gains the brick editor, the model metrics and the Parts audit and Build guide sections below it, and the settings panel (size, colors, dimensions, estimated cost) beside it. Clicking the model while the tools are closed opens them; a drag still orbits. The slow camera sweep during the intro runs only while the tools are closed, so the stage reads as a presentation until you start working. Both panels can be reopened at any time, and on a phone they stack above and below the stage instead.
 
-Initial setup is a compact sheet with the idea, scale and a reachable sticky build action. Detail level, required features, dimensions and style remain under optional disclosures. The text-only onboarding side panel and repeated progress headings have been removed. Connecting a key during setup can start the build in the same action; that exact in-memory key is forwarded to generation and review. No key is stored or added to project files.
-
-The landing clock runs the intro once and holds. Sample changes fade between models, and rapid choices cancel superseded transitions. Camera view changes ease over 520 ms and yield to pointer input. Each mounted viewport retains one WebGL renderer across incoming geometry snapshots, disposing obsolete scene geometry, materials and shadows while preserving the existing arrival ledger and camera. Renderer cleanup happens on unmount. Reduced-motion preferences skip transitions and keep the finished model visible.
-
-Animation, stream and recovery checks pass with authored geometry and mocked responses. Production bundling is the validation gate; browser/device visual QA and live account generation have not been performed.
 
 ## Personal AI budget
 

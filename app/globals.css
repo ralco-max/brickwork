@@ -403,3 +403,30 @@ h1,.landing-film-caption h1,.project-heading h1,[data-slot=dialog-title]{text-wr
 
 /* Assembly speed and skip live in the right-hand view strip with the other playback controls. */
 .view-controls>button.intro-speed{font:inherit;font-size:12px;font-weight:600;letter-spacing:.02em}.view-controls>button.intro-speed[aria-pressed=true]{color:var(--primary);background:var(--surface)}
+
+/* One stage. The landing is the studio with its tools folded away: a command bar under the
+   topbar (designs drawer, idea input, tools), then the drawer, the stage and the tools panel
+   side by side. Opening or closing a panel changes the grid, never the 3D view. */
+.command-bar{display:flex;align-items:center;gap:10px;padding:10px 28px 14px;border-bottom:1px solid var(--line)}
+.command-bar .quick-create{margin:0;max-width:none;flex:1;min-width:0;gap:0}.command-bar .quick-create label{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
+.command-bar>button{display:inline-flex;align-items:center;gap:7px;min-height:46px;padding:0 14px;border:1px solid var(--line);border-radius:12px;background:var(--surface);color:var(--ink-2);font-size:.875rem;font-weight:500;white-space:nowrap}
+.command-bar>button:hover{border-color:var(--line-strong);color:var(--ink)}.command-bar>button[aria-pressed=true]{background:var(--ink);color:var(--surface);border-color:var(--ink)}.command-bar>button .button-count{margin-left:2px}
+.stage-layout{display:grid;grid-template-columns:0px minmax(0,1fr) 0px;margin:18px 28px 28px;align-items:start;transition:grid-template-columns .38s var(--motion-soft)}
+.drawer-open .stage-layout{grid-template-columns:300px minmax(0,1fr) 0px}
+.studio-focused .stage-layout{grid-template-columns:0px minmax(0,1fr) 322px}
+.studio-focused.drawer-open .stage-layout{grid-template-columns:300px minmax(0,1fr) 322px}
+.designs-drawer{overflow:hidden;min-width:0}.designs-drawer-inner{width:282px;margin-right:18px;display:grid;gap:16px;align-content:start;padding:18px;border:1px solid var(--line);border-radius:12px;background:var(--surface)}
+.designs-drawer .your-designs{padding:0;border-top:0;display:grid;gap:10px}.designs-drawer .your-designs-head{padding:0}.drawer-empty{font-size:.85rem;line-height:1.5;color:var(--ink-3)}
+.landmark-list{display:grid;gap:6px}.landmark-list button{display:flex;align-items:center;gap:9px;min-height:42px;padding:0 12px;border:1px solid var(--line);border-radius:10px;background:var(--surface);color:var(--ink-2);font-size:.875rem;text-align:left}.landmark-list button:hover{border-color:var(--line-strong);color:var(--ink)}.landmark-list button[aria-pressed=true]{border-color:var(--ink);color:var(--ink);font-weight:600}
+.tools-panel{overflow:hidden;min-width:0}.tools-panel .config-panel{width:304px;margin-left:18px;border:1px solid var(--line);border-radius:12px}
+.stage-main{min-width:0;border:1px solid var(--line);border-radius:12px;overflow:hidden;background:var(--surface);box-shadow:0 8px 22px #202e3b06}
+.stage-main .project-heading{padding:22px 26px 16px}.studio-explore .stage-main .project-heading{padding-bottom:12px}
+.studio-explore .model-viewport{height:clamp(440px,66svh,820px);cursor:pointer}.studio-explore .model-viewport .view-controls,.studio-explore .model-viewport .selected-piece{cursor:default}
+.stage-main .workspace-toolbar{border-top:1px solid var(--border)}
+@media(max-width:900px){
+ .command-bar{padding:10px 12px 12px;flex-wrap:wrap}.command-bar .quick-create{order:3;flex-basis:100%}.command-bar>button span:not(.button-count){display:none}.command-bar>button{padding:0 12px}
+ .stage-layout{display:flex;flex-direction:column;margin:12px;gap:12px;transition:none}
+ .designs-drawer{display:none}.drawer-open .designs-drawer{display:block}.designs-drawer-inner{width:auto;margin:0}
+ .tools-panel .config-panel{width:auto;margin:0}
+ .studio-explore .model-viewport{height:clamp(360px,58svh,640px)}
+}
