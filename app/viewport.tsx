@@ -31,12 +31,11 @@ export default function Viewport(props:Props){
   const scene=new THREE.Scene(),camera=new THREE.PerspectiveCamera(35,1,.1,1500),L=props.length,W=props.width??16,H=(props.height??43)*.4,centerX=L/2,centerZ=W/2;
   const controls=new OrbitControls(camera,renderer.domElement);controls.enabled=true;controls.enableDamping=true;controls.addEventListener("start",()=>{userMoved=true;});controls.dampingFactor=.07;controls.minDistance=18;controls.maxDistance=Math.max(L,W,H)*6;controls.maxPolarAngle=Math.PI*.49;controls.target.set(0,H*.44,0);controls.autoRotateSpeed=.6;
   const hemi=new THREE.HemisphereLight(0xffffff,0x8794a2,2.8);scene.add(hemi);const sun=new THREE.DirectionalLight(0xfff6e6,3.3);sun.position.set(-20,80,50);
-  // The key light is a sun on an arc over the model: 0 is dawn low on the left, 0.5 is noon
-  // overhead, 1 is sunset low on the right. Low sun goes warm and a little softer. During the
-  // assembly intro it travels from dawn to wherever the Sunlight slider sits, so the bricks
-  // land under a moving light; afterwards the slider moves it directly.
+  // The key light sits on an arc over the model, low on the left at 0, overhead at 0.5, low on
+  // the right at 1, warming slightly as it drops. During the assembly intro it travels across
+  // from the left to wherever the Light slider sits; afterwards the slider moves it directly.
   const sunNoon=new THREE.Color(0xfff6e6),sunLow=new THREE.Color(0xffb36b);
-  const placeSun=(a:number)=>{const th=Math.max(.03,Math.min(.97,a))*Math.PI;sun.position.set(-Math.cos(th)*95,16+Math.sin(th)*84,48);const warmth=Math.pow(1-Math.sin(th),1.4);sun.color.copy(sunNoon).lerp(sunLow,warmth);sun.intensity=2.6+.7*Math.sin(th);};sun.castShadow=true;sun.shadow.mapSize.set(coarse?1024:2048,coarse?1024:2048);sun.shadow.camera.left=-75;sun.shadow.camera.right=75;sun.shadow.camera.top=70;sun.shadow.camera.bottom=-70;sun.shadow.bias=-.0004;sun.shadow.normalBias=.06;scene.add(sun);
+  const placeSun=(a:number)=>{const th=Math.max(.03,Math.min(.97,a))*Math.PI;sun.position.set(-Math.cos(th)*95,16+Math.sin(th)*84,48);const warmth=.55*Math.pow(1-Math.sin(th),1.6);sun.color.copy(sunNoon).lerp(sunLow,warmth);sun.intensity=2.8+.5*Math.sin(th);};sun.castShadow=true;sun.shadow.mapSize.set(coarse?1024:2048,coarse?1024:2048);sun.shadow.camera.left=-75;sun.shadow.camera.right=75;sun.shadow.camera.top=70;sun.shadow.camera.bottom=-70;sun.shadow.bias=-.0004;sun.shadow.normalBias=.06;scene.add(sun);
   const fill=new THREE.DirectionalLight(0xccdeff,2);fill.position.set(40,20,-40);scene.add(fill);
   const floor=new THREE.Mesh(new THREE.PlaneGeometry(600,600),new THREE.ShadowMaterial({opacity:presentation ? .12 : .15}));floor.rotation.x=-Math.PI/2;floor.position.y=-.10;floor.receiveShadow=true;scene.add(floor);
   if(presentation){scene.fog=new THREE.FogExp2(0xffffff,.0018);}applyTheme();const themeWatch=new MutationObserver(applyTheme);themeWatch.observe(document.documentElement,{attributes:true,attributeFilter:["class"]});if(presentation){const rim=new THREE.DirectionalLight(0xe5edff,1.5);rim.position.set(0,30,-50);scene.add(rim);const radius=Math.max(L,W,H)+20;sun.shadow.camera.left=-radius;sun.shadow.camera.right=radius;sun.shadow.camera.top=radius;sun.shadow.camera.bottom=-radius;sun.shadow.camera.updateProjectionMatrix();}
