@@ -85,7 +85,7 @@ export function parseIdea(text:string):{recipe:Recipe;color:ColorKey;accent:Colo
  const terms:[Recipe,RegExp][]=[["bridge",/\b(bridge|golden gate)\b/],["lighthouse",/\b(lighthouse|beacon|hatteras)\b/],["castle",/\b(castle|fortress|palace|neuschwanstein)\b/],["house",/\b(house|cottage|cabin|home)\b/],["rocket",/\b(rocket|spaceship|spacecraft|saturn v|apollo)\b/],["robot",/\b(robot|droid)\b/],["car",/\b(car|convertible|bmw|roadster|automobile)\b/],["tree",/\b(tree|bonsai|oak)\b/],["cat",/\b(cat|kitten)\b/],["dog",/\b(dog|puppy|pup)\b/],["boat",/\b(boat|sailboat|yacht|ship)\b/],["skyline",/\b(skyline|city|skyscraper)\b/],["blank",/\b(blank|empty)\b/]];
  const hit=terms.find(([,r])=>r.test(t));if(!hit)return {error:"No matching preset."};
  const recipe=hit[0],r=RECIPES.find(r=>r.id===recipe)!;
- const colorWords=[...t.matchAll(/\b(red|orange|blue|navy|black|gray|grey|white|green|tan|yellow|brown|pink)\b/g)].map(m=>(m[1]==="grey"?"gray":m[1]) as ColorKey);
+ const colorWords=[...t.matchAll(/\b(red|orange|blue|navy|black|gray|grey|white|green|tan|yellow|dark brown|brown|pink)\b/g)].map(m=>(m[1]==="grey"?"gray":m[1]==="dark brown"?"darkbrown":m[1]) as ColorKey);
  const color=colorWords[0]||r.color,accent=colorWords[1]||({castle:"navy",house:"red",rocket:"red",robot:"yellow",car:"black",tree:"brown",cat:"white",dog:"white",boat:"blue",skyline:"yellow",lighthouse:"white",bridge:"blue",blank:"white"} as Record<Recipe,ColorKey>)[recipe];
  const detail=/\b(tiny|small|mini|compact)\b/.test(t)?"small":/\b(large|big|huge|display)\b/.test(t)?"large":undefined;
  return {recipe,color,accent,detail,applied:[r.name,`${COLORS[color].name} body`,`${COLORS[accent].name} accents`,...(detail?[`${detail} size`]:[])]};
@@ -131,7 +131,7 @@ export function nearestColor(r:number,g:number,b:number):ColorKey {
 export function mosaicFromPixels(data:ArrayLike<number>,width:number,height:number,name:string):BuildModel {
  if(width<1||height<1||width>96||height>96||data.length!==width*height*4)throw Error("Invalid image dimensions.");
  const voxels:VoxelMap=new Map();for(let z=0;z<height;z++)for(let x=0;x<width;x++){const i=(z*width+x)*4,alpha=data[i+3]/255,c=nearestColor(data[i]*alpha+255*(1-alpha),data[i+1]*alpha+255*(1-alpha),data[i+2]*alpha+255*(1-alpha));voxels.set(voxelKey(x,0,z),"gray");voxels.set(voxelKey(x,1,z),"gray");voxels.set(voxelKey(x,2,z),c);}
- return finishModel(packVoxels(voxels),{name,description:`${width} × ${height} stud mosaic · 12-color brick palette`,source:"mosaic"});
+ return finishModel(packVoxels(voxels),{name,description:`${width} × ${height} stud mosaic · 13-color brick palette`,source:"mosaic"});
 }
 export function intersects(a:Piece,b:Piece){return a.x<b.x+b.w&&a.x+a.w>b.x&&a.y<b.y+b.h&&a.y+a.h>b.y&&a.z<b.z+b.d&&a.z+a.d>b.z;}
 export function addPiece(pieces:Piece[],part:PartId,color:ColorKey,x:number,y:number,z:number,rotated=false,face?:Face):Piece[]{

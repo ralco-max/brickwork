@@ -24,7 +24,7 @@ export const manualSchema=z.object({erase:z.array(boxSchema).max(32000),bricks:z
 const reviewSchema=z.object({revision:z.object({status:z.enum(["visible","missing","uncertain","not_requested"]),evidence:z.string().max(500)}).optional(),summary:z.string().max(1000),recognizable:z.boolean(),features:z.array(z.object({feature:z.string().max(160),status:z.enum(["visible","missing","uncertain"]),evidence:z.string().max(500)})).max(12),improvements:z.array(z.string().max(500)).max(8),thinking:z.string().max(4000).optional()});
 export {reviewSchema};
 const contextSchema=z.object({brief:briefSchema,manual:manualSchema,locked:z.array(z.string().max(80)).max(240),revisions:z.array(z.object({request:z.string().max(2000),summary:z.string().max(1000),at:z.string().max(40)})).max(50),review:reviewSchema.optional(),reviewStale:z.boolean().optional()});
-const recordKey=z.string().regex(/^\d{4,5}b?:(red|orange|blue|navy|black|gray|white|green|tan|yellow|brown|pink)$/);
+const recordKey=z.string().regex(/^\d{4,5}b?:(red|orange|blue|navy|black|gray|white|green|tan|yellow|brown|darkbrown|pink)$/);
 const shoppingSchema=z.object({owned:z.record(recordKey,z.number().int().min(0).max(16000)),elementIds:z.record(recordKey,z.string().regex(/^\d{0,8}$/)),priceOverrides:z.record(recordKey,z.number().finite().min(0).max(10000)),quotes:z.record(recordKey,z.object({available:z.number().int().min(0).max(100000),unitPrice:z.number().finite().min(0).max(10000),url:z.string().url().max(1000).refine(s=>/^https:\/\//.test(s)),checkedAt:z.string().datetime()}))});
 const pieceKey=(p:Piece)=>`${p.part}:${p.color}:${p.x}:${p.y}:${p.z}:${p.rotated}`;
 export function editModel(model:BuildModel,pieces:Piece[]):BuildModel{
