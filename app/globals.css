@@ -453,3 +453,6 @@ h1,.landing-film-caption h1,.project-heading h1,[data-slot=dialog-title]{text-wr
  .studio-focused.drawer-open .designs-drawer-inner{box-shadow:var(--shadow-pop);max-height:calc(100vh - 200px);overflow:auto}
 }
 @media(max-width:760px){.stage-hud{top:10px;left:10px;max-width:calc(100% - 70px);gap:6px}.stage-hud .hud-title input{font-size:.95rem}.stage-hud .hud-meta{display:none}.hud-pill,.stage-hud .hud-details>summary{min-height:34px;padding:0 10px;font-size:.75rem}}
+
+/* Sunlight slider beside Explode: dawn on the left, sunset on the right. */
+.light-control label{display:inline-flex;align-items:center;gap:6px}.light-control>span:last-child{min-width:58px;text-align:right}

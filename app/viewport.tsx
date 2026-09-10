@@ -9,7 +9,7 @@ import type {Arrival} from "@/lib/live-arrivals";
 import {assemblyPose,assemblyTracks} from "@/lib/assembly";
 
 export type BrickHit={piece:Piece;point:{x:number;y:number;z:number};normal:{x:number;y:number;z:number}};
-type Props={arrivals?:{epoch:number;paused:boolean};suspended?:boolean;pieces:Piece[];length:number;width?:number;height?:number;modelKey?:string;editMode?:string;onBrick?:(hit:BrickHit)=>void;highlightIds?:number[];heat?:Map<number,number>;explode:number;stage:number;selected:string|null;view:string;reset:number;rotate:boolean;onPick:(key:string|null)=>void;assembly?:{time:()=>number;onFrame?:(canvas:HTMLCanvasElement,time:number)=>void;sweep?:boolean};presentation?:boolean;onCanvas?:(canvas:HTMLCanvasElement|null)=>void};
+type Props={arrivals?:{epoch:number;paused:boolean};suspended?:boolean;light?:number;pieces:Piece[];length:number;width?:number;height?:number;modelKey?:string;editMode?:string;onBrick?:(hit:BrickHit)=>void;highlightIds?:number[];heat?:Map<number,number>;explode:number;stage:number;selected:string|null;view:string;reset:number;rotate:boolean;onPick:(key:string|null)=>void;assembly?:{time:()=>number;onFrame?:(canvas:HTMLCanvasElement,time:number)=>void;sweep?:boolean};presentation?:boolean;onCanvas?:(canvas:HTMLCanvasElement|null)=>void};
 export default function Viewport(props:Props){
  const host=useRef<HTMLDivElement>(null),api=useRef<{update:(p:Props)=>void;camera:(view:string)=>void}|null>(null),latest=useRef(props);latest.current=props;const savedCamera=useRef<{key:string;position:THREE.Vector3;target:THREE.Vector3}|null>(null);
  const rendererRef=useRef<THREE.WebGLRenderer|null>(null);
@@ -30,7 +30,13 @@ export default function Viewport(props:Props){
   renderer.domElement.setAttribute("aria-label","Interactive 3D brick model. Drag to rotate; pinch or scroll to zoom. Select a brick to inspect its part.");renderer.domElement.setAttribute("role","img");
   const scene=new THREE.Scene(),camera=new THREE.PerspectiveCamera(35,1,.1,1500),L=props.length,W=props.width??16,H=(props.height??43)*.4,centerX=L/2,centerZ=W/2;
   const controls=new OrbitControls(camera,renderer.domElement);controls.enabled=true;controls.enableDamping=true;controls.addEventListener("start",()=>{userMoved=true;});controls.dampingFactor=.07;controls.minDistance=18;controls.maxDistance=Math.max(L,W,H)*6;controls.maxPolarAngle=Math.PI*.49;controls.target.set(0,H*.44,0);controls.autoRotateSpeed=.6;
-  const hemi=new THREE.HemisphereLight(0xffffff,0x8794a2,2.8);scene.add(hemi);const sun=new THREE.DirectionalLight(0xfff6e6,3.3);sun.position.set(-20,80,50);sun.castShadow=true;sun.shadow.mapSize.set(coarse?1024:2048,coarse?1024:2048);sun.shadow.camera.left=-75;sun.shadow.camera.right=75;sun.shadow.camera.top=70;sun.shadow.camera.bottom=-70;sun.shadow.bias=-.0004;sun.shadow.normalBias=.06;scene.add(sun);
+  const hemi=new THREE.HemisphereLight(0xffffff,0x8794a2,2.8);scene.add(hemi);const sun=new THREE.DirectionalLight(0xfff6e6,3.3);sun.position.set(-20,80,50);
+  // The key light is a sun on an arc over the model: 0 is dawn low on the left, 0.5 is noon
+  // overhead, 1 is sunset low on the right. Low sun goes warm and a little softer. During the
+  // assembly intro it travels from dawn to wherever the Sunlight slider sits, so the bricks
+  // land under a moving light; afterwards the slider moves it directly.
+  const sunNoon=new THREE.Color(0xfff6e6),sunLow=new THREE.Color(0xffb36b);
+  const placeSun=(a:number)=>{const th=Math.max(.03,Math.min(.97,a))*Math.PI;sun.position.set(-Math.cos(th)*95,16+Math.sin(th)*84,48);const warmth=Math.pow(1-Math.sin(th),1.4);sun.color.copy(sunNoon).lerp(sunLow,warmth);sun.intensity=2.6+.7*Math.sin(th);};sun.castShadow=true;sun.shadow.mapSize.set(coarse?1024:2048,coarse?1024:2048);sun.shadow.camera.left=-75;sun.shadow.camera.right=75;sun.shadow.camera.top=70;sun.shadow.camera.bottom=-70;sun.shadow.bias=-.0004;sun.shadow.normalBias=.06;scene.add(sun);
   const fill=new THREE.DirectionalLight(0xccdeff,2);fill.position.set(40,20,-40);scene.add(fill);
   const floor=new THREE.Mesh(new THREE.PlaneGeometry(600,600),new THREE.ShadowMaterial({opacity:presentation ? .12 : .15}));floor.rotation.x=-Math.PI/2;floor.position.y=-.10;floor.receiveShadow=true;scene.add(floor);
   if(presentation){scene.fog=new THREE.FogExp2(0xffffff,.0018);}applyTheme();const themeWatch=new MutationObserver(applyTheme);themeWatch.observe(document.documentElement,{attributes:true,attributeFilter:["class"]});if(presentation){const rim=new THREE.DirectionalLight(0xe5edff,1.5);rim.position.set(0,30,-50);scene.add(rim);const radius=Math.max(L,W,H)+20;sun.shadow.camera.left=-radius;sun.shadow.camera.right=radius;sun.shadow.camera.top=radius;sun.shadow.camera.bottom=-radius;sun.shadow.camera.updateProjectionMatrix();}
@@ -57,6 +63,7 @@ export default function Viewport(props:Props){
    controls.enabled=!coarse||touchEnabled.current;renderer.domElement.style.touchAction=coarse&&!touchEnabled.current?"pan-y":"none";
    controls.autoRotate=state.rotate&&!window.matchMedia("(prefers-reduced-motion: reduce)").matches;
    const assemblyTime=time??state.assembly?.time()??1,animationOnly=time!==undefined,highlighted=new Set(state.highlightIds||[]);
+   const sunTarget=state.light??.38;placeSun(cinematic&&assemblyTime<1?.04+(sunTarget-.04)*assemblyTime:sunTarget);
    for(const batch of batches){let studIndex=0;batch.pieces.forEach((p,i)=>{
     const visible=p.stage<=state.stage,key=`${p.part}:${p.color}`,selected=!state.selected||state.selected===key;
     const e=state.explode,y=p.y*.4,track=tracks.get(p.id)!;
@@ -93,7 +100,7 @@ if(cameraMove){const u=Math.min(1,(now-cameraMove.start)/520),eased=1-Math.pow(1
 const time=latest.current.assembly?.time();if(time!==undefined&&(time!==lastTime||cameraRevision!==lastCameraRevision)){update(latest.current,time);if(sweeping()&&!userMoved&&cinematicCamera.lengthSq()>0){camera.position.copy(cinematicCamera).applyAxisAngle(axis,(time-.5)*.38).multiplyScalar(1-.08*time).add(controls.target);camera.lookAt(controls.target);}lastTime=time;lastCameraRevision=cameraRevision;}controls.update();renderer.render(scene,camera);if(time!==undefined)latest.current.assembly?.onFrame?.(renderer.domElement,time);}};animate();
   return()=>{savedCamera.current={key:props.modelKey??"model",position:camera.position.clone(),target:controls.target.clone()};api.current=null;cancelAnimationFrame(raf);observer.disconnect();themeWatch.disconnect();visibility.disconnect();controls.dispose();renderer.domElement.removeEventListener("pointerdown",down);renderer.domElement.removeEventListener("pointerup",pick);renderer.domElement.removeEventListener("webglcontextlost",lost);const materials=new Set<THREE.Material>();scene.traverse(obj=>{if(obj instanceof THREE.Mesh){obj.geometry.dispose();if(Array.isArray(obj.material))obj.material.forEach(m=>materials.add(m));else materials.add(obj.material);}});materials.forEach(m=>m.dispose());sun.shadow.map?.dispose();renderer.renderLists.dispose();};
  },[props.pieces,props.length,props.width,props.height,props.modelKey,props.arrivals?.epoch]);
- useEffect(()=>{api.current?.update(props);},[props.explode,props.stage,props.selected,props.rotate,props.highlightIds,props.heat,touchActive]);
+ useEffect(()=>{api.current?.update(props);},[props.explode,props.stage,props.selected,props.rotate,props.highlightIds,props.heat,props.light,touchActive]);
  useEffect(()=>{api.current?.camera(props.view);},[props.view,props.reset,props.explode]);
  return <div className={"canvas-host "+(props.editMode&&props.editMode!=="inspect"?"is-editing":"")} ref={host}>{!presentationProp&&!error&&<button className="touch-model-toggle" aria-pressed={touchActive} onClick={()=>setTouchActive(v=>!v)}>{touchActive?"Done · scroll page":"Touch to rotate or edit"}</button>}{error&&<div className="canvas-error"><strong>3D preview is unavailable in this browser.</strong><p>The parts audit and exports still work. Try opening the studio in Safari or Chrome with WebGL enabled.</p></div>}</div>;
 }

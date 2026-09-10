@@ -59,6 +59,10 @@ The landing, live creation and expanded film use a white stage with soft contact
 
 Build guides now have at most 24 parts per step and expose exact X/Y/Z coordinates, rotation and a per-step parts list. Ground and earlier-piece support paths are checked. Assembly animation is cinematic; the guide still needs physical validation for strength and hand access. LDraw exports contain these same steps.
 
+## Lighting
+
+The stage is lit by three lights on one material. Every brick and stud is a MeshStandardMaterial with roughness 0.3 and no metalness, so the plastic reads glossy without looking like metal. A hemisphere light gives the soft sky-and-ground fill, a cool blue fill from the back right keeps shadow sides from going black, and a warm directional sun is the key light that puts the highlights on stud tops and rounded brick edges and casts the soft shadows (PCF soft shadow map, with a small normal bias so the studs do not self-shadow). The sun rides an arc over the model: 0 is dawn, low on the left; 0.5 is noon, overhead; 1 is sunset, low on the right. A low sun goes warm (toward amber) and a little softer. During the assembly intro the sun travels from dawn to wherever the Sunlight slider sits, so the bricks land under a moving light, like a day passing; afterwards the slider next to Explode moves it directly, with the label reading Dawn, Morning, Noon, Evening or Sunset.
+
 ## Themes
 
 Light, dark and follow-the-device themes are available from the toggle in the header, remembered in this browser. The stylesheet uses a shade system rather than raw greys: three surface levels, two line weights, three ink weights, glass, warning and accent-soft roles, each defined for both palettes, and the 3D stages read their background, fog and ground light from the same variables so the canvas changes with the theme.
