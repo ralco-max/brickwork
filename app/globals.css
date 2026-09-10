@@ -424,10 +424,16 @@ h1,.landing-film-caption h1,.project-heading h1,[data-slot=dialog-title]{text-wr
 .studio-explore .model-viewport{height:clamp(440px,66svh,820px);cursor:pointer}.studio-explore .model-viewport .view-controls,.studio-explore .model-viewport .selected-piece{cursor:default}
 .stage-main .workspace-toolbar{border-top:1px solid var(--border)}
 @media(max-width:900px){
- .command-bar{padding:10px 12px 12px;flex-wrap:wrap}.command-bar .quick-create{order:3;flex-basis:100%}.command-bar>button span:not(.button-count){display:none}.command-bar>button{padding:0 12px}
+ .command-bar{padding:8px 10px;gap:6px;flex-wrap:nowrap}.command-bar .quick-create{order:0;flex:1;min-width:0}.command-bar>button span:not(.button-count){display:none}.command-bar>button{padding:0 11px;min-height:44px;border-radius:10px}.command-bar>button .button-count{display:none}
+ .command-bar .quick-create-field{padding:3px;gap:3px}.command-bar .quick-create-field input{min-width:0;font-size:16px}.command-bar .quick-create-field button[type=submit] span{display:none}.command-bar .quick-create-field button{min-width:40px}
  .stage-layout{display:flex;flex-direction:column;margin:12px;gap:12px;transition:none}
  .designs-drawer{display:none}.drawer-open .designs-drawer{display:block}.designs-drawer-inner{width:auto;margin:0}
- .tools-panel .config-panel{width:auto;margin:0}
+ /* The tools panel is a bottom sheet on a phone: it slides over the stage and scrolls on its own, with its own close button. */
+ .tools-panel{position:fixed;left:0;right:0;bottom:0;z-index:40;max-height:76dvh;overflow:auto;background:var(--surface);border-top:1px solid var(--line);border-radius:18px 18px 0 0;box-shadow:0 -14px 40px #00000026;padding-bottom:env(safe-area-inset-bottom)}
+ .tools-panel .config-panel{width:auto;margin:0;border:0;border-radius:0}.tools-panel .panel-heading{position:sticky;top:0;z-index:2;background:var(--surface);padding:12px 0;margin-bottom:8px;display:flex;align-items:center;gap:8px}
+ .tools-close{display:grid;place-items:center;margin-left:auto;width:40px;height:40px;border:1px solid var(--line);border-radius:50%;background:var(--surface);color:var(--ink-2)}
+ .studio-focused .stage-layout{padding-bottom:12px}
+ .below-view{padding:8px 10px;gap:6px}.explode-control{min-width:0;width:100%}.hud-pill,.stage-hud .hud-details>summary{min-height:38px}
  .studio-explore .model-viewport{height:clamp(360px,58svh,640px)}
 }
 
@@ -463,3 +469,6 @@ h1,.landing-film-caption h1,.project-heading h1,[data-slot=dialog-title]{text-wr
 .builder-note{display:grid;grid-template-columns:76px minmax(0,1fr);gap:10px;font-size:12.5px;line-height:1.5;color:var(--ink-2)}.builder-note>span{font-size:10.5px;letter-spacing:.1em;text-transform:uppercase;color:var(--ink-3);padding-top:2px}.builder-note>p{margin:0;white-space:pre-wrap;overflow-wrap:anywhere}
 .builder-note.is-live>p::after{content:"▍";color:var(--accent-deep);animation:note-blink 1s steps(2) infinite}@keyframes note-blink{50%{opacity:0}}
 @media(prefers-reduced-motion:reduce){.builder-note.is-live>p::after{animation:none}}
+
+.tools-close{display:none}
+@media(max-width:900px){.tools-close{display:grid}}
