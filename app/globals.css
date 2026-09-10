@@ -430,3 +430,26 @@ h1,.landing-film-caption h1,.project-heading h1,[data-slot=dialog-title]{text-wr
  .tools-panel .config-panel{width:auto;margin:0}
  .studio-explore .model-viewport{height:clamp(360px,58svh,640px)}
 }
+
+/* The model's name, pieces, details and actions sit on the stage as a HUD, like the view controls on the right. */
+.stage-hud{position:absolute;z-index:3;top:16px;left:20px;display:grid;gap:8px;max-width:min(480px,calc(100% - 96px));justify-items:start}
+.stage-hud:focus{outline:none}
+.stage-hud .hud-title{display:flex;align-items:center;gap:8px;padding:5px 12px;background:var(--glass);border:1px solid var(--surface-2);border-radius:12px;min-width:0;max-width:100%;color:var(--ink-3)}
+.stage-hud .hud-title input{font:inherit;font-size:1.05rem;font-weight:600;letter-spacing:-.02em;background:transparent;border:0;color:var(--ink);min-width:0;width:100%;outline:none;padding:0}
+.stage-hud .hud-meta{display:flex;align-items:center;gap:8px;font-size:11px;letter-spacing:.12em;color:var(--ink-3);padding-left:4px;white-space:nowrap}
+.stage-hud .hud-meta .project-badge{margin:0}
+.stage-hud .hud-actions{display:flex;flex-wrap:wrap;gap:6px;max-width:100%}
+.hud-pill,.stage-hud .hud-details>summary{display:inline-flex;align-items:center;gap:6px;min-height:36px;padding:0 12px;font:inherit;font-size:.8rem;font-weight:500;color:var(--ink-2);background:var(--glass);border:1px solid var(--surface-2);border-radius:20px;cursor:pointer;list-style:none;white-space:nowrap}
+.hud-pill:hover,.stage-hud .hud-details>summary:hover{color:var(--ink);border-color:var(--line-strong)}.hud-pill.is-active{background:var(--ink);color:var(--surface);border-color:var(--ink)}
+.stage-hud .hud-details{position:relative}.stage-hud .hud-details>summary::-webkit-details-marker{display:none}.stage-hud .hud-details[open]>summary{color:var(--ink)}
+.stage-hud .hud-panel{position:absolute;top:calc(100% + 6px);left:0;width:min(360px,72vw);padding:12px 14px;display:grid;gap:8px;background:var(--surface);border:1px solid var(--line);border-radius:12px;box-shadow:var(--shadow-pop);font-size:.85rem;line-height:1.5;color:var(--ink-2)}
+.stage-hud .hud-panel p{margin:0}
+/* Nothing in the stage may run past its column: metrics reflow, rows wrap, and below 1240px an open drawer floats over the stage while the tools are open. */
+.stage-main .model-metrics{grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:12px 0}.stage-main .below-view{flex-wrap:wrap}.stage-main .workspace-toolbar{flex-wrap:wrap;height:auto;min-height:61px}
+.stage-layout{position:relative}
+@media(max-width:1240px){
+ .studio-focused.drawer-open .stage-layout{grid-template-columns:0px minmax(0,1fr) 322px}
+ .studio-focused.drawer-open .designs-drawer{position:absolute;left:0;top:0;z-index:6;overflow:visible}
+ .studio-focused.drawer-open .designs-drawer-inner{box-shadow:var(--shadow-pop);max-height:calc(100vh - 200px);overflow:auto}
+}
+@media(max-width:760px){.stage-hud{top:10px;left:10px;max-width:calc(100% - 70px);gap:6px}.stage-hud .hud-title input{font-size:.95rem}.stage-hud .hud-meta{display:none}.hud-pill,.stage-hud .hud-details>summary{min-height:34px;padding:0 10px;font-size:.75rem}}
