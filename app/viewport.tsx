@@ -39,11 +39,10 @@ export default function Viewport(props:Props){
   const fill=new THREE.DirectionalLight(0xccdeff,2);fill.position.set(40,20,-40);scene.add(fill);
   const floor=new THREE.Mesh(new THREE.PlaneGeometry(600,600),new THREE.ShadowMaterial({opacity:presentation ? .12 : .15}));floor.rotation.x=-Math.PI/2;floor.position.y=-.10;floor.receiveShadow=true;scene.add(floor);
   if(presentation){scene.fog=new THREE.FogExp2(0xffffff,.0018);}applyTheme();const themeWatch=new MutationObserver(applyTheme);themeWatch.observe(document.documentElement,{attributes:true,attributeFilter:["class"]});if(presentation){const rim=new THREE.DirectionalLight(0xe5edff,1.5);rim.position.set(0,30,-50);scene.add(rim);const radius=Math.max(L,W,H)+20;sun.shadow.camera.left=-radius;sun.shadow.camera.right=radius;sun.shadow.camera.top=radius;sun.shadow.camera.bottom=-radius;sun.shadow.camera.updateProjectionMatrix();}
-  // Explode expands the model like a rubber-band ball flying apart: every brick moves straight
-  // out from the model's centre, in every direction, to EXPLODE_SCALE times its distance, while
-  // tumbling on its intro spin. Scaling about the centre of the base keeps every brick above the
-  // floor, so the bottom row spreads outward and everything else lifts and spreads.
-  const EXPLODE_SCALE=2.4;
+  // Explode is the intro run backwards: the slider scrubs the whole assembly timeline from the
+  // finished model (0) to the first frame (1), so the last bricks to land are the first to lift
+  // off, each flying back out along its own path to where it waited in the air.
+  const flightMax=Math.max(10,Math.max(L,W)*.24)*1.45,liftMax=Math.max(12,H*.4*.5)+10;
   if(props.arrivals){if(arrivalState.current.epoch!==props.arrivals.epoch)arrivalState.current={epoch:props.arrivals.epoch,clock:0,entries:new Map()};arrivalState.current.entries=reconcileArrivals(arrivalState.current.entries,props.pieces,arrivalState.current.clock,L,W,props.height??43);}
   const arrivalEnd=Math.max(0,...[...arrivalState.current.entries.values()].map(e=>e.at+1.36));
   const reducedMotion=window.matchMedia("(prefers-reduced-motion: reduce)");
@@ -68,7 +67,7 @@ export default function Viewport(props:Props){
     const e=state.explode,y=p.y*.4,track=tracks.get(p.id)!;
     const entry=state.arrivals?arrivalState.current.entries.get(brickIdentity(p)):null;
     const px=p.x+p.w/2-L/2,py=y+p.h*.2,pz=p.z+p.d/2-centerZ;
-    const pose=entry?arrivalPose(entry,arrivalState.current.clock,reducedMotion.matches):e>0?{x:px*EXPLODE_SCALE*e,y:py*EXPLODE_SCALE*e,z:pz*EXPLODE_SCALE*e,rx:track.rx*e,ry:track.ry*e,rz:track.rz*e,scale:1,settled:false}:cinematic?assemblyPose(track,assemblyTime):null;
+    const pose=entry?arrivalPose(entry,arrivalState.current.clock,reducedMotion.matches):e>0?assemblyPose(track,1-e):cinematic?assemblyPose(track,assemblyTime):null;
     temp.position.set(px+(pose?.x??0),py+(pose?.y??0),pz+(pose?.z??0));temp.rotation.set(pose?.rx??0,pose?.ry??0,pose?.rz??0);temp.scale.setScalar(visible?(pose?.scale??1):0);temp.updateMatrix();batch.body.setMatrixAt(i,temp.matrix);
     if(!animationOnly){baseColor.set(COLORS[p.color].hex);if(state.heat){const r=state.heat.get(p.id);if(r===undefined)baseColor.lerp(dimColor,.8);else baseColor.set(r>1?"#e5484d":r>.5?"#f2b134":"#3f9d5a");}else if(highlighted.size){if(highlighted.has(p.id))baseColor.set("#fb541e");else baseColor.lerp(dimColor,.85);}else if(!selected)baseColor.lerp(dimColor,.85);batch.body.setColorAt(i,baseColor);}
     if(batch.studs)for(const [x,z] of batch.studded){studLocal.makeTranslation(x+.5-p.w/2,p.h*.2+.07,z+.5-p.d/2);studWorld.multiplyMatrices(temp.matrix,studLocal);batch.studs.setMatrixAt(studIndex,studWorld);if(!animationOnly)batch.studs.setColorAt(studIndex,baseColor);studIndex++;}
@@ -77,7 +76,7 @@ export default function Viewport(props:Props){
   let cameraMove:{position:THREE.Vector3;target:THREE.Vector3;toPosition:THREE.Vector3;toTarget:THREE.Vector3;start:number}|null=null;
   const setCamera=(view:string)=>{
    const aspect=Math.max(.3,node.clientWidth/Math.max(1,node.clientHeight)),vFov=THREE.MathUtils.degToRad(35),hFov=2*Math.atan(Math.tan(vFov/2)*aspect);
-   const grow=1+latest.current.explode*EXPLODE_SCALE,displayH=H*grow+4,spreadX=L/2*grow+2,spreadZ=W/2*grow+2;
+   const e=latest.current.explode,displayH=H+e*liftMax+4,spreadX=L/2+e*flightMax,spreadZ=W/2+e*flightMax;
    const target=new THREE.Vector3(0,displayH*.45,0);controls.target.copy(target);
    const direction=(view==="front"?new THREE.Vector3(0,.10,1):view==="top"?new THREE.Vector3(0,1,.001):new THREE.Vector3(.8,.72,1)).normalize();
    const right=new THREE.Vector3(0,1,0).cross(direction).normalize(),up=direction.clone().cross(right).normalize();
