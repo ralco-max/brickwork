@@ -70,7 +70,7 @@ test('the Golden Gate follows its blueprint: span ratios, heights, continuous ca
   assert.ok(Math.abs(r.mainToSuspended-4200/6450)<.03,`main/suspended ${r.mainToSuspended}`);
   assert.ok(Math.abs(r.towerToDeckRatio-746/220)<(scale===1?.6:1),`tower/deck ${r.towerToDeckRatio}`);   // compact true scale rounds the deck to 4 plates
   assert.equal(r.cableGaps,0);assert.ok(r.suspenders>=(scale===1?16:4),`suspenders ${r.suspenders}`);
-  assert.equal(r.verticalExaggeration,proportions==='true'?1:2);
+  assert.equal(r.verticalExaggeration,proportions==='true'?1:3.5);
   const model=m.generateRecipe('bridge',scale===1?'large':'small',undefined,undefined,config),audit=m.auditModel(model.pieces);
   assert.equal(audit.overlaps,0);
   // packing keeps every cell of the blueprint, so no suspender or cable step is lost

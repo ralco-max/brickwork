@@ -93,7 +93,7 @@ const quadrants=(dark:ColorKey,light:ColorKey)=>(angle:number)=>Math.floor(angle
 export const GOLDEN_GATE_BLUEPRINT={suspendedStuds:80,mainSpan:52,sideSpan:14,approach:8,towerAboveWaterPlates:23.1,deckAboveWaterPlates:6.8,trueRoadwayStuds:1.1};
 export type GoldenGateLayout={scale:number;vertical:number;roadW:number;legD:number;deckH:number;length:number;width:number;anchor:[number,number];towers:[number,number];deckY:number;deckTop:number;towerTop:number;cableZ:[number,number];suspenderStep:number};
 export function goldenGateLayout(config:Config,scale:number):GoldenGateLayout{
- const b=GOLDEN_GATE_BLUEPRINT,trueScale=config.proportions==="true",vertical=trueScale?1:2,roadW=trueScale?2:6,legD=2,deckH=trueScale?1:2;
+ const b=GOLDEN_GATE_BLUEPRINT,trueScale=config.proportions==="true",vertical=trueScale?1:3.5,roadW=trueScale?2:6,legD=2,deckH=trueScale?1:2;
  const t1=b.approach+b.sideSpan,t2=t1+b.mainSpan,length=b.approach*2+b.suspendedStuds;
  const deckY=2+Math.round(b.deckAboveWaterPlates*vertical),towerTop=2+Math.round(b.towerAboveWaterPlates*vertical);
  return {scale,vertical,roadW,legD,deckH,length,width:roadW+2*legD+8,anchor:[3,length-3],towers:[t1,t2],deckY,deckTop:deckY+deckH,towerTop,cableZ:[4+legD,4+legD+roadW-1],suspenderStep:trueScale?3:2};
