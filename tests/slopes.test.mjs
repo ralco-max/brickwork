@@ -1,8 +1,8 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import {build} from 'esbuild';
-const bundle=await build({stdin:{contents:'export * from "./lib/generated-scene";export {auditModel,SLOPES,PARTS,studCells} from "./lib/bridge";export {simulateClutch} from "./lib/clutch";export {validateProject,addPiece,finishModel} from "./lib/models";export {shellPlan} from "./lib/design-research";export {generateScene,MASSING_INSTRUCTIONS,DETAIL_INSTRUCTIONS} from "./lib/generation-provider";export {critiqueMassing} from "./lib/design-review";export {defaultBrief} from "./lib/design-project";export {pickExamples,DESIGN_EXAMPLES} from "./lib/design-examples";export {isWheel} from "./lib/bridge";',resolveDir:process.cwd(),loader:'ts'},bundle:true,platform:'node',format:'esm',write:false});
-const {compileScene,sceneVoxels,auditModel,SLOPES,PARTS,studCells,simulateClutch,validateProject,addPiece,shellPlan,SceneStreamParser,compactScene,mergeRevision,generateScene,MASSING_INSTRUCTIONS,DETAIL_INSTRUCTIONS,critiqueMassing,defaultBrief,expandCompactShape,validateScene,pickExamples,DESIGN_EXAMPLES,isWheel}=await import('data:text/javascript;base64,'+Buffer.from(bundle.outputFiles[0].text).toString('base64'));
+const bundle=await build({stdin:{contents:'export * from "./lib/generated-scene";export {auditModel,SLOPES,PARTS,studCells} from "./lib/bridge";export {simulateClutch} from "./lib/clutch";export {validateProject,addPiece,finishModel} from "./lib/models";export {shellPlan} from "./lib/design-research";export {generateScene,MASSING_INSTRUCTIONS,DETAIL_INSTRUCTIONS} from "./lib/generation-provider";export {critiqueMassing} from "./lib/design-review";export {defaultBrief} from "./lib/design-project";export {pickExamples,DESIGN_EXAMPLES} from "./lib/design-examples";export {isWheel} from "./lib/bridge";export {componentBudget} from "./lib/generated-scene";',resolveDir:process.cwd(),loader:'ts'},bundle:true,platform:'node',format:'esm',write:false});
+const {compileScene,sceneVoxels,auditModel,SLOPES,PARTS,studCells,simulateClutch,validateProject,addPiece,shellPlan,SceneStreamParser,compactScene,mergeRevision,generateScene,MASSING_INSTRUCTIONS,DETAIL_INSTRUCTIONS,critiqueMassing,defaultBrief,expandCompactShape,validateScene,pickExamples,DESIGN_EXAMPLES,isWheel,componentBudget}=await import('data:text/javascript;base64,'+Buffer.from(bundle.outputFiles[0].text).toString('base64'));
 const shape=(label,kind,color,position,size,extra={})=>({label,kind,color,position,size,operation:'add',end:{x:0,y:0,z:0},radius:1,...extra});
 const house={name:'House',description:'',dimensions:{x:24,y:40,z:24},shapes:[shape('base','box','gray',{x:0,y:0,z:0},{x:24,y:2,z:24}),shape('walls','box','tan',{x:4,y:2,z:4},{x:16,y:18,z:12}),...Array.from({length:6},(_,i)=>shape('roof'+i,'box','red',{x:3,y:20+i*3,z:3+i},{x:18,y:3,z:14-2*i}))]};
 const box={name:'Box',description:'',dimensions:{x:16,y:20,z:16},shapes:[shape('base','box','gray',{x:0,y:0,z:0},{x:16,y:2,z:16}),shape('block','box','blue',{x:2,y:2,z:2},{x:12,y:15,z:12})]};
@@ -86,4 +86,12 @@ test('a wheel shape becomes a real wheel element held on its axle, and the examp
  assert.equal(audit.overlaps,0);assert.ok(!audit.disconnected.some(id=>wheels.some(w=>w.id===id)),'wheels attach to their axle box');
  for(const example of DESIGN_EXAMPLES){const scene={name:example.scene.n,description:example.scene.d,dimensions:{x:example.scene.dim[0],y:example.scene.dim[1],z:example.scene.dim[2]},shapes:example.scene.sh.map(c=>expandCompactShape(c))};const built=compileScene(scene),a=auditModel(built.pieces);assert.equal(a.overlaps,0,example.id);assert.ok(a.ungrounded.length<=4,`${example.id} ungrounded ${a.ungrounded.length} (an ellipsoid underside leaves a few one-plate slivers)`);assert.ok(built.pieces.length<1200,`${example.id} pieces ${built.pieces.length}`);}
  assert.deepEqual(pickExamples('A red pickup truck','vehicle').map(e=>e.id)[0],'car');assert.deepEqual(pickExamples('The Eiffel Tower','monument').map(e=>e.id)[0],'lattice');assert.equal(pickExamples('something unusual').length,2);
+});
+
+test('the component budget attributes the packed pieces to the components that own the cells, wheels counted as one each',()=>{
+ const car=DESIGN_EXAMPLES.find(e=>e.id==='car').scene;
+ const full={name:car.n,description:car.d,dimensions:{x:car.dim[0],y:car.dim[1],z:car.dim[2]},shapes:car.sh.map(c=>expandCompactShape(c))};
+ const m=compileScene(full),by=componentBudget(full,m.pieces.length);
+ assert.equal(by.reduce((n,r)=>n+r.pieces,0)>=m.pieces.length-by.length,true);
+ assert.equal(by.find(r=>r.component==='Wheels').pieces,4);assert.equal(by[0].component,'Body');
 });

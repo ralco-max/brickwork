@@ -12,7 +12,7 @@ import type {ReferenceSheet} from "@/lib/design-research";
 import {targetExtents,shellPlan} from "@/lib/design-research";
 import type {MassingCritique} from "@/lib/design-review";
 import BriefForm from "./design-brief";
-import {normalizeScene} from "@/lib/generated-scene";
+import {normalizeScene,componentBudget} from "@/lib/generated-scene";
 import {PreviewQueue,foundationScene} from "@/lib/live-arrivals";
 import {readEvents} from "@/lib/generation-stream";
 import {canKeepPartial,continuationPrompt} from "@/lib/generation-recovery";
@@ -111,13 +111,13 @@ export default function Generator({open,onOpenChange,initialPrompt,initialImage,
     if(!original){setPhase("foundation");setStatus("Laying the display foundation…");candidate=foundationScene(b);const foundation=await compile(candidate,b);alive();setDraft({...foundation,length:b.maxWidth,width:b.maxDepth,height:b.maxHeight});}
     if(original&&draft)feedback=[...designChecks(draft,b,research?.target).issues,...(review?.features.filter(f=>f.status!=="visible").map(f=>`${f.feature}: ${f.evidence}`)||[])];
     // One streamed design call. The canvas follows every pass live; a later pass starts from the previous pass's shapes (the base event).
-    const stream=async(previousScene:GeneratedScene|undefined,extra:{stage?:"massing"|"detail";massingCritique?:string[];feedback?:string[]})=>{
+    const stream=async(previousScene:GeneratedScene|undefined,extra:{stage?:"massing"|"detail";massingCritique?:string[];feedback?:string[];budget?:{limit:number;used:number;remaining:number;byComponent:{component:string;pieces:number}[]};label?:string})=>{
      let header:SceneHeader|null=null,shapes:Shape[]=[],result:GeneratedScene|undefined,geometryError="";setShapeCount(0);
      const previews=new PreviewQueue<GeneratedScene,BuildModel>(async snapshot=>{const m=await compile(snapshot,b,original,true);return {...m,generation:snapshot,length:snapshot.dimensions.x,width:snapshot.dimensions.z,height:snapshot.dimensions.y};},m=>{if(requestId.current===runId){setDraft(m);setPreviewError("");if(m.generation&&canKeepPartial(m.generation,m))partialDraft.current={model:m,scene:m.generation,review:null,brief:b};}},e=>{if(requestId.current===runId&&!(e instanceof Error&&/draft is empty/.test(e.message)))setPreviewError(e instanceof Error?e.message:"Live preview could not update.");},350);previewQueue.current=previews;const cancelPreview=()=>previews.cancel();abort.signal.addEventListener("abort",cancelPreview,{once:true});
-     const response=await fetch("/api/generate",{method:"POST",signal:abort.signal,headers:headers(activeKey),body:JSON.stringify({prompt:text,detail:b.size,brief:b,reference:reference||undefined,research:research||undefined,previous:previousScene,locked,feedback:extra.feedback,stage:extra.stage,massingCritique:extra.massingCritique,history:revisions.current.slice(-8).map(({request,summary})=>({request,summary}))})});
+     const response=await fetch("/api/generate",{method:"POST",signal:abort.signal,headers:headers(activeKey),body:JSON.stringify({prompt:text,detail:b.size,brief:b,reference:reference||undefined,research:research||undefined,previous:previousScene,locked,feedback:extra.feedback,stage:extra.stage,massingCritique:extra.massingCritique,budget:extra.budget,history:revisions.current.slice(-8).map(({request,summary})=>({request,summary}))})});
      if(!response.ok){const body=await response.json();throw new GenerationError(body.error||"Generation could not start.",body.code||"GENERATION_FAILED");}if(!response.body)throw Error("No generation stream was returned.");
      try{for await(const event of readEvents(response.body)){
-      alive();if(event.type==="budget")setBudget(event.budget);else if(event.type==="thought")thought(extra.stage==="massing"?"Blocking out":extra.stage==="detail"?"Detailing":original?"Revising":"Designing",event.text);else if(event.type==="header"){header=event.header;if(event.header.signature?.length)note("Signature",event.header.signature.join(" · "));}
+      alive();if(event.type==="budget")setBudget(event.budget);else if(event.type==="thought")thought(extra.label||(extra.stage==="massing"?"Blocking out":extra.stage==="detail"?"Detailing":original?"Revising":"Designing"),event.text);else if(event.type==="header"){header=event.header;if(event.header.signature?.length)note("Signature",event.header.signature.join(" · "));}
       else if(event.type==="base"){shapes=event.shapes;setShapeCount(shapes.length);}
       else if(event.type==="shape"){const at=shapes.findIndex(s=>(s.id||s.label)===(event.shape.id||event.shape.label));if(at>=0)shapes[at]=event.shape;else shapes.push(event.shape);setShapeCount(shapes.length);setStatus(`${extra.stage==="massing"?"Blocking out":"Shaping"} ${event.shape.label.toLowerCase()}…`);
        if(header)previews.push({...header,shapes:[...shapes]});
@@ -127,18 +127,31 @@ export default function Generator({open,onOpenChange,initialPrompt,initialImage,
     };
     // Fresh designs work the way an architect does: block out the primary masses at final scale,
     // have the blockout checked against the real subject, then detail the corrected blockout.
-    let massingScene:GeneratedScene|undefined,massingNotes:string[]|undefined;
+    let massingScene:GeneratedScene|undefined,massingNotes:string[]|undefined,massingPieces=0;
     if(!original){
      setPhase("massing");setStatus("Blocking out the main masses…");note("Blockout","Placing the primary masses at final size before any detail.");
      const m=await stream(candidate,{stage:"massing"});
      if(m.result&&m.result.shapes.length>1){
       massingScene=m.result;candidate=m.result;
-      try{const built=await compile(m.result,b);alive();setDraft(built);const critique=await blockout(built,b,abort,activeKey,research,m.result.signature||[]);alive();massingNotes=critique.corrections;if(critique.thinking)note("Architect",critique.thinking);note("Architect",`${critique.ready?"Approved.":"Corrections."} ${critique.summary}${critique.corrections.length?` ${critique.corrections.join(" ")}`:""}`);setMessages(list=>[...list,{role:"builder",text:`Blockout ${critique.ready?"approved":"reviewed"}: ${critique.summary}${critique.corrections.length?` Corrections: ${critique.corrections.join(" ")}`:""}`}]);}
+      try{const built=await compile(m.result,b);alive();setDraft(built);massingPieces=built.pieces.length;const critique=await blockout(built,b,abort,activeKey,research,m.result.signature||[]);alive();massingNotes=critique.corrections;if(critique.thinking)note("Architect",critique.thinking);note("Architect",`${critique.ready?"Approved.":"Corrections."} ${critique.summary}${critique.corrections.length?` ${critique.corrections.join(" ")}`:""}`);setMessages(list=>[...list,{role:"builder",text:`Blockout ${critique.ready?"approved":"reviewed"}: ${critique.summary}${critique.corrections.length?` Corrections: ${critique.corrections.join(" ")}`:""}`}]);}
       catch(e){alive();if(e instanceof GenerationError&&["BUDGET_LIMIT","BUDGET_ACCOUNTING","BUDGET_MODEL","AI_AUTH","AI_NOT_CONNECTED"].includes(e.code))throw e;massingNotes=[];}
      }
     }
     setPhase("design");setStatus(massingScene?"Detailing the blockout…":"Composing your design…");note(massingScene?"Detail":"Design",massingScene?"Applying the corrections, then detailing every component.":original?"Revising the existing scene.":"Composing the design in one pass.");
-    const {result,geometryError}=await stream(candidate,{stage:massingScene?"detail":undefined,massingCritique:massingNotes,feedback});
+    // The detail pass gets the real count: what the blockout already costs and what is left for detail.
+    const detailBudget=massingScene?{limit:b.maxPieces,used:massingPieces,remaining:b.maxPieces-massingPieces,byComponent:componentBudget(massingScene,massingPieces)}:undefined;
+    if(detailBudget)note("Budget",`The blockout costs ${massingPieces.toLocaleString()} of ${b.maxPieces.toLocaleString()} pieces; ${Math.max(0,detailBudget.remaining).toLocaleString()} remain for detail.`);
+    let {result,geometryError}=await stream(candidate,{stage:massingScene?"detail":undefined,massingCritique:massingNotes,feedback,budget:detailBudget});
+    // One trim pass when the design lands well over budget: the designer gets the real per-component cost and cuts.
+    if(result&&!geometryError){
+     const over=await compile(result,b,original).catch(()=>null);alive();
+     if(over&&over.pieces.length>b.maxPieces*1.1){
+      const excess=over.pieces.length-b.maxPieces,by=componentBudget(result,over.pieces.length);
+      setPhase("design");setStatus(`Over budget by ${excess.toLocaleString()} pieces. Trimming…`);note("Budget",`${over.pieces.length.toLocaleString()} pieces, ${excess.toLocaleString()} over the ${b.maxPieces.toLocaleString()} limit. ${by.slice(0,6).map(r=>`${r.component} ${r.pieces}`).join(", ")}. Trimming.`);
+      const trimmed=await stream(result,{feedback:[`Over budget: ${over.pieces.length} pieces against a limit of ${b.maxPieces}. Cut at least ${excess} pieces. Remove or simplify the components that cost the most beyond their importance (buried mass, repeated texture, secondary accessories) and keep every signature feature; do not add anything.`],budget:{limit:b.maxPieces,used:over.pieces.length,remaining:b.maxPieces-over.pieces.length,byComponent:by},label:"Trimming"});
+      if(trimmed.result&&!trimmed.geometryError){const check=await compile(trimmed.result,b,original).catch(()=>null);alive();if(check&&check.pieces.length<over.pieces.length){result=trimmed.result;note("Budget",`Trimmed to ${check.pieces.length.toLocaleString()} pieces.`);}else note("Budget","The trim did not reduce the count; keeping the fuller design.");}
+     }
+    }
     if(geometryError){if(best)throw new GenerationError(geometryError,"INVALID_GEOMETRY");throw new GenerationError(geometryError,"INVALID_GEOMETRY");}if(!result)throw new GenerationError("The connection ended before your design was finished. Continue from the saved draft.","CONNECTION_LOST");
     try{
      setPhase("check");setStatus("Packing bricks and checking every connection…");note("Design",result.description);const m=await compile(result,b,original);alive();setDraft(m);setPreviewError("");partialDraft.current=null;const c=designChecks(m,b,research?.target);lastComplete.current={model:m,scene:result,review:null,brief:b};note("Checks",c.pass?`${m.pieces.length.toLocaleString()} pieces, every digital check passed.`:`${m.pieces.length.toLocaleString()} pieces. ${c.issues.join(" ")}`);

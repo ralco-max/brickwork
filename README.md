@@ -83,6 +83,8 @@ A fresh design follows the workflow a LEGO architect uses rather than one shot a
 4. **Detail as a revision.** The detail pass receives the massing scene as `previous` together with the critique, applies the corrections to the masses (a corrected mass keeps its id), then adds all the detail as a diff. The canvas follows both passes live; the blockout is on screen while the detail arrives. If the massing pass fails geometry or the critique cannot run, the detail pass proceeds as a direct design, so the workflow never blocks a build.
 5. **Structure first.** The instructions require a Core component of solid boxes, piers or spines inside the main masses and under every cantilever, reaching the base, and the build-order audit now accepts a piece hung from a placed piece above it (an eave plate, an inverted slope), which the clutch simulation then judges.
 
+6. **A real piece budget.** The blockout is packed before detailing, so the detail pass is told what the blockout already costs, what remains, and where the pieces are by component; detail has to fit inside the remainder, with carved relief preferred over added mass. If the finished design still lands more than 10 percent over the limit, one trim pass runs with the per-component cost and the excess to cut, keeping every signature feature; the trimmed scene replaces the design only when it actually has fewer pieces. The notes show the count before and after.
+
 Revisions, repairs and continuations skip the massing pass and revise the existing scene as before. The massing call is cheap (a few hundred output tokens) and the critique sends its three views at low detail.
 
 ## Looking the subject up
