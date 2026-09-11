@@ -96,7 +96,7 @@ const quadrants=(dark:ColorKey,light:ColorKey)=>(angle:number)=>Math.floor(angle
 export const GOLDEN_GATE_BLUEPRINT={suspendedStuds:80,mainSpan:52,sideSpan:14,approach:8,towerAboveWaterPlates:23.1,deckAboveWaterPlates:6.8,trueRoadwayStuds:1.1};
 export type GoldenGateLayout={scale:number;vertical:number;roadW:number;legD:number;deckH:number;length:number;width:number;anchor:[number,number];towers:[number,number];deckY:number;deckTop:number;towerTop:number;cableZ:[number,number];suspenderStep:number};
 export function goldenGateLayout(config:Config,scale:number):GoldenGateLayout{
- const b=GOLDEN_GATE_BLUEPRINT,trueScale=config.proportions==="true",vertical=trueScale?1:3.5,roadW=trueScale?2:6,legD=2,deckH=trueScale?1:2;
+ const b=GOLDEN_GATE_BLUEPRINT,trueScale=config.proportions==="true",vertical=trueScale?1:3.5,roadW=trueScale?2:7,legD=2,deckH=trueScale?1:2;
  const t1=b.approach+b.sideSpan,t2=t1+b.mainSpan,length=b.approach*2+b.suspendedStuds;
  const deckY=2+Math.round(b.deckAboveWaterPlates*vertical),towerTop=2+Math.round(b.towerAboveWaterPlates*vertical);
  return {scale,vertical,roadW,legD,deckH,length,width:roadW+2*legD+8,anchor:[3,length-3],towers:[t1,t2],deckY,deckTop:deckY+deckH,towerTop,cableZ:[4+legD,4+legD+roadW-1],suspenderStep:trueScale?Math.max(3,Math.round(3/scale)):Math.max(2,Math.round(2/scale))};   // spacing widens as the model shrinks so suspenders never merge
@@ -108,7 +108,7 @@ export function goldenGate(config:Config,scale:number):VoxelMap{
  v.box(0,0,0,L,2,W,water);
  // Deck: a slender slab the full length, road surface and sidewalks in display proportions.
  v.box(0,deckY,deckZ,L,deckH,roadW,steel);
- if(roadW>=6){v.box(0,deckTop,deckZ+1,L,1,roadW-2,"black");v.box(0,deckTop,deckZ,L,1,1,"gray");v.box(0,deckTop,deckZ+roadW-1,L,1,1,"gray");for(let x=2;x<L;x+=4)v.box(x,deckTop,deckZ+roadW/2-1,2,1,1,"yellow");}
+ if(roadW>=6){v.box(0,deckTop,deckZ+1,L,1,roadW-2,"black");v.box(0,deckTop,deckZ,L,1,1,"gray");v.box(0,deckTop,deckZ+roadW-1,L,1,1,"gray");for(let x=2;x<L;x+=4)v.box(x,deckTop,deckZ+Math.floor(roadW/2),2,1,1,"yellow");}   // an odd road width keeps the centre line dead centre
  // Anchorages and approach viaduct piers, mirrored at both ends.
  for(const end of [0,1]){const x=end?L-7:3;v.box(x,2,z0,4,deckY-2,roadW+2*legD,"gray");for(let px=end?L-2:1;end?px>x+4:px<x-1;px+=end?-3:3)v.box(px,2,deckZ,1,deckY-2,roadW,"gray");}
  // Towers: one construction, placed twice. Paired legs, a strut below the deck and four above at the real strut heights.
