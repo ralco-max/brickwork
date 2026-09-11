@@ -23,11 +23,11 @@ export class LandingAssemblyClock{
 // from its spot, nudged sideways and up and turned a little, like the finished model shaken
 // apart; then it tightens bottom-up, each brick sliding the last short distance and seating with
 // a small overshoot. Nothing crosses the screen and the silhouette reads from second one.
-export function assemblyReach(length:number,width:number,height:number){const size=Math.max(length,width);const distance=Math.max(4,size*.16),lift=Math.max(5,height*.4*.22);return {distance,back:distance,lift,peak:0};}
+export function assemblyReach(length:number,width:number,height:number){const size=Math.max(length,width);const distance=Math.max(10,size*.45),lift=Math.max(10,height*.4*.6);return {distance,back:distance,lift,peak:0};}
 export function assemblyTracks(pieces:Piece[],length:number,width:number,height:number){
  const reach=assemblyReach(length,width,height);
  const sorted=[...pieces].sort((a,b)=>a.y-b.y||a.stage-b.stage||a.z-b.z||a.x-b.x||a.id-b.id),tracks=new Map<number,AssemblyTrack>();
- sorted.forEach((p,rank)=>{const seed=p.id+1,angle=hash(seed)*Math.PI*2;tracks.set(p.id,{start:.025+.70*rank/Math.max(1,sorted.length-1),angle,distance:reach.distance*(.5+hash(seed+9)*.9),back:0,lift:reach.lift*(.3+hash(seed+3)*1.1),peak:0,rx:(hash(seed+5)-.5)*.9,ry:(hash(seed+7)-.5)*1.4,rz:(hash(seed+11)-.5)*.8});});return tracks;
+ sorted.forEach((p,rank)=>{const seed=p.id+1,angle=hash(seed)*Math.PI*2;tracks.set(p.id,{start:.025+.70*rank/Math.max(1,sorted.length-1),angle,distance:reach.distance*(.5+hash(seed+9)*.9),back:0,lift:reach.lift*(.3+hash(seed+3)*1.1),peak:0,rx:(hash(seed+5)-.5)*1.6,ry:(hash(seed+7)-.5)*2.4,rz:(hash(seed+11)-.5)*1.4});});return tracks;
 }
 export function assemblyPose(track:AssemblyTrack,time:number):AssemblyPose{
  // Every brick is in the air from the first frame, waiting at the far end of its own path, so the
