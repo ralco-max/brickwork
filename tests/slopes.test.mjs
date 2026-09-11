@@ -92,6 +92,6 @@ test('the component budget attributes the packed pieces to the components that o
  const car=DESIGN_EXAMPLES.find(e=>e.id==='car').scene;
  const full={name:car.n,description:car.d,dimensions:{x:car.dim[0],y:car.dim[1],z:car.dim[2]},shapes:car.sh.map(c=>expandCompactShape(c))};
  const m=compileScene(full),by=componentBudget(full,m.pieces.length);
- assert.equal(by.reduce((n,r)=>n+r.pieces,0)>=m.pieces.length-by.length,true);
- assert.equal(by.find(r=>r.component==='Wheels').pieces,4);assert.equal(by[0].component,'Body');
+ assert.equal(by.reduce((n,r)=>n+r.pieces,0),m.pieces.length,'every packed piece is charged to a component');
+ assert.equal(by.find(r=>r.component==='Wheels').pieces,4);assert.ok(by.find(r=>r.component==='Base').pieces<by.find(r=>r.component==='Body').pieces,'a dense base packs into few plates');
 });

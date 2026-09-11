@@ -229,13 +229,19 @@ export class SceneStreamParser{
 
 export function normalizeScene(scene:GeneratedScene):GeneratedScene{const taken=new Set(scene.shapes.filter(s=>s.id).map(s=>s.id));return {...scene,shapes:scene.shapes.map((s,i)=>{let id=s.id||`shape-${i+1}`;while(!s.id&&taken.has(id))id+="-legacy";taken.add(id);return {...s,id,component:s.component||s.label,repeat:s.repeat||{count:1,offset:{x:0,y:0,z:0}}};})};}
 
-// Where the pieces go, by component: each component's share of the occupied cells, scaled to the
-// packed piece count, plus a piece per wheel element. The designer reads this when it has to cut.
-export function componentBudget(scene:GeneratedScene,pieces:number):{component:string;pieces:number}[]{
- const owners=new Map<string,string>(),wheels:Piece[]=[];const voxels=sceneVoxels(scene,undefined,wheels,owners);
- const cells=new Map<string,number>();for(const key of voxels.keys()){const c=owners.get(key);if(c)cells.set(c,(cells.get(c)||0)+1);}
- const total=[...cells.values()].reduce((a,b)=>a+b,0)||1,bricks=Math.max(0,pieces-wheels.length);
- const out=[...cells].map(([component,n])=>({component,pieces:Math.round(bricks*n/total)}));
- for(const s of scene.shapes)if(s.kind==="wheel"){const c=s.component||s.label;const row=out.find(r=>r.component===c);if(row)row.pieces+=1;else out.push({component:c,pieces:1});}
- return out.sort((a,b)=>b.pieces-a.pieces);
+// Where the pieces go, by component: the scene is packed and each piece is charged to the
+// component that owns its cells (a wheel element to the wheel's component). The designer reads
+// this when it has to cut, so it must reflect real pieces, not cell counts: a dense base packs
+// into a few big plates while a thin skin is all slivers.
+export function componentBudget(scene:GeneratedScene,_pieces?:number):{component:string;pieces:number}[]{
+ void _pieces;
+ const owners=new Map<string,string>(),wheelShapes=scene.shapes.filter(s=>s.kind==="wheel");sceneVoxels(scene,undefined,undefined,owners);
+ const model=compileScene(scene),count=new Map<string,number>();
+ for(const p of model.pieces){
+  let owner:string|undefined;
+  if(WHEELS[p.part]){const cx=p.x+p.w/2,cy=p.y+p.h/2,cz=p.z+p.d/2;let best=Infinity;for(const w of wheelShapes){const d=Math.hypot(w.position.x-cx,(w.position.y-cy)*.4,w.position.z-cz);if(d<best){best=d;owner=w.component||w.label;}}}
+  else{scan:for(let x=p.x;x<p.x+p.w;x++)for(let y=p.y;y<p.y+p.h;y++)for(let z=p.z;z<p.z+p.d;z++){const o=owners.get(voxelKey(x,y,z));if(o){owner=o;break scan;}}}
+  const key=owner||"Other";count.set(key,(count.get(key)||0)+1);
+ }
+ return [...count].map(([component,pieces])=>({component,pieces})).sort((a,b)=>b.pieces-a.pieces);
 }
