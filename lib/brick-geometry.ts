@@ -1,13 +1,21 @@
 import * as THREE from "three";
 import {RoundedBoxGeometry} from "three/addons/geometries/RoundedBoxGeometry.js";
-import {SLOPES} from "./bridge";
+import {SLOPES,WHEELS} from "./bridge";
 import type {Face,Piece} from "./bridge";
 
 // Geometry for one kind of piece: a rounded box for bricks, plates and tiles, or
 // a wedge for slopes, already turned to face the way the piece's slope descends.
 // Sizes are world units: one stud across, 0.4 per plate of height.
 export const PLATE=.4;
-export function pieceGeometry(p:Pick<Piece,"part"|"w"|"d"|"h"|"face">):THREE.BufferGeometry{
+export function pieceGeometry(p:Pick<Piece,"part"|"w"|"d"|"h"|"face"|"rotated">):THREE.BufferGeometry{
+ const wheel=WHEELS[p.part];
+ if(wheel){
+  // A tire: a cylinder on the axle, slightly rounded by a torus-like profile, sized to the element.
+  const radius=wheel.diameter/2-.06,width=wheel.width-.12,geometry=new THREE.CylinderGeometry(radius,radius,width,28,1);
+  // CylinderGeometry stands on y; lay it along the axle: z when unrotated, x when rotated.
+  if(p.rotated)geometry.rotateZ(Math.PI/2);else geometry.rotateX(Math.PI/2);
+  return geometry;
+ }
  const slope=SLOPES[p.part];
  if(!slope)return new RoundedBoxGeometry(p.w-.035,p.h*PLATE-.018,p.d-.035,2,.032);
  const face:Face=p.face||"pz",rotated=face==="px"||face==="nx";
@@ -24,5 +32,13 @@ export function pieceGeometry(p:Pick<Piece,"part"|"w"|"d"|"h"|"face">):THREE.Buf
  geometry.translate(-depth/2,-height/2,-width/2);
  geometry.rotateY(face==="px"?0:face==="nx"?Math.PI:face==="pz"?-Math.PI/2:Math.PI/2);
  geometry.computeVertexNormals();
+ return geometry;
+}
+
+// The hub of a wheel, drawn in light gray inside the tire.
+export function hubGeometry(p:Pick<Piece,"part"|"rotated">):THREE.BufferGeometry|null{
+ const wheel=WHEELS[p.part];if(!wheel)return null;
+ const radius=wheel.diameter/2*.58,width=wheel.width+.14,geometry=new THREE.CylinderGeometry(radius,radius,width,20,1);
+ if(p.rotated)geometry.rotateZ(Math.PI/2);else geometry.rotateX(Math.PI/2);
  return geometry;
 }

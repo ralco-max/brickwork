@@ -5,7 +5,8 @@ export const COLORS: Record<ColorKey, {name:string;hex:string;ldraw:number;brick
 };
 export const PARTS = {
  "3007":{name:"Brick 2 × 8",w:8,d:2,h:3,price:0.55},"3001":{name:"Brick 2 × 4",w:4,d:2,h:3,price:0.25},"3003":{name:"Brick 2 × 2",w:2,d:2,h:3,price:0.16},"3008":{name:"Brick 1 × 8",w:8,d:1,h:3,price:0.28},"3009":{name:"Brick 1 × 6",w:6,d:1,h:3,price:0.20},"3010":{name:"Brick 1 × 4",w:4,d:1,h:3,price:0.14},"3004":{name:"Brick 1 × 2",w:2,d:1,h:3,price:0.10},"3005":{name:"Brick 1 × 1",w:1,d:1,h:3,price:0.10},"3020":{name:"Plate 2 × 4",w:4,d:2,h:1,price:0.17},"3022":{name:"Plate 2 × 2",w:2,d:2,h:1,price:0.12},"3023":{name:"Plate 1 × 2",w:2,d:1,h:1,price:0.09},"3024":{name:"Plate 1 × 1",w:1,d:1,h:1,price:0.07},"3034":{name:"Plate 2 × 8",w:8,d:2,h:1,price:0.30},"3035":{name:"Plate 4 × 8",w:8,d:4,h:1,price:0.49},"3460":{name:"Plate 1 × 8",w:8,d:1,h:1,price:0.16},"3666":{name:"Plate 1 × 6",w:6,d:1,h:1,price:0.13},"3710":{name:"Plate 1 × 4",w:4,d:1,h:1,price:0.10},"3068b":{name:"Tile 2 × 2",w:2,d:2,h:1,price:0.13},"3069b":{name:"Tile 1 × 2",w:2,d:1,h:1,price:0.10},"3070b":{name:"Tile 1 × 1",w:1,d:1,h:1,price:0.07},"2431":{name:"Tile 1 × 4",w:4,d:1,h:1,price:0.10},"6636":{name:"Tile 1 × 6",w:6,d:1,h:1,price:0.14},"4162":{name:"Tile 1 × 8",w:8,d:1,h:1,price:0.18},"87079":{name:"Tile 2 × 4",w:4,d:2,h:1,price:0.25},
- "3040":{name:"Slope 45° 2 × 1",w:2,d:1,h:3,price:0.12},"3039":{name:"Slope 45° 2 × 2",w:2,d:2,h:3,price:0.18},"3665":{name:"Slope inverted 45° 2 × 1",w:2,d:1,h:3,price:0.16},"54200":{name:"Slope 30° 1 × 1 × ⅔",w:1,d:1,h:2,price:0.08},"85984":{name:"Slope 30° 1 × 2 × ⅔",w:2,d:1,h:2,price:0.10},"11477":{name:"Slope curved 2 × 1",w:1,d:2,h:2,price:0.10},"15068":{name:"Slope curved 2 × 2 × ⅔",w:2,d:2,h:2,price:0.16},"3298":{name:"Slope 33° 3 × 2",w:2,d:3,h:3,price:0.22},"4286":{name:"Slope 33° 3 × 1",w:1,d:3,h:3,price:0.14}
+ "3040":{name:"Slope 45° 2 × 1",w:2,d:1,h:3,price:0.12},"3039":{name:"Slope 45° 2 × 2",w:2,d:2,h:3,price:0.18},"3665":{name:"Slope inverted 45° 2 × 1",w:2,d:1,h:3,price:0.16},"54200":{name:"Slope 30° 1 × 1 × ⅔",w:1,d:1,h:2,price:0.08},"85984":{name:"Slope 30° 1 × 2 × ⅔",w:2,d:1,h:2,price:0.10},"11477":{name:"Slope curved 2 × 1",w:1,d:2,h:2,price:0.10},"15068":{name:"Slope curved 2 × 2 × ⅔",w:2,d:2,h:2,price:0.16},"3298":{name:"Slope 33° 3 × 2",w:2,d:3,h:3,price:0.22},"4286":{name:"Slope 33° 3 × 1",w:1,d:3,h:3,price:0.14},
+ "55982":{name:"Wheel 18 mm with tire",w:3,d:1,h:8,price:0.35},"56145":{name:"Wheel 30.4 mm with tire",w:4,d:2,h:10,price:0.55},"56908":{name:"Wheel 43.2 mm with tire",w:6,d:2,h:15,price:0.95}
 };
 export type PartId = keyof typeof PARTS;
 export const TILES=new Set<string>(["3068b","3069b","3070b","2431","6636","4162","87079"]);
@@ -22,14 +23,19 @@ export const SLOPES:Record<string,{run:number;curved?:boolean;inverted?:boolean;
  "11477":{run:2,curved:true,studded:false},"15068":{run:2,curved:true,studded:false},"3298":{run:2,studded:true},"4286":{run:2,studded:true},
 };
 export const isSlope=(part:string)=>Object.hasOwn(SLOPES,part);
+// Real wheel elements (rim with tire). In the catalog entry w is the diameter in studs, d the width
+// along the axle and h the diameter in plates. Unrotated, the axle runs along z (a vehicle whose
+// length runs along x); rotated, it runs along x. The wheel spins on its hub, so it has no studs.
+export const WHEELS:Record<string,{diameter:number;width:number}>={"55982":{diameter:3,width:1},"56145":{diameter:4,width:2},"56908":{diameter:6,width:2}};
+export const isWheel=(part:string)=>Object.hasOwn(WHEELS,part);
 // True when nothing can be attached on top of this part: tiles and studless slopes.
-export const studless=(part:string)=>isTile(part)||(isSlope(part)&&!SLOPES[part].studded);
+export const studless=(part:string)=>isTile(part)||isWheel(part)||(isSlope(part)&&!SLOPES[part].studded);
 export interface Piece {id:number;part:PartId;color:ColorKey;x:number;y:number;z:number;w:number;d:number;h:number;rotated:boolean;stage:number;support?:boolean;face?:Face;}
 // The cells of a piece's top that carry studs, as offsets within its world footprint.
 // Bricks and plates are studded everywhere, tiles nowhere, and a studded slope only on
 // the flat rows behind its slope (an inverted slope is studded across its whole top).
 export function studCells(p:Pick<Piece,"part"|"w"|"d"|"face">):[number,number][]{
- if(isTile(p.part))return [];
+ if(isTile(p.part)||isWheel(p.part))return [];
  const slope=SLOPES[p.part];const out:[number,number][]=[];
  for(let x=0;x<p.w;x++)for(let z=0;z<p.d;z++){
   if(slope&&!slope.inverted){if(!slope.studded)return [];const face=p.face||"pz",depth=face==="px"||face==="nx"?p.w:p.d,along=face==="px"||face==="nx"?x:z,flat=depth-slope.run;const back=face==="pz"||face==="px"?along<flat:along>=slope.run;if(!back)continue;}
@@ -84,6 +90,10 @@ export function auditModel(pieces:Piece[]) {
  pieces.forEach((p,i)=>{for(let x=p.x;x<p.x+p.w;x++)for(let z=p.z;z<p.z+p.d;z++)for(let y=p.y;y<p.y+p.h;y++){const k=`${x},${y},${z}`;if(occupied.has(k))overlaps++;occupied.set(k,i);}});
  const contacts=pieces.map(()=>0),bottom=pieces.map(()=>[] as number[]);
  pieces.forEach((p,i)=>{for(const [a,c] of studCells(p)){const x=p.x+a,z=p.z+c;const other=occupied.get(`${x},${p.y+p.h},${z}`);if(other!==undefined&&other!==i){join(i,other);contacts[other]++;bottom[other].push(i);}}});
+ // A wheel holds on its hub: it is attached to whatever piece meets its inner face along the axle,
+ // and a wheel that rests on something stands on it, the way a car stands on its tires.
+ pieces.forEach((p,i)=>{if(!isWheel(p.part))return;const cy=p.y+Math.floor(p.h/2),axleX=p.rotated,cx=p.x+Math.floor(p.w/2),cz=p.z+Math.floor(p.d/2);const faces=axleX?[p.x-1,p.x+p.w]:[p.z-1,p.z+p.d];for(const face of faces)for(let u=-1;u<=1;u++)for(let dy=-1;dy<=1;dy++){const x=axleX?face:cx+u,z=axleX?cz+u:face;const other=occupied.get(`${x},${cy+dy},${z}`);if(other!==undefined&&other!==i){join(i,other);contacts[i]++;bottom[i].push(other);}}
+  for(let x=p.x;x<p.x+p.w;x++)for(let z=p.z;z<p.z+p.d;z++){const under=occupied.get(`${x},${p.y-1},${z}`);if(under!==undefined&&under!==i){join(i,under);bottom[i].push(under);}}});
  const grounded=new Set(pieces.flatMap((p,i)=>p.y===0?[root(i)]:[]));
  const groups=new Map<number,number>();pieces.forEach((_,i)=>groups.set(root(i),(groups.get(root(i))||0)+1));
  const baseRoot=[...groups].sort((a,b)=>Number(grounded.has(b[0]))-Number(grounded.has(a[0]))||b[1]-a[1])[0][0];
