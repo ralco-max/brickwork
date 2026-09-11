@@ -3,7 +3,7 @@ import {COLORS,PARTS,auditModel} from "./bridge";
 import type {Piece} from "./bridge";
 import {finishModel,intersects} from "./models";
 import type {BuildModel,VoxelMap} from "./models";
-import {validateScene,sceneVoxels,compileScene} from "./generated-scene";
+import {validateScene,sceneVoxels,compileScene,looseByComponent} from "./generated-scene";
 import {simulateClutch} from "./clutch";
 import type {GeneratedScene} from "./generated-scene";
 
@@ -57,7 +57,7 @@ export function readProjectMetadata(data:Record<string,unknown>,pieces:Piece[]):
 export function designChecks(model:BuildModel,brief:DesignBrief,target?:{x:number;y:number;z:number}){
  const audit=auditModel(model.pieces),issues:string[]=[];
  if(audit.overlaps)issues.push(`${audit.overlaps} overlapping volume cells.`);
- if(audit.ungrounded.length)issues.push(`${audit.ungrounded.length} pieces have no stud path to the ground.`);
+ if(audit.ungrounded.length){const by=model.generation?looseByComponent(model.generation,audit.ungrounded,model):[];issues.push(`${audit.ungrounded.length} pieces have no stud path to the ground${by.length?`: ${by.slice(0,6).map(r=>`${r.component} ${r.pieces}`).join(", ")}. Root each of those components into a mass by extending its shapes at least one cell into the mass or onto a studded surface`:""}.`);}
  if(audit.groups>1)issues.push(`${audit.groups} separate assemblies. Connect them with overlapping studded plates.`);
  if(audit.unsupported.length)issues.push(`${audit.unsupported.length} pieces cannot be placed with support in a bottom-up sequence.`);
  const clutch=simulateClutch(model.pieces);

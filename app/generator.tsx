@@ -141,6 +141,8 @@ export default function Generator({open,onOpenChange,initialPrompt,initialImage,
     // The detail pass gets the real count: what the blockout already costs and what is left for detail.
     const detailBudget=massingScene?{limit:b.maxPieces,used:massingPieces,remaining:b.maxPieces-massingPieces,byComponent:componentBudget(massingScene,massingPieces)}:undefined;
     if(detailBudget)note("Budget",`The blockout costs ${massingPieces.toLocaleString()} of ${b.maxPieces.toLocaleString()} pieces; ${Math.max(0,detailBudget.remaining).toLocaleString()} remain for detail.`);
+    // A blockout that already eats most of the budget is solid where the plan said hollow: the detail pass is told to carve first.
+    if(detailBudget&&massingPieces>b.maxPieces*.6)feedback=[...feedback,`The blockout already costs ${massingPieces} of ${b.maxPieces} pieces because its masses are solid. Before adding any detail, hollow every large mass with subtract shapes, leaving walls of ${research?.plan?.walls||2} studs, and keep the cavity closed; detail must then fit in the pieces that frees.`];
     let {result,geometryError}=await stream(candidate,{stage:massingScene?"detail":undefined,massingCritique:massingNotes,feedback,budget:detailBudget});
     // One trim pass when the design lands well over budget: the designer gets the real per-component cost and cuts.
     if(result&&!geometryError){

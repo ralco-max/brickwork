@@ -245,3 +245,18 @@ export function componentBudget(scene:GeneratedScene,_pieces?:number):{component
  }
  return [...count].map(([component,pieces])=>({component,pieces})).sort((a,b)=>b.pieces-a.pieces);
 }
+
+// Which components' pieces have no stud path to the ground, by count, so the designer is told
+// "Mirrors: 4 loose" instead of "93 pieces have no stud path".
+export function looseByComponent(scene:GeneratedScene,looseIds:number[],model:{pieces:Piece[]}):{component:string;pieces:number}[]{
+ if(!looseIds.length)return [];
+ const owners=new Map<string,string>();sceneVoxels(scene,undefined,undefined,owners);
+ const wheelShapes=scene.shapes.filter(s=>s.kind==="wheel"),loose=new Set(looseIds),count=new Map<string,number>();
+ for(const p of model.pieces){
+  if(!loose.has(p.id))continue;let owner:string|undefined;
+  if(WHEELS[p.part]){const cx=p.x+p.w/2,cy=p.y+p.h/2,cz=p.z+p.d/2;let best=Infinity;for(const w of wheelShapes){const d=Math.hypot(w.position.x-cx,(w.position.y-cy)*.4,w.position.z-cz);if(d<best){best=d;owner=w.component||w.label;}}}
+  else{scan:for(let x=p.x;x<p.x+p.w;x++)for(let y=p.y;y<p.y+p.h;y++)for(let z=p.z;z<p.z+p.d;z++){const o=owners.get(voxelKey(x,y,z));if(o){owner=o;break scan;}}}
+  const key=owner||"Other";count.set(key,(count.get(key)||0)+1);
+ }
+ return [...count].map(([component,pieces])=>({component,pieces})).sort((a,b)=>b.pieces-a.pieces);
+}
