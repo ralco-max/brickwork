@@ -42,7 +42,7 @@ export default function Viewport(props:Props){
   // Explode is the intro run backwards: the slider scrubs the whole assembly timeline from the
   // finished model (0) to the first frame (1), so the last bricks to land are the first to lift
   // off, each flying back out along its own path to where it waited in the air.
-  const reach=assemblyReach(L,W,props.height??43),flightMax=reach.distance*1.2,backMax=reach.back*1.3,liftMax=reach.lift+14+reach.peak*1.3;
+  const reach=assemblyReach(L,W,props.height??43),flightMax=reach.distance*1.4,backMax=reach.distance*1.4,liftMax=reach.lift*1.4+4;
   if(props.arrivals){if(arrivalState.current.epoch!==props.arrivals.epoch)arrivalState.current={epoch:props.arrivals.epoch,clock:0,entries:new Map()};arrivalState.current.entries=reconcileArrivals(arrivalState.current.entries,props.pieces,arrivalState.current.clock,L,W,props.height??43);}
   const arrivalEnd=Math.max(0,...[...arrivalState.current.entries.values()].map(e=>e.at+1.36));
   const reducedMotion=window.matchMedia("(prefers-reduced-motion: reduce)");

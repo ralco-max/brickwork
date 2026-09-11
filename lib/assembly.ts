@@ -19,19 +19,22 @@ export class LandingAssemblyClock{
  get done(){return this.reduced||this.elapsed>=LANDING_INTRO;}
  get opacity(){return 1;}
 }
-// Where the bricks come from: behind the model at a modest height, a little spread to the
-// sides. Each one swoops forward and up over the build, crests, and settles into place.
-export function assemblyReach(length:number,width:number,height:number){const size=Math.max(length,width);return {distance:Math.max(8,size*.25),back:Math.max(30,size*.7),lift:Math.max(18,height*.4*.6),peak:Math.max(22,height*.4*.55)};}
+// Settle: the model is there from the first frame, but loosened. Every brick waits a short way
+// from its spot, nudged sideways and up and turned a little, like the finished model shaken
+// apart; then it tightens bottom-up, each brick sliding the last short distance and seating with
+// a small overshoot. Nothing crosses the screen and the silhouette reads from second one.
+export function assemblyReach(length:number,width:number,height:number){const size=Math.max(length,width);const distance=Math.max(4,size*.16),lift=Math.max(5,height*.4*.22);return {distance,back:distance,lift,peak:0};}
 export function assemblyTracks(pieces:Piece[],length:number,width:number,height:number){
  const reach=assemblyReach(length,width,height);
  const sorted=[...pieces].sort((a,b)=>a.y-b.y||a.stage-b.stage||a.z-b.z||a.x-b.x||a.id-b.id),tracks=new Map<number,AssemblyTrack>();
- sorted.forEach((p,rank)=>{const seed=p.id+1,angle=hash(seed)*Math.PI*2;tracks.set(p.id,{start:.025+.70*rank/Math.max(1,sorted.length-1),angle,distance:reach.distance*(.3+hash(seed+9)*.9),back:reach.back*(.8+hash(seed+13)*.5),lift:reach.lift+hash(seed+3)*14,peak:reach.peak*(.8+hash(seed+17)*.5),rx:(hash(seed+5)-.5)*1.5,ry:(hash(seed+7)-.5)*2.6,rz:(hash(seed+11)-.5)*1.3});});return tracks;
+ sorted.forEach((p,rank)=>{const seed=p.id+1,angle=hash(seed)*Math.PI*2;tracks.set(p.id,{start:.025+.70*rank/Math.max(1,sorted.length-1),angle,distance:reach.distance*(.5+hash(seed+9)*.9),back:0,lift:reach.lift*(.3+hash(seed+3)*1.1),peak:0,rx:(hash(seed+5)-.5)*.9,ry:(hash(seed+7)-.5)*1.4,rz:(hash(seed+11)-.5)*.8});});return tracks;
 }
 export function assemblyPose(track:AssemblyTrack,time:number):AssemblyPose{
  // Every brick is in the air from the first frame, waiting at the far end of its own path, so the
  // late arrivals are already part of the picture instead of appearing out of nowhere.
  const u=clamp((time-track.start)/.175);if(u>=1)return {x:0,y:0,z:0,rx:0,ry:0,rz:0,scale:1,settled:true};
- // A swoosh: from behind and slightly to one side, forward and up over the build, then down onto it.
- const eased=u*u*u*(u*(u*6-15)+10),remaining=1-eased,arc=Math.sin(Math.PI*eased),spin=remaining*remaining;
- return {x:Math.cos(track.angle)*track.distance*remaining,y:track.lift*remaining+track.peak*arc,z:-track.back*remaining+Math.sin(track.angle)*track.distance*.35*remaining,rx:track.rx*spin,ry:track.ry*spin,rz:track.rz*spin,scale:1,settled:false};
+ // Ease out with a small sideways overshoot, so each brick slides home and seats with a click; the
+ // drop itself never goes below the brick's own spot.
+ const c1=.9,c3=c1+1,eased=1+c3*Math.pow(u-1,3)+c1*Math.pow(u-1,2),remaining=1-eased,fall=Math.pow(1-u,3),spin=fall;
+ return {x:Math.cos(track.angle)*track.distance*remaining,y:track.lift*fall,z:Math.sin(track.angle)*track.distance*remaining,rx:track.rx*spin,ry:track.ry*spin,rz:track.rz*spin,scale:1,settled:false};
 }
