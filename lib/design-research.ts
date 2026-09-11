@@ -33,8 +33,9 @@ export function shellPlan(target:{x:number;y:number;z:number},maxPieces:number,k
  const estimate=(x:number,y:number,z:number,t:number)=>Math.ceil((curvature==="box"?boxy(x,y,z,t):curvature==="curved"?curved(x,y,z,t):(boxy(x,y,z,t)+curved(x,y,z,t))/2)*solidity+base(x,z));
  const {x,y,z}=target;
  if(x*y*z<=2500&&estimate(x,y,z,0)<=budget)return {walls:0,estimate:estimate(x,y,z,0),fits:true};
- for(const t of curvature==="curved"?[2]:[3,2,1]){const e=estimate(x,y,z,t);if(e<=budget)return {walls:t,estimate:e,fits:true};}
- const walls=curvature==="curved"?2:1,e=estimate(x,y,z,walls),s=Math.sqrt(budget/e);
+ // Never 1-stud walls: a one-stud skin packs into slivers that hold nothing together (the 747 fell into 131 assemblies). Two is the floor; a subject that only fits with thinner walls is built smaller instead.
+ for(const t of curvature==="curved"?[2]:[3,2]){const e=estimate(x,y,z,t);if(e<=budget)return {walls:t,estimate:e,fits:true};}
+ const walls=2,e=estimate(x,y,z,walls),s=Math.sqrt(budget/e);
  return {walls,estimate:e,fits:false,recommend:{x:Math.max(4,Math.round(x*s)),y:Math.max(3,Math.round(y*s)),z:Math.max(2,Math.round(z*s))}};
 }
 // Real metres become a target in studs (x length, z width) and plates (y height) that fits the brief's envelope.

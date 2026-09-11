@@ -40,7 +40,7 @@ test('the scale plan sizes a subject to its budget: a full-size bean at 600 piec
  const big=shellPlan({x:46,y:56,z:30},4000,'monument');assert.equal(big.fits,true);assert.equal(big.walls,2);
  const tower=shellPlan({x:24,y:120,z:24},4000,'building');assert.equal(tower.fits,true);assert.ok(tower.walls>=2);
  const skin=shellPlan({x:40,y:120,z:40},600,'monument'),lattice=shellPlan({x:40,y:120,z:40},600,'monument',.85);assert.ok(lattice.fits||lattice.recommend.y>skin.recommend.y*1.8,'an open lattice tower is priced by its members, so it builds far larger than a skin would');
- const wall=shellPlan({x:46,y:56,z:30},600,'building');assert.equal(wall.fits,false);assert.equal(wall.walls,1);assert.ok(wall.recommend.x>bean.recommend.x,'a boxy shell packs far better than a curved one');
+ const wall=shellPlan({x:46,y:56,z:30},600,'building');assert.equal(wall.fits,false);assert.equal(wall.walls,2,'walls are never thinner than two studs');assert.ok(wall.recommend.x>bean.recommend.x,'a boxy shell packs far better than a curved one');
 });
 test('signature features travel in the compact header and survive a revision that names none',()=>{
  const scene={...box,signature:['a pitched red roof','the tan walls'],shapes:box.shapes.map(s=>({...s,id:s.label,component:s.label,repeat:{count:1,offset:{x:0,y:0,z:0}}}))};
