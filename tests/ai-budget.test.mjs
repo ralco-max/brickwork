@@ -26,13 +26,14 @@ test('atomic reservations persist across reconnects and concurrent tabs cannot e
 });
 
 test('count before generation, enforce standard service, then release unused and cached-token funds exactly once',async t=>{
- const {db,sqlite}=budgetDb();t.after(()=>sqlite.close());const calls=[],events=[];
- const provider=budgetedProvider(db,key,b=>events.push(b),async(u,init)=>{calls.push([u,JSON.parse(init.body)]);return u.endsWith('/input_tokens')?Response.json({input_tokens:1000}):Response.json({ok:true});});
+ const {db,sqlite}=budgetDb();t.after(()=>sqlite.close());const calls=[],events=[],usageEvents=[];
+ const provider=budgetedProvider(db,key,b=>events.push(b),async(u,init)=>{calls.push([u,JSON.parse(init.body)]);return u.endsWith('/input_tokens')?Response.json({input_tokens:1000}):Response.json({ok:true});},u=>usageEvents.push(u));
  await provider.fetch(url,payload({service_tier:'priority',text:{format:{type:'json_schema',schema:{type:'object'}}}}));
  assert.equal(calls[0][0],url+'/input_tokens');assert.equal(calls[0][1].input,'A castle');assert.equal(calls[1][1].service_tier,'default');assert.ok(events[0].held>.38);
  await provider.recordUsage({input_tokens:1000,output_tokens:2000,input_tokens_details:{cached_tokens:400}});
  assert.deepEqual(events.at(-1),{limit:10,spent:.02528,held:0,remaining:9.97472});
  await provider.recordUsage({input_tokens:1000,output_tokens:2000});assert.equal((await budgetSnapshot(db,await keyFingerprint(key))).spent,.02528);
+ assert.equal(usageEvents.length,1);assert.equal(usageEvents[0].cost,.02528);assert.equal(usageEvents[0].inputTokens,1000);
  assert.equal(tokenCost(272001,1000),272001*4000+1000*18000);
 });
 

@@ -1,8 +1,8 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import {build} from 'esbuild';
-const bundle=await build({stdin:{contents:'export * from "./lib/generated-scene";export {auditModel,SLOPES,PARTS,studCells} from "./lib/bridge";export {simulateClutch} from "./lib/clutch";export {validateProject,addPiece,finishModel} from "./lib/models";export {shellPlan} from "./lib/design-research";export {generateScene,MASSING_INSTRUCTIONS,DETAIL_INSTRUCTIONS} from "./lib/generation-provider";export {critiqueMassing} from "./lib/design-review";export {defaultBrief} from "./lib/design-project";export {pickExamples,DESIGN_EXAMPLES} from "./lib/design-examples";export {isWheel} from "./lib/bridge";export {componentBudget} from "./lib/generated-scene";',resolveDir:process.cwd(),loader:'ts'},bundle:true,platform:'node',format:'esm',write:false});
-const {compileScene,sceneVoxels,auditModel,SLOPES,PARTS,studCells,simulateClutch,validateProject,addPiece,shellPlan,SceneStreamParser,compactScene,mergeRevision,generateScene,MASSING_INSTRUCTIONS,DETAIL_INSTRUCTIONS,critiqueMassing,defaultBrief,expandCompactShape,validateScene,pickExamples,DESIGN_EXAMPLES,isWheel,componentBudget}=await import('data:text/javascript;base64,'+Buffer.from(bundle.outputFiles[0].text).toString('base64'));
+const bundle=await build({stdin:{contents:'export * from "./lib/generated-scene";export {auditModel,SLOPES,PARTS,studCells} from "./lib/bridge";export {simulateClutch} from "./lib/clutch";export {validateProject,addPiece,finishModel} from "./lib/models";export {shellPlan} from "./lib/design-research";export {generateScene} from "./lib/generation-provider";export {defaultBrief} from "./lib/design-project";export {pickExamples,DESIGN_EXAMPLES} from "./lib/design-examples";export {isWheel} from "./lib/bridge";export {componentBudget} from "./lib/generated-scene";',resolveDir:process.cwd(),loader:'ts'},bundle:true,platform:'node',format:'esm',write:false});
+const {compileScene,sceneVoxels,auditModel,SLOPES,PARTS,studCells,simulateClutch,validateProject,addPiece,shellPlan,SceneStreamParser,compactScene,mergeRevision,generateScene,defaultBrief,expandCompactShape,validateScene,pickExamples,DESIGN_EXAMPLES,isWheel,componentBudget}=await import('data:text/javascript;base64,'+Buffer.from(bundle.outputFiles[0].text).toString('base64'));
 const shape=(label,kind,color,position,size,extra={})=>({label,kind,color,position,size,operation:'add',end:{x:0,y:0,z:0},radius:1,...extra});
 const house={name:'House',description:'',dimensions:{x:24,y:40,z:24},shapes:[shape('base','box','gray',{x:0,y:0,z:0},{x:24,y:2,z:24}),shape('walls','box','tan',{x:4,y:2,z:4},{x:16,y:18,z:12}),...Array.from({length:6},(_,i)=>shape('roof'+i,'box','red',{x:3,y:20+i*3,z:3+i},{x:18,y:3,z:14-2*i}))]};
 const box={name:'Box',description:'',dimensions:{x:16,y:20,z:16},shapes:[shape('base','box','gray',{x:0,y:0,z:0},{x:16,y:2,z:16}),shape('block','box','blue',{x:2,y:2,z:2},{x:12,y:15,z:12})]};
@@ -49,23 +49,6 @@ test('signature features travel in the compact header and survive a revision tha
  const merged=mergeRevision(scene,{name:'Box',description:'',dimensions:scene.dimensions},[],[]);assert.deepEqual(merged.signature,scene.signature);
  const renamed=mergeRevision(scene,{name:'Box',description:'',signature:['new'],dimensions:scene.dimensions},[],[]);assert.deepEqual(renamed.signature,['new']);
 });
-test('massing and detail passes carry their own instructions, output limits and critique',async()=>{
- const bodies=[];const fetcher=async(_url,request)=>{bodies.push(JSON.parse(request.body));return new Response('',{status:401});};
- await assert.rejects(()=>generateScene({prompt:'x',detail:'small',stage:'massing'},'k','m',new AbortController().signal,fetcher).next());
- await assert.rejects(()=>generateScene({prompt:'x',detail:'small',stage:'detail',massingCritique:['raise the towers']},'k','m',new AbortController().signal,fetcher).next());
- await assert.rejects(()=>generateScene({prompt:'x',detail:'small'},'k','m',new AbortController().signal,fetcher).next());
- assert.ok(bodies[0].instructions.endsWith(MASSING_INSTRUCTIONS));assert.equal(bodies[0].max_output_tokens,6000);assert.equal(JSON.parse(bodies[0].input[0].content[0].text).massingCritique,undefined);
- assert.ok(bodies[1].instructions.endsWith(DETAIL_INSTRUCTIONS));assert.deepEqual(JSON.parse(bodies[1].input[0].content[0].text).massingCritique,['raise the towers']);
- assert.ok(!bodies[2].instructions.includes('MASSING PASS')&&!bodies[2].instructions.includes('DETAIL PASS'));
- assert.ok(bodies[0].text.format.schema.required.includes('f'));
-});
-test('the blockout critique is parsed defensively and judges only scale, proportion and layout',async()=>{
- let sent;const fetcher=async(_url,request)=>{sent=JSON.parse(request.body);return Response.json({status:'completed',usage:{input_tokens:5,output_tokens:5},output:[{content:[{type:'output_text',text:JSON.stringify({summary:'Too squat.',scale:'too_small',ready:false,corrections:['Raise the dome from 30 to 56 plates','  ','x'.repeat(900)]})}]}]});};
- const critique=await critiqueMassing(defaultBrief('Cloud Gate'),{searchable:true,kind:'monument',subject:'Cloud Gate',summary:'',length_m:20,width_m:13,height_m:10,proportions:'',colors:[],silhouette:[],distinctive:[],sources:[],target:{x:46,y:56,z:30,vertical:1}},['the seamless skin'],['data:image/jpeg;base64,AAAA','data:image/jpeg;base64,AAAA','data:image/jpeg;base64,AAAA'],'k','m',new AbortController().signal,fetcher);
- assert.equal(critique.scale,'too_small');assert.equal(critique.ready,false);assert.equal(critique.corrections.length,2);assert.ok(critique.corrections[1].length<=400);
- assert.ok(sent.instructions.includes('massing study'));assert.equal(sent.input[0].content.length,4);assert.deepEqual(JSON.parse(sent.input[0].content[0].text).signatureFeatures,['the seamless skin']);
-});
-
 test('a lean compiles into stepped courses that overlap, so splayed legs and braces stand on their own',()=>{
  const base=shape('base','box','gray',{x:0,y:0,z:0},{x:40,y:2,z:24});
  const lean=(label,from,to,w=2,ch=3)=>({...shape(label,'lean','brown',from,{x:w,y:ch,z:1},{end:to}),id:label,component:'Legs'});
@@ -91,7 +74,7 @@ test('a wheel shape becomes a real wheel element held on its axle, and the examp
 test('the component budget attributes the packed pieces to the components that own the cells, wheels counted as one each',()=>{
  const car=DESIGN_EXAMPLES.find(e=>e.id==='car').scene;
  const full={name:car.n,description:car.d,dimensions:{x:car.dim[0],y:car.dim[1],z:car.dim[2]},shapes:car.sh.map(c=>expandCompactShape(c))};
- const m=compileScene(full),by=componentBudget(full,m.pieces.length);
+ const m=compileScene(full),by=componentBudget(full,m);
  assert.equal(by.reduce((n,r)=>n+r.pieces,0),m.pieces.length,'every packed piece is charged to a component');
  assert.equal(by.find(r=>r.component==='Wheels').pieces,4);assert.ok(by.find(r=>r.component==='Base').pieces<by.find(r=>r.component==='Body').pieces,'a dense base packs into few plates');
 });

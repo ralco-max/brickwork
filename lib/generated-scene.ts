@@ -5,7 +5,7 @@ import {carveSlopes} from "./slopes";
 import {WHEELS} from "./bridge";
 import type {Piece} from "./bridge";
 import type {ColorKey} from "./bridge";
-import type {VoxelMap} from "./models";
+import type {BuildModel,VoxelMap} from "./models";
 import {applyManual} from "./design-project";
 import type {ManualEdits} from "./design-project";
 
@@ -233,10 +233,9 @@ export function normalizeScene(scene:GeneratedScene):GeneratedScene{const taken=
 // component that owns its cells (a wheel element to the wheel's component). The designer reads
 // this when it has to cut, so it must reflect real pieces, not cell counts: a dense base packs
 // into a few big plates while a thin skin is all slivers.
-export function componentBudget(scene:GeneratedScene,_pieces?:number):{component:string;pieces:number}[]{
- void _pieces;
+export function componentBudget(scene:GeneratedScene,model:Pick<BuildModel,"pieces">):{component:string;pieces:number}[]{
  const owners=new Map<string,string>(),wheelShapes=scene.shapes.filter(s=>s.kind==="wheel");sceneVoxels(scene,undefined,undefined,owners);
- const model=compileScene(scene),count=new Map<string,number>();
+ const count=new Map<string,number>();
  for(const p of model.pieces){
   let owner:string|undefined;
   if(WHEELS[p.part]){const cx=p.x+p.w/2,cy=p.y+p.h/2,cz=p.z+p.d/2;let best=Infinity;for(const w of wheelShapes){const d=Math.hypot(w.position.x-cx,(w.position.y-cy)*.4,w.position.z-cz);if(d<best){best=d;owner=w.component||w.label;}}}

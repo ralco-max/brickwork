@@ -1,0 +1,46 @@
+{
+  "baselineCommit": "10079cb908663ddb601065f03ef6b874954baf27",
+  "defaults": {"quality":"better","size":"large","detail":"detailed","maxPieces":4000,"maxWidth":80,"maxDepth":80,"maxHeight":160,"finish":"smooth","hollow":false},
+  "cases": [
+    {
+      "id":"dulles-terminal",
+      "idea":"Washington Dulles International Airport's expanded main terminal and original Saarinen control tower",
+      "scope":"subject",
+      "composition":"Expanded 1996 terminal, not the original 600-foot building. Include the original tower only with reference-supported placement. No runways, midfield concourses or parking lots. Declare the chosen front view.",
+      "features":["Sweeping curved terminal roof","Glazed terminal facade","Original control tower"],
+      "sources":["https://www.flydulles.com/about-airport/history"],
+      "criticalChecks":["No airfield invented around the terminal","Terminal and tower heights are distinct","Front/back arrangement follows the actual references","The expanded terminal is not assigned the original terminal's length"],
+      "unverified":["Exact roof cross-section and tower offset need a viewable reference before numeric assertions"]
+    },
+    {
+      "id":"golden-gate-span",
+      "idea":"Golden Gate Bridge suspension span, two towers and cables",
+      "scope":"subject",
+      "composition":"Only the 6,450-foot suspension portion: 4,200-foot main span and equal 1,125-foot side spans. Exclude approach roads and scenery from bridge measurements. Keep actual proportions; disclose any stud-scale rounding.",
+      "features":["Two main towers","Two main suspension cables","Vertical hangers","Continuous roadway"],
+      "sources":["https://www.goldengate.org/bridge/history-research/statistics-data/design-construction-stats/"],
+      "criticalChecks":["Exactly two towers","Main span about 3.73 times either side span","Cables and roadway remain distinct","Tower height above road is not confused with height above water"],
+      "unverified":["Physical cable tension cannot be certified by this catalog's stud-contact audit"]
+    },
+    {
+      "id":"apollo-saturn-v",
+      "idea":"Apollo Saturn V rocket",
+      "scope":"subject",
+      "composition":"Apollo configuration with three propulsion stages, spacecraft and escape tower. Rocket only; no launch tower or platform. Preserve slender proportions.",
+      "features":["Three propulsion stages in order","Apollo spacecraft","Launch escape tower","Black and white roll markings"],
+      "sources":["https://www.nasa.gov/learning-resources/for-kids-and-students/what-was-the-saturn-v-grades-5-8/"],
+      "criticalChecks":["Apollo configuration rather than two-stage Skylab","Correct vertical component order","No launch infrastructure counted in rocket bounds","111-metre overall height is not assigned to a single stage"],
+      "unverified":["Stage-length ratios and diameter require an additional dimensioned reference"]
+    },
+    {
+      "id":"dulles-whole-airport",
+      "idea":"Washington Dulles International Airport as a complete airport site",
+      "scope":"site",
+      "composition":"Use a dated airfield plan. Include the main terminal, concourses and runways in their actual arrangement. Do not replace the whole airport with a terminal-only model or invent symmetry.",
+      "features":["Main terminal","Midfield concourses","Runway layout"],
+      "sources":["https://www.flydulles.com/travel-information/airport-and-terminal-maps"],
+      "criticalChecks":["Full-site scope is retained","No invented runway orientations or duplicated layout","Terminal/concourses/runways are distinguished"],
+      "unverified":["Requires a current airfield plan; a passenger terminal map alone is insufficient"]
+    }
+  ]
+}

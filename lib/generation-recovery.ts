@@ -6,4 +6,4 @@ import type {BuildModel} from "./models";
 export function canKeepPartial(scene:GeneratedScene,model:BuildModel){
  return scene.shapes.length>=2&&model.pieces.some(piece=>piece.y+piece.h>2);
 }
-export function continuationPrompt(idea:string){return `Finish this interrupted design for the original idea: ${idea.slice(0,1200)}. The previous scene is an unfinished snapshot. Keep useful existing geometry, add the remaining required features, and return the complete scene.`;}
+export function continuationPrompt(idea:string,request=""){return `Finish this interrupted design for the original idea: ${idea.slice(0,request?400:1600)}.${request?` Complete the unfinished requested change: ${request.slice(0,1200)}.`:""} The previous scene is an unfinished snapshot. Keep useful existing geometry, add the remaining required features, and return the complete scene.`;}

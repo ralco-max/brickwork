@@ -1,4 +1,6 @@
 import {z} from "zod";
+import {referenceSheetSchema,referencePhotoSchema} from "./design-research";
+import type {ReferenceSheet} from "./design-research";
 import {COLORS,PARTS,auditModel} from "./bridge";
 import type {Piece} from "./bridge";
 import {finishModel,intersects} from "./models";
@@ -7,13 +9,15 @@ import {validateScene,sceneVoxels,compileScene,looseByComponent} from "./generat
 import {simulateClutch} from "./clutch";
 import type {GeneratedScene} from "./generated-scene";
 
-export const briefSchema=z.object({idea:z.string().min(3).max(2000),size:z.enum(["small","medium","large"]),detail:z.enum(["balanced","detailed","signature"]),maxPieces:z.number().int().min(100).max(16000),maxWidth:z.number().int().min(16).max(80),maxDepth:z.number().int().min(16).max(80),maxHeight:z.number().int().min(16).max(160),features:z.array(z.string().min(1).max(160)).max(12),style:z.string().max(120),hollow:z.boolean(),finish:z.enum(["smooth","studded"]).optional(),quality:z.enum(["standard","better","best"]).optional()}).strict();
+export const briefSchema=z.object({idea:z.string().min(3).max(2000),size:z.enum(["small","medium","large"]),detail:z.enum(["balanced","detailed","signature"]),maxPieces:z.number().int().min(100).max(16000),maxWidth:z.number().int().min(16).max(80),maxDepth:z.number().int().min(16).max(80),maxHeight:z.number().int().min(16).max(160),features:z.array(z.string().min(1).max(160)).max(12),style:z.string().max(120),scope:z.enum(["subject","site"]).optional(),composition:z.string().max(600).optional(),hollow:z.boolean(),finish:z.enum(["smooth","studded"]).optional(),quality:z.enum(["standard","better","best"]).optional()}).strict();
 export type DesignBrief=z.infer<typeof briefSchema>;
-export const defaultBrief=(idea=""):DesignBrief=>({idea,size:"medium",detail:"detailed",maxPieces:600,maxWidth:48,maxDepth:48,maxHeight:96,features:[],style:"Sculptural display with rich surface detail",hollow:false,finish:"smooth",quality:"better"});
+export const defaultBrief=(idea=""):DesignBrief=>({idea,size:"medium",detail:"detailed",maxPieces:600,maxWidth:48,maxDepth:48,maxHeight:96,features:[],style:"Recognizable proportions and purposeful detail",scope:"subject",composition:"",hollow:false,finish:"smooth",quality:"better"});
 export type Cuboid=Pick<Piece,"x"|"y"|"z"|"w"|"h"|"d">;
 export type ManualEdits={erase:Cuboid[];bricks:Piece[]};
-export type VisualReview={revision?:{status:"visible"|"missing"|"uncertain"|"not_requested";evidence:string};summary:string;recognizable:boolean;features:{feature:string;status:"visible"|"missing"|"uncertain";evidence:string}[];improvements:string[];thinking?:string};
-export type DesignContext={brief:DesignBrief;manual:ManualEdits;locked:string[];revisions:{request:string;summary:string;at:string}[];review?:VisualReview;reviewStale?:boolean};
+export type VisualReview={composition?:{status:"matches"|"mismatch"|"uncertain"|"not_applicable";evidence:string};revision?:{status:"visible"|"missing"|"uncertain"|"not_requested";evidence:string};summary:string;recognizable:boolean;features:{feature:string;status:"visible"|"missing"|"uncertain";evidence:string}[];improvements:string[];thinking?:string};
+export type DesignReference={sheet?:ReferenceSheet;photo?:string;briefKey:string};
+export const referenceKey=(b:DesignBrief)=>JSON.stringify([b.idea.trim(),b.scope||"subject",b.composition||"",b.features]);
+export type DesignContext={unfinished?:boolean;reviewRequest?:string;reference?:DesignReference;brief:DesignBrief;manual:ManualEdits;locked:string[];revisions:{request:string;summary:string;at:string}[];review?:VisualReview;reviewStale?:boolean};
 export type Quote={available:number;unitPrice:number;url:string;checkedAt:string};
 export type ShoppingState={owned:Record<string,number>;elementIds:Record<string,string>;priceOverrides:Record<string,number>;quotes:Record<string,Quote>};
 export const emptyShopping=():ShoppingState=>({owned:{},elementIds:{},priceOverrides:{},quotes:{}});
@@ -23,9 +27,9 @@ const manualBrick=boxSchema.extend({id:z.number().int(),part:z.string(),color:z.
 export const manualSchema=z.object({erase:z.array(boxSchema).max(32000),bricks:z.array(manualBrick).max(16000)});
 // The judge sometimes writes long; long text is trimmed, never a reason to lose the review.
 const clip=(n:number)=>z.string().transform(v=>v.slice(0,n));
-const reviewSchema=z.object({revision:z.object({status:z.enum(["visible","missing","uncertain","not_requested"]),evidence:clip(500)}).optional(),summary:clip(1500),recognizable:z.boolean(),features:z.array(z.object({feature:z.string().max(160),status:z.enum(["visible","missing","uncertain"]),evidence:clip(500)})).max(12),improvements:z.array(clip(500)).max(8),thinking:clip(4000).optional()});
+const reviewSchema=z.object({composition:z.object({status:z.enum(["matches","mismatch","uncertain","not_applicable"]),evidence:clip(1000)}).optional(),revision:z.object({status:z.enum(["visible","missing","uncertain","not_requested"]),evidence:clip(500)}).optional(),summary:clip(1500),recognizable:z.boolean(),features:z.array(z.object({feature:z.string().max(160),status:z.enum(["visible","missing","uncertain"]),evidence:clip(500)})).max(12),improvements:z.array(clip(500)).max(8),thinking:clip(4000).optional()});
 export {reviewSchema};
-const contextSchema=z.object({brief:briefSchema,manual:manualSchema,locked:z.array(z.string().max(80)).max(240),revisions:z.array(z.object({request:z.string().max(2000),summary:z.string().max(1000),at:z.string().max(40)})).max(50),review:reviewSchema.optional(),reviewStale:z.boolean().optional()});
+export const contextSchema=z.object({unfinished:z.boolean().optional(),reviewRequest:z.string().max(2000).optional(),reference:z.object({sheet:referenceSheetSchema.optional(),photo:referencePhotoSchema.optional(),briefKey:z.string().max(5000)}).optional(),brief:briefSchema,manual:manualSchema,locked:z.array(z.string().max(80)).max(240),revisions:z.array(z.object({request:z.string().max(2000),summary:z.string().max(1000),at:z.string().max(40)})).max(50),review:reviewSchema.optional(),reviewStale:z.boolean().optional()});
 const recordKey=z.string().regex(/^\d{4,5}b?:(red|orange|blue|navy|black|gray|white|green|tan|yellow|brown|darkbrown|pink)$/);
 const shoppingSchema=z.object({owned:z.record(recordKey,z.number().int().min(0).max(16000)),elementIds:z.record(recordKey,z.string().regex(/^\d{0,8}$/)),priceOverrides:z.record(recordKey,z.number().finite().min(0).max(10000)),quotes:z.record(recordKey,z.object({available:z.number().int().min(0).max(100000),unitPrice:z.number().finite().min(0).max(10000),url:z.string().url().max(1000).refine(s=>/^https:\/\//.test(s)),checkedAt:z.string().datetime()}))});
 const pieceKey=(p:Piece)=>`${p.part}:${p.color}:${p.x}:${p.y}:${p.z}:${p.rotated}`;
@@ -63,7 +67,14 @@ export function designChecks(model:BuildModel,brief:DesignBrief,target?:{x:numbe
  if(audit.groups>1)issues.push(`${audit.groups} separate assemblies. Connect them with overlapping studded plates.`);
  if(audit.unsupported.length)issues.push(`${audit.unsupported.length} pieces cannot be placed with support in a bottom-up sequence.`);
  const clutch=simulateClutch(model.pieces);
- if(target){const off=(have:number,want:number)=>Math.abs(have-want)/want>.15;const body=model.height-2;if(off(model.length,target.x)||off(model.width,target.z)||off(body,target.y))issues.push(`Proportions are off: the model is ${model.length} studs long, ${model.width} deep and ${body} plates tall above the base, but the real subject at this scale is ${target.x} × ${target.z} studs and ${target.y} plates. Reshape the body to those extents.`);}
+ if(target){
+  const body=model.pieces.filter(p=>p.y>=2);
+  if(body.length){const extent=(axis:"x"|"y"|"z",size:"w"|"h"|"d")=>Math.max(...body.map(p=>p[axis]+p[size]))-Math.min(...body.map(p=>p[axis]));
+   const actual=[extent("x","w"),extent("y","h"),extent("z","d")],wanted=[target.x,target.y,target.z];
+   const scales=actual.map((v,i)=>v/wanted[i]),scale=[...scales].sort((a,b)=>a-b)[1];
+   if(actual.some((v,i)=>Math.abs(v-wanted[i]*scale)>Math.max(i===1?3:1,wanted[i]*scale*.25)))issues.push(`Subject proportions differ from the reference: above the base it measures ${actual[0]} × ${actual[2]} studs and ${actual[1]} plates. Preserve the reference ratio ${target.x} × ${target.z} × ${target.y}; resize uniformly rather than stretching one axis.`);
+  }
+ }
  if(clutch.overloaded.length)issues.push(`${clutch.overloaded.length} joints exceed the estimated clutch strength of their studs (hanging or cantilevered mass). Support them from below or widen their stud contact.`);
  if(model.pieces.length>brief.maxPieces)issues.push(`${model.pieces.length} pieces exceeds the ${brief.maxPieces} piece limit.`);
  if(model.length>brief.maxWidth||model.width>brief.maxDepth||model.height>brief.maxHeight)issues.push(`Occupied dimensions ${model.length} × ${model.width} × ${model.height} exceed the ${brief.maxWidth} × ${brief.maxDepth} × ${brief.maxHeight} stud/plate limits.`);
