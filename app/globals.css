@@ -487,3 +487,5 @@ h1,.landing-film-caption h1,.project-heading h1,[data-slot=dialog-title]{text-wr
 }
 @media(max-width:600px){.tools-panel .config-panel{display:grid;grid-template-columns:1fr;gap:16px}}
 .drawer-close{display:none}
+
+.reference-photos{display:flex;gap:12px;flex-wrap:wrap;margin:12px 0}.reference-photos a{display:flex;flex-direction:column;gap:6px;max-width:160px;font-size:14px}.reference-photos img{width:160px;height:100px;object-fit:contain;border-radius:6px}

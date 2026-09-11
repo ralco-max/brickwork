@@ -39,7 +39,7 @@ test('truncated generation retains usable subject geometry and can send a valid 
  const frames=[{type:'response.output_text.delta',delta:JSON.stringify(compactScene(scene))},{type:'response.incomplete',response:{incomplete_details:{reason:'max_output_tokens'}}}];
  const fetcher=async()=>new Response(frames.map(e=>'data: '+JSON.stringify(e)+'\n\n').join(''));let header,shapes=[],failure;
  try{for await(const event of generateScene({prompt:brief.idea,detail:'medium'},'fixture-key','fixture-model',new AbortController().signal,fetcher)){if(event.type==='header')header=event.header;if(event.type==='shape')shapes.push(event.shape);}}catch(e){failure=e;}
- assert.equal(failure.code,'INCOMPLETE_RESPONSE');const snapshot={...header,shapes},model=compileScene(snapshot);assert.ok(canKeepPartial(snapshot,model));assert.equal(canKeepPartial(foundation,compileScene(foundation)),false);assert.ok(continuationPrompt('x'.repeat(2000)).length<=2000);
+ assert.equal(failure.code,'INCOMPLETE_RESPONSE');const snapshot={...header,shapes},model=compileScene(snapshot);assert.ok(canKeepPartial(snapshot,model));assert.equal(canKeepPartial(foundation,compileScene(foundation)),false);assert.ok(continuationPrompt('x'.repeat(2000)).length<=2000);assert.match(continuationPrompt('Dulles terminal','Add the original control tower'),/Dulles terminal.*Add the original control tower/);assert.ok(continuationPrompt('x'.repeat(2000),'y'.repeat(2000)).length<=2000);
 });
 
 test('review route streams its real result and the parser accepts final frames without blank terminators',async t=>{
@@ -47,7 +47,19 @@ test('review route streams its real result and the parser accepts final frames w
  const brief=defaultBrief('A tower'),review={summary:'Tower visible',recognizable:true,features:[],improvements:[],revision:{status:'not_requested',evidence:'No revision'}};
  t.mock.method(globalThis,'fetch',async url=>url.endsWith('/input_tokens')?Response.json({input_tokens:100}):Response.json({status:'completed',usage:{input_tokens:100,output_tokens:100},output:[{content:[{type:'output_text',text:JSON.stringify(review)}]}]}));
  const response=await reviewPOST(new Request('https://brickwork.test/api/review',{method:'POST',headers:{'x-brickwork-api-key':'fixture-key'},body:JSON.stringify({brief,images:Array(3).fill('data:image/jpeg;base64,YQ==')})}));
- assert.match(response.headers.get('content-type'),/text\/event-stream/);assert.deepEqual((await collect(response.body)).filter(e=>e.type!=='budget'),[{type:'complete',review}]);assert.deepEqual(await collect(new Response(': keepalive\r\n\r\ndata: {"type":"complete"}').body),[{type:'complete'}]);
+ assert.match(response.headers.get('content-type'),/text\/event-stream/);assert.deepEqual((await collect(response.body)).filter(e=>e.type!=='budget'&&e.type!=='usage'),[{type:'complete',review}]);assert.deepEqual(await collect(new Response(': keepalive\r\n\r\ndata: {"type":"complete"}').body),[{type:'complete'}]);
+});
+
+test('review route forwards the saved reference and five model views and reports its own recorded cost',async t=>{
+ const {db,sqlite}=budgetDb();testEnv.DB=db;t.after(()=>{sqlite.close();delete testEnv.DB;});
+ const brief=defaultBrief('Dulles terminal'),sheet={searchable:true,kind:'building',subject:'Dulles terminal',summary:'Terminal only',length_m:null,width_m:null,height_m:null,openness:null,proportions:'',colors:[],silhouette:[],distinctive:[],sources:[],included:['Terminal'],excluded:['Runways'],relations:[]},photo='data:image/jpeg;base64,Yg==';
+ const review={composition:{status:'matches',evidence:'No runway in the overhead view.'},summary:'Terminal visible',recognizable:true,features:[],improvements:[],revision:{status:'not_requested',evidence:''}};
+ let sent; t.mock.method(globalThis,'fetch',async(url,init)=>{if(url.endsWith('/input_tokens'))return Response.json({input_tokens:100});sent=JSON.parse(init.body);return Response.json({status:'completed',usage:{input_tokens:100,output_tokens:100},output:[{content:[{type:'output_text',text:JSON.stringify(review)}]}]});});
+ const payload={brief,sheet,reference:photo,images:Array(5).fill('data:image/jpeg;base64,YQ==')};
+ const response=await reviewPOST(new Request('https://brickwork.test/api/review',{method:'POST',headers:{'x-brickwork-api-key':'fixture-key'},body:JSON.stringify(payload)}));
+ const events=await collect(response.body);assert.deepEqual(events.find(e=>e.type==='complete').review,review);assert.equal(events.filter(e=>e.type==='usage').length,1);assert.equal(events.find(e=>e.type==='usage').usage.cost,.0014);
+ const content=sent.input[0].content;assert.deepEqual(JSON.parse(content[0].text).referenceSheet,sheet);assert.equal(content.filter(c=>c.type==='input_image').length,6);assert.equal(content.at(-1).image_url,photo);
+ sent=undefined;const invalid=await reviewPOST(new Request('https://brickwork.test/api/review',{method:'POST',headers:{'x-brickwork-api-key':'fixture-key'},body:JSON.stringify({...payload,reference:'http://localhost/secret'})}));assert.equal(invalid.status,400);assert.equal(sent,undefined);
 });
 
 test('landing plays the studio intro: bricks fly in over 18 seconds, then the model stays until replayed',()=>{

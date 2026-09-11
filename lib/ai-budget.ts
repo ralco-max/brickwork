@@ -17,6 +17,7 @@ const SEARCH_CALL_NANOS=10_000_000,SEARCH_CONTENT_TOKENS=30000;
 type Statement={bind:(...values:(string|number|null)[])=>Statement;run:()=>Promise<{meta:{changes?:number}}>;
  first:<T>()=>Promise<T|null>};
 export type BudgetDatabase={prepare:(sql:string)=>Statement};
+export type RequestUsage={cost:number;model:string;inputTokens:number;outputTokens:number;searchCalls:number};
 export type BudgetSnapshot={limit:number;spent:number;held:number;remaining:number};
 type Usage={input_tokens:number;output_tokens:number;input_tokens_details?:{cached_tokens?:number}};
 const unavailable=()=>new GenerationError("Spending checks are temporarily unavailable. Further AI requests are paused. Your draft is kept.","BUDGET_UNAVAILABLE");
@@ -57,7 +58,8 @@ async function settle(db:BudgetDatabase,id:string,amount:number){
 
 // Providers pass their exact outgoing payload through this guard. The client
 // cannot supply a balance, raise the limit, or bypass review/repair accounting.
-export function budgetedProvider(db:BudgetDatabase,key:string,notify:(budget:BudgetSnapshot)=>void,fetcher:typeof fetch=fetch){
+export function budgetedProvider(db:BudgetDatabase,key:string,notify:(budget:BudgetSnapshot)=>void,fetcher:typeof fetch=fetch,onUsage?:(usage:RequestUsage)=>void){
+ let recorded=false,requestModel="";
  let reservation:{id:string;input:number;maxOutput:number;searchCalls:number;rates:{input:number;cached:number;output:number}}|undefined;
  const fingerprint=keyFingerprint(key);
  const report=async()=>notify(await budgetSnapshot(db,await fingerprint));
@@ -65,7 +67,7 @@ export function budgetedProvider(db:BudgetDatabase,key:string,notify:(budget:Bud
   if(url!=="https://api.openai.com/v1/responses"||reservation)throw unavailable();
   const body=JSON.parse(String(init?.body));
   const search=Array.isArray(body.tools)&&body.tools.length===1&&body.tools[0]?.type==="web_search";
-  const rates=PRICED_MODELS[body.model];
+  const rates=PRICED_MODELS[body.model];requestModel=String(body.model);
   if(!rates||!Number.isSafeInteger(body.max_output_tokens)||body.max_output_tokens<1||body.max_output_tokens>32000||(body.tools&&!search))throw new GenerationError("The spending limit needs verified pricing for this model. No AI request was started.","BUDGET_MODEL");
   const keyHash=await fingerprint;
   if((await budgetSnapshot(db,keyHash)).remaining<=0)throw new GenerationError("Your $10 Brickwork budget is used. Your design is kept and the studio is still available.","BUDGET_LIMIT");
@@ -95,7 +97,7 @@ export function budgetedProvider(db:BudgetDatabase,key:string,notify:(budget:Bud
   return response;
  };
  const recordUsage=async(value:unknown,extra:{searchCalls?:number}={})=>{
-  if(!reservation||!value||typeof value!=="object")return;
+  if(recorded||!reservation||!value||typeof value!=="object")return;
   const usage=value as Usage,cached=usage.input_tokens_details?.cached_tokens??0,calls=Math.max(0,Math.floor(extra.searchCalls||0));
   let amount:number;
   try{amount=tokenCost(usage.input_tokens,usage.output_tokens,cached,reservation.rates)+calls*SEARCH_CALL_NANOS;}catch{return;}
@@ -105,7 +107,8 @@ export function budgetedProvider(db:BudgetDatabase,key:string,notify:(budget:Bud
    await settle(db,reservation.id,Math.max(BUDGET_NANOS,amount));await report();
    throw new GenerationError("AI usage exceeded the expected request bounds. Further spending is paused; your draft is kept.","BUDGET_ACCOUNTING");
   }
-  await settle(db,reservation.id,amount);await report();
+  await settle(db,reservation.id,amount);recorded=true;await report();
+  onUsage?.({cost:amount/1e9,model:requestModel,inputTokens:usage.input_tokens,outputTokens:usage.output_tokens,searchCalls:calls});
  };
  return {fetch:guardedFetch,recordUsage};
 }
