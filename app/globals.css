@@ -472,3 +472,18 @@ h1,.landing-film-caption h1,.project-heading h1,[data-slot=dialog-title]{text-wr
 
 .tools-close{display:none}
 @media(max-width:900px){.tools-close{display:grid}}
+
+/* Phone: the shop stays reachable, the Create icon shows, the drawer is a sheet like the tools, the
+   view strip keeps only the playback controls, and the settings run in one column. */
+@media(max-width:900px){
+ .header-actions .shop-header-button{display:inline-flex;width:44px;padding:0}
+ .command-bar .quick-create-field button[type=submit]>svg{display:block;width:18px;height:18px}
+ .designs-drawer{position:fixed;left:0;right:0;bottom:0;z-index:40;max-height:78dvh;overflow:auto;background:var(--surface);border-top:1px solid var(--line);border-radius:18px 18px 0 0;box-shadow:0 -14px 40px #00000026;padding-bottom:env(safe-area-inset-bottom)}
+ .drawer-open .designs-drawer{display:block}.designs-drawer-inner{border:0;border-radius:0;padding:14px 16px 18px}
+ .drawer-head{position:sticky;top:0;z-index:2;background:var(--surface);display:flex;align-items:center;gap:8px;padding:12px 0;margin:-14px 0 4px}.drawer-close{display:grid}
+ .view-controls{top:auto;bottom:68px;right:10px;gap:6px}.view-controls>button{width:40px;height:40px;min-height:40px;padding:0}
+ .view-controls>button[aria-label="Make a video of the assembly"],.view-controls>a.download-video,.view-controls>button[aria-label="Reset camera"],.view-controls>button[aria-label="Cancel recording"]{display:none}
+ .stage-hud{max-width:calc(100% - 64px)}
+}
+@media(max-width:600px){.tools-panel .config-panel{display:grid;grid-template-columns:1fr;gap:16px}}
+.drawer-close{display:none}
