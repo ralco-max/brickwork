@@ -7,7 +7,7 @@ import {reviewDesign,critiqueMassing} from "@/lib/design-review";
 import {referenceSheetSchema} from "@/lib/design-research";
 import type {ReferenceSheet} from "@/lib/design-research";
 import {eventResponse} from "@/lib/server-events";
-const schema=z.object({revision:z.string().max(2000).optional(),brief:briefSchema,images:z.array(z.string().max(750000).regex(/^data:image\/jpeg;base64,[A-Za-z0-9+/=]+$/)).length(3),stage:z.enum(["design","massing"]).optional(),sheet:referenceSheetSchema.optional(),signature:z.array(z.string().max(80)).max(4).optional()}).strict();
+const schema=z.object({revision:z.string().max(2000).optional(),brief:briefSchema,images:z.array(z.string().max(750000).regex(/^data:image\/jpeg;base64,[A-Za-z0-9+/=]+$/)).min(3).max(4),stage:z.enum(["design","massing"]).optional(),sheet:referenceSheetSchema.optional(),signature:z.array(z.string().max(80)).max(4).optional()}).strict();
 export async function POST(request:Request){
  const origin=request.headers.get("origin");if(origin&&origin!==new URL(request.url).origin)return Response.json({error:"Open Brickwork in its own tab."},{status:403});
  let config;try{config=aiSettings(request);}catch(error){const failure=generationFailure(error);return Response.json({error:failure.message,code:failure.code},{status:400});}const {key,model}=config;

@@ -4,7 +4,8 @@ import type {Piece} from "./bridge";
 import {COLORS,studCells} from "./bridge";
 import {pieceGeometry,hubGeometry} from "./brick-geometry";
 
-// Render the actual packed pieces, slopes included, for the visual critic.
+// Render the actual packed pieces, slopes included, for the visual critic: front, front-right,
+// rear-left, and the left end, so a subject detailed on one face only is caught.
 export function renderReviewViews(model:BuildModel):string[]{
  const renderer=new THREE.WebGLRenderer({antialias:true,preserveDrawingBuffer:true});
  renderer.setSize(640,640);renderer.setPixelRatio(1);renderer.setClearColor(0xe9edf2,1);renderer.outputColorSpace=THREE.SRGBColorSpace;
@@ -22,6 +23,6 @@ export function renderReviewViews(model:BuildModel):string[]{
   scene.add(body);if(studs)scene.add(studs);if(hubs)scene.add(hubs);
  }
  const radius=Math.hypot(model.length,model.width,h)/2+2,camera=new THREE.OrthographicCamera(-radius,radius,radius,-radius,.1,radius*8),out:string[]=[];
- try{for(const direction of [[0,.08,1],[.9,.65,1],[-.8,.55,-1]]){camera.position.set(...direction as [number,number,number]).normalize().multiplyScalar(radius*3);camera.lookAt(0,0,0);renderer.render(scene,camera);out.push(renderer.domElement.toDataURL("image/jpeg",.82));}}finally{for(const g of geometries)g.dispose();studGeometry.dispose();material.dispose();renderer.dispose();renderer.forceContextLoss();}
+ try{for(const direction of [[0,.08,1],[.9,.65,1],[-.8,.55,-1],[-1,.3,.25]]){camera.position.set(...direction as [number,number,number]).normalize().multiplyScalar(radius*3);camera.lookAt(0,0,0);renderer.render(scene,camera);out.push(renderer.domElement.toDataURL("image/jpeg",.82));}}finally{for(const g of geometries)g.dispose();studGeometry.dispose();material.dispose();renderer.dispose();renderer.forceContextLoss();}
  return out;
 }

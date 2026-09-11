@@ -7,7 +7,7 @@ import type {CompactScene} from "./generated-scene";
 export type DesignExample={id:string;about:string;tags:string[];scene:CompactScene};
 const box=(i:string,c:string,l:string,col:string,p:[number,number,number],s:[number,number,number],extra:Partial<CompactScene["sh"][number]>={})=>({i,c,l,k:"box" as const,o:"add" as const,a:null,col:col as CompactScene["sh"][number]["col"],p,s,e:null,r:null,rep:null,...extra});
 export const DESIGN_EXAMPLES:DesignExample[]=[
- {id:"car",about:"A compact hatchback, 20 studs long: real wheel elements in carved arches on black axle boxes that reach up into the body, a body 2.3 times as long as wide with ground clearance, a cabin set back behind a raked windscreen lean, one accent colour for the lights.",tags:["vehicle","car","truck","bus","van","wheel"],scene:{n:"Hatchback",d:"A small red hatchback: body, set-back cabin, four wheel elements in arches on axle boxes, headlights and tail lights.",f:["long low body with carved wheel arches","raked windscreen and set-back cabin","four black wheels with grey hubs"],dim:[26,24,14],rm:[],sh:[
+ {id:"car",about:"A compact hatchback, 20 studs long, designed in the round: real wheel elements in carved arches on black axle boxes that reach up into the body, a body 2.3 times as long as wide with ground clearance, a nose with grille, headlights, bumper and a hood step, a cabin set back behind a raked windscreen lean with wing mirrors rooted in the pillars, and a tail with hatch window, tail lights and bumper.",tags:["vehicle","car","truck","bus","van","wheel"],scene:{n:"Hatchback",d:"A small red hatchback: body, set-back cabin, four wheel elements in arches on axle boxes, headlights and tail lights.",f:["long low body with carved wheel arches","raked windscreen and set-back cabin","four black wheels with grey hubs"],dim:[26,24,14],rm:[],sh:[
   box("base","Base","Display base","gray",[0,0,0],[26,2,14]),
   box("body","Body","Lower body with ground clearance","red",[3,8,3],[20,6,8]),
   {i:"arch-front",c:"Body",l:"Front wheel arch",k:"cylinder",o:"subtract",a:"z",col:"red",p:[5,2,1],s:[5,10,12],e:null,r:null,rep:null},
@@ -23,8 +23,15 @@ export const DESIGN_EXAMPLES:DesignExample[]=[
   {i:"windscreen",c:"Cabin",l:"Raked windscreen",k:"lean",o:"add",a:null,col:"navy",p:[10.5,14,7],s:[6,1,0],e:[12.5,19,7],r:null,rep:null},
   box("side-windows","Cabin","Side windows","navy",[13,15,3],[7,3,1],{rep:[2,0,0,7]}),
   box("roof","Cabin","Roof","red",[12,19,4],[10,1,6]),
-  box("headlights","Lights","Headlights","yellow",[3,11,4],[1,2,1],{rep:[2,0,0,5]}),
-  box("taillights","Lights","Tail lights","orange",[22,11,4],[1,2,1],{rep:[2,0,0,5]}),
+  box("grille","Nose","Black grille between the headlights","black",[3,10,5],[1,3,4]),
+  box("bumper-front","Nose","Front bumper, one stud proud, tucked under the body","gray",[2,6,3],[3,2,8]),
+  box("headlights","Nose","Headlights","yellow",[3,11,4],[1,2,1],{rep:[2,0,0,5]}),
+  box("hood-step","Nose","Hood stepping down to the grille","red",[3,13,4],[2,1,6]),
+  box("bumper-rear","Tail","Rear bumper, one stud proud, tucked under the body","gray",[21,6,3],[3,2,8]),
+  box("taillights","Tail","Tail lights","orange",[22,11,4],[1,2,1],{rep:[2,0,0,5]}),
+  box("hatch-window","Tail","Rear hatch window","navy",[21,15,4],[1,3,6]),
+  box("mirror-l","Cabin","Wing mirror rooted in the pillar","black",[11,15,2],[1,1,2]),
+  box("mirror-r","Cabin","Wing mirror rooted in the pillar","black",[11,15,10],[1,1,2]),
  ]}},
  {id:"cottage",about:"A brick cottage: walls with inset windows and a door, a pitched roof built as stepped courses (one stud in per three plates) with eaves that overhang the walls by one stud, and a chimney.",tags:["building","house","cottage","home","roof","barn","church"],scene:{n:"Cottage",d:"A tan cottage with a red pitched roof, inset windows, a door and a chimney.",f:["pitched roof with overhanging eaves","inset windows either side of the door","chimney on the ridge"],dim:[24,40,20],rm:[],sh:[
   box("base","Base","Display base","green",[0,0,0],[24,2,20]),
