@@ -27,8 +27,15 @@ type Completed={model:BuildModel;scene:GeneratedScene;review:VisualReview|null;b
 // Scale first: the reference sheet's real metres become a target in studs and plates, and the
 // scale plan says how thick a hollow shell at that size can be within the piece budget. When
 // even thin walls do not fit, the target itself is reduced so the checks and the designer agree.
+// Without a measured subject, the piece budget still sets the size: the brief's envelope is scaled down
+// until a hollow shell of that size fits the budget, and the designer is given that as its target.
+function sizeGuide(b:DesignBrief,kind:ReferenceSheet["kind"]="object"):{target:{x:number;y:number;z:number;vertical:number};plan:ReturnType<typeof shellPlan>}{
+ const full={x:b.maxWidth,y:b.maxHeight,z:b.maxDepth},plan=shellPlan(full,b.maxPieces,kind);
+ const size=plan.fits||!plan.recommend?full:plan.recommend;
+ return {target:{...size,vertical:1},plan};
+}
 function planSheet(sheet:ReferenceSheet,b:DesignBrief):ReferenceSheet{
- const target=targetExtents(sheet,b);if(!target)return {...sheet,target:undefined,plan:undefined};
+ const target=targetExtents(sheet,b);if(!target){const guide=sizeGuide(b,sheet.kind);return {...sheet,target:guide.target,plan:guide.plan};}
  const plan=shellPlan(target,b.maxPieces,sheet.kind,sheet.openness??null);
  return {...sheet,target:plan.fits||!plan.recommend?target:{...target,...plan.recommend},plan};
 }
@@ -108,6 +115,8 @@ export default function Generator({open,onOpenChange,initialPrompt,initialImage,
      setPhase("research");setStatus("Checking whether this is a real thing to look up…");
      try{const r=await fetch("/api/research",{method:"POST",signal:abort.signal,headers:headers(activeKey),body:JSON.stringify({idea:b.idea})});const data=await r.json();alive();if(data.budget)setBudget(data.budget);if(r.ok&&data.sheet?.searchable){research=planSheet(data.sheet,b);setSheet(research);setStatus(`Found the real ${data.sheet.subject}. Designing from its measurements…`);if(data.thinking)note("Looking it up",data.thinking);note("Found",`${data.sheet.subject}${data.searches?.length?` (searched: ${data.searches.join("; ")})`:""}. ${data.sheet.summary} ${[data.sheet.length_m&&`${data.sheet.length_m} m long`,data.sheet.width_m&&`${data.sheet.width_m} m wide`,data.sheet.height_m&&`${data.sheet.height_m} m tall`].filter(Boolean).join(", ")}. ${data.sheet.proportions}${data.sheet.distinctive?.length?` Must have: ${data.sheet.distinctive.join("; ")}.`:""}`);if(research.target)note("Scale",`${research.target.x} × ${research.target.z} studs, ${research.target.y} plates tall${research.plan?research.plan.fits?`; ${research.plan.walls?`hollow with ${research.plan.walls}-stud walls`:"solid masses fit"}, about ${research.plan.estimate.toLocaleString()} pieces for the main masses`:`; the full-size skin alone would take about ${research.plan.estimate.toLocaleString()} pieces, so this is the largest size the budget builds`:""}.`);}else if(r.ok&&data.sheet){note("Looking it up",`Not a specific real subject, so no lookup. Designing "${b.idea}" from the brief.`);}}catch(e){alive();}
     }
+    // A generic idea gets a size from the budget too, so the designer never fills the envelope by default.
+    if(!research){const guide=sizeGuide(b);research={searchable:false,kind:"object",subject:b.idea.slice(0,120),summary:"",length_m:null,width_m:null,height_m:null,openness:null,proportions:"",colors:[],silhouette:[],distinctive:[],sources:[],target:guide.target,plan:guide.plan};note("Scale",`No measured subject; at ${b.maxPieces.toLocaleString()} pieces the main masses fit about ${guide.target.x} × ${guide.target.z} studs and ${guide.target.y} plates${guide.plan.walls?`, hollow with ${guide.plan.walls}-stud walls`:""}.`);}
     if(!original){setPhase("foundation");setStatus("Laying the display foundation…");candidate=foundationScene(b);const foundation=await compile(candidate,b);alive();setDraft({...foundation,length:b.maxWidth,width:b.maxDepth,height:b.maxHeight});}
     if(original&&draft)feedback=[...designChecks(draft,b,research?.target).issues,...(review?.features.filter(f=>f.status!=="visible").map(f=>`${f.feature}: ${f.evidence}`)||[])];
     // One streamed design call. The canvas follows every pass live; a later pass starts from the previous pass's shapes (the base event).
