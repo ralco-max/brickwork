@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import "./globals.css";
 import {ThemeProvider} from "./theme";
+import {VisualViewportSize} from "@/hooks/use-visual-viewport";
 
 export const viewport: Viewport = {width:"device-width",initialScale:1,viewportFit:"cover"};
 
@@ -21,7 +22,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" suppressHydrationWarning>
-      <body className="antialiased"><ThemeProvider>{children}</ThemeProvider></body>
+      <body className="antialiased"><VisualViewportSize/><ThemeProvider>{children}</ThemeProvider></body>
     </html>
   );
 }

@@ -31,17 +31,17 @@ export default function ReferenceInputs({value,disabled=false,question,pasteTarg
  }
  useImagePaste({rootRef,pasteTargetId,disabled:disabled||preparing,onFiles:files=>void add(files)});
  return <section ref={rootRef} className="reference-inputs" aria-label="Reference photos and place">
-  <div className="reference-inputs-heading"><strong>Reference photos</strong><span>{photos.length} / {MAX_REFERENCE_PHOTOS}</span></div>
-  <p>Add another angle or a detail to guide the next pass. You can also paste copied images into your description.</p>
+  <div className="reference-inputs-heading"><strong>Reference photos</strong><span aria-live="polite" aria-label={`${photos.length} of ${MAX_REFERENCE_PHOTOS} photos attached`}>{photos.length} / {MAX_REFERENCE_PHOTOS}</span></div>
+  <p id={`${id}-photos-help`}>Add another angle or paste a copied image into your description. JPG, PNG or WebP, up to 10 MB each.</p>
   {photos.length>0&&<div className="reference-thumbnails">{photos.map((photo,index)=><figure key={photo}><img src={photo} alt={`Your reference photo ${index+1}`}/><figcaption>Photo {index+1}</figcaption><button type="button" disabled={disabled||preparing} aria-label={`Remove reference photo ${index+1}`} onClick={()=>{setError("");onChange({...value,photo:value.photo===photo?undefined:value.photo,photos:value.photos.filter(item=>item!==photo)});}}><X size={14}/></button></figure>)}</div>}
   <label className={`reference-upload ${disabled||preparing||full?"is-disabled":""}`} onDragOver={e=>e.preventDefault()} onDrop={e=>{e.preventDefault();void add(Array.from(e.dataTransfer.files));}}>
    {preparing?<LoaderCircle size={16} className="spin"/>:<ImagePlus size={16}/>}<span>{preparing?"Preparing photos…":full?"All four photos added":"Add photos"}</span>
-   <input type="file" multiple accept="image/jpeg,image/png,image/webp" aria-label="Add reference photos" disabled={disabled||preparing||full} onChange={e=>{const files=Array.from(e.target.files||[]);e.target.value="";void add(files);}}/>
+   <input type="file" multiple accept="image/jpeg,image/png,image/webp" aria-label="Add reference photos" aria-describedby={`${id}-photos-help${error?` ${id}-photos-error`:""}`} disabled={disabled||preparing||full} onChange={e=>{const files=Array.from(e.target.files||[]);e.target.value="";void add(files);}}/>
   </label>
-  {error&&<p className="reference-input-error" role="alert">{error}</p>}
+  {error&&<p id={`${id}-photos-error`} className="reference-input-error" role="alert">{error}</p>}
   {question&&<p className="reference-question" role="status">{question}</p>}
   <label className="reference-place-label" htmlFor={`${id}-place`}><MapPin size={14}/>Place or structure <span>{question?"Help identify it":"Optional"}</span></label>
-  <input id={`${id}-place`} className="reference-place-input" value={value.identityHint} maxLength={300} disabled={disabled} onChange={e=>onChange({...value,identityHint:e.target.value})} placeholder="Name, city, specific building or era" aria-describedby={`${id}-help`}/>
+  <input id={`${id}-place`} className="reference-place-input" value={value.identityHint} maxLength={300} disabled={disabled} autoComplete="off" autoCapitalize="words" autoCorrect="off" spellCheck={false} inputMode="text" enterKeyHint="done" onKeyDown={e=>{if(e.key==="Enter"&&!e.nativeEvent.isComposing){e.preventDefault();e.currentTarget.blur();}}} onChange={e=>onChange({...value,identityHint:e.target.value})} placeholder="Name, city, specific building or era" aria-describedby={`${id}-help`}/>
   <p id={`${id}-help`}>For a known place, Bricks looks up its shape and layout. If the structure is still unclear, it will ask before building.</p>
  </section>;
 }

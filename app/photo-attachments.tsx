@@ -1,5 +1,5 @@
 "use client";
-import {useEffect,useRef,useState} from "react";
+import {useEffect,useId,useRef,useState} from "react";
 import type {ReactNode} from "react";
 import {ImagePlus,LoaderCircle,X} from "lucide-react";
 import {MAX_REFERENCE_PHOTOS} from "@/lib/reference-photos";
@@ -28,10 +28,10 @@ export async function preparePhotoAttachments(files:File[],readPhotos:()=>string
 }
 
 export default function PhotoAttachments({photos,onAdd,onRemove,onPreparing,disabled=false,pasteTargetId,children}:Props){
- const rootRef=useRef<HTMLElement>(null),fileInput=useRef<HTMLInputElement>(null),mounted=useRef(false),uploading=useRef(false),session=useRef(0),latest=useRef({photos,onAdd,onPreparing});
+ const id=useId(),rootRef=useRef<HTMLElement>(null),fileInput=useRef<HTMLInputElement>(null),mounted=useRef(false),uploading=useRef(false),session=useRef(0),latest=useRef({photos,onAdd,onPreparing});
  latest.current={photos,onAdd,onPreparing};
  const [preparing,setPreparing]=useState(false),[error,setError]=useState("");
- const full=photos.length>=MAX_REFERENCE_PHOTOS,locked=disabled||preparing;
+ const full=photos.length>=MAX_REFERENCE_PHOTOS,locked=disabled||preparing,description=`${id}-help${error?` ${id}-error`:""}`;
  useEffect(()=>{
   mounted.current=true;
   return()=>{mounted.current=false;session.current++;if(uploading.current){uploading.current=false;latest.current.onPreparing(false);}};
@@ -51,13 +51,13 @@ export default function PhotoAttachments({photos,onAdd,onRemove,onPreparing,disa
  useImagePaste({rootRef,pasteTargetId,disabled:locked,onFiles:files=>void add(files)});
  return <section ref={rootRef} className="idea-attachments" aria-label="Photos for this idea" onDragOver={event=>{event.preventDefault();event.dataTransfer.dropEffect=locked||full?"none":"copy";}} onDrop={event=>{event.preventDefault();void add(Array.from(event.dataTransfer.files));}}>
   <div className="idea-attachment-actions">
-   <button type="button" className="idea-attachment-add" disabled={locked||full} onClick={()=>fileInput.current?.click()}>{preparing?<LoaderCircle size={16} className="spin"/>:<ImagePlus size={16}/>}<span>{preparing?"Preparing photos…":full?"All four photos added":"Add photos"}</span></button>
-   <input ref={fileInput} type="file" hidden multiple accept="image/jpeg,image/png,image/webp" aria-label="Attach reference photos" disabled={locked||full} onChange={event=>{const files=Array.from(event.target.files||[]);event.target.value="";void add(files);}}/>
-   {children}<span className="idea-attachment-count" aria-live="polite">{photos.length} / {MAX_REFERENCE_PHOTOS} photos</span>
+   <button type="button" className="idea-attachment-add" disabled={locked||full} aria-describedby={description} onClick={()=>fileInput.current?.click()}>{preparing?<LoaderCircle size={16} className="spin"/>:<ImagePlus size={16}/>}<span>{preparing?"Preparing photos…":full?"All four photos added":"Add photos"}</span></button>
+   <input ref={fileInput} type="file" hidden multiple accept="image/jpeg,image/png,image/webp" aria-label="Attach reference photos" aria-describedby={description} disabled={locked||full} onChange={event=>{const files=Array.from(event.target.files||[]);event.target.value="";void add(files);}}/>
+   {children}<span className="idea-attachment-count" aria-live="polite" aria-label={`${photos.length} of ${MAX_REFERENCE_PHOTOS} photos attached`}>{photos.length} / {MAX_REFERENCE_PHOTOS} photos</span>
   </div>
   {photos.length>0&&<div className="idea-attachment-list">{photos.map((photo,index)=><figure key={photo}><img src={photo} alt={`Reference photo ${index+1} for your idea`}/><figcaption>Photo {index+1}</figcaption><button type="button" className="idea-attachment-remove" disabled={locked} aria-label={`Remove reference photo ${index+1}`} onClick={()=>{setError("");onRemove(photo);}}><X size={14}/></button></figure>)}</div>}
   {preparing&&<p className="idea-attachment-status" role="status">Preparing your photos. You can keep writing.</p>}
-  {!preparing&&!full&&<p className="idea-attachment-status">You can also paste copied images into your description.</p>}
-  {error&&<p className="idea-attachment-error" role="alert">{error}</p>}
+  <p id={`${id}-help`} className="idea-attachment-status">JPG, PNG or WebP, up to 10 MB each. You can also paste copied images into your description.</p>
+  {error&&<p id={`${id}-error`} className="idea-attachment-error" role="alert">{error}</p>}
  </section>;
 }
