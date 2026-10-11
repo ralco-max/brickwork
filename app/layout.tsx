@@ -8,8 +8,9 @@ export const metadata: Metadata = {
   title: "Brickwork by Ralc",
   description: "Turn ideas, images and 3D models into custom brick creations. Edit every piece, audit your build and export your parts list.",
   icons: {
-    icon: "/favicon.svg",
-    shortcut: "/favicon.svg",
+    icon: "/brickwork-logo.png",
+    shortcut: "/brickwork-logo.png",
+    apple: "/brickwork-logo.png",
   },
 };
 

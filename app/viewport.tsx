@@ -5,16 +5,16 @@ import * as THREE from "three";
 import {OrbitControls} from "three/addons/controls/OrbitControls.js";
 import {COLORS,Piece,studCells} from "@/lib/bridge";
 import {pieceGeometry,hubGeometry} from "@/lib/brick-geometry";
-import {reconcileArrivals,arrivalPose,brickIdentity,ARRIVAL_FLIGHT_SECONDS} from "@/lib/live-arrivals";
-import type {Arrival} from "@/lib/live-arrivals";
+import {reconcileArrivals,arrivalPose,brickIdentity,arrivalOpacity,arrivalEndTime} from "@/lib/live-arrivals";
+import type {Arrival,ArrivalMode} from "@/lib/live-arrivals";
 import {assemblyPose,assemblyTracks,inspectionReach,inspectionTracks,type AssemblyTrack} from "@/lib/assembly";
-import {cameraPanOffset,advanceCameraMove,type CameraMove} from "@/lib/camera-navigation";
+import {cameraPanOffset,advanceCameraMove,settledPieceBounds,cameraFramingSnapshot,cameraAutoFit,type CameraMove,type CameraFramingSnapshot} from "@/lib/camera-navigation";
 import {hasExactPartGeometry,partGeometriesReady,preloadPartGeometries} from "@/lib/part-meshes";
 
 export type BrickHit={piece:Piece;point:{x:number;y:number;z:number};normal:{x:number;y:number;z:number}};
-type Props={arrivals?:{epoch:number;paused:boolean};suspended?:boolean;light?:number;pieces:Piece[];length:number;width?:number;height?:number;modelKey?:string;editMode?:string;onBrick?:(hit:BrickHit)=>void;highlightIds?:number[];heat?:Map<number,number>;explode:number;stage:number;selected:string|null;view:string;reset:number;rotate:boolean;onPick:(key:string|null)=>void;assembly?:{time:()=>number;onFrame?:(canvas:HTMLCanvasElement,time:number)=>void;sweep?:boolean};presentation?:boolean;onCanvas?:(canvas:HTMLCanvasElement|null)=>void};
+type Props={arrivals?:{epoch:number;paused:boolean;mode?:ArrivalMode};suspended?:boolean;light?:number;pieces:Piece[];length:number;width?:number;height?:number;modelKey?:string;editMode?:string;onBrick?:(hit:BrickHit)=>void;highlightIds?:number[];heat?:Map<number,number>;explode:number;stage:number;selected:string|null;view:string;reset:number;rotate:boolean;onPick:(key:string|null)=>void;assembly?:{time:()=>number;onFrame?:(canvas:HTMLCanvasElement,time:number)=>void;sweep?:boolean};presentation?:boolean;onCanvas?:(canvas:HTMLCanvasElement|null)=>void};
 export default function Viewport(props:Props){
- const host=useRef<HTMLDivElement>(null),api=useRef<{update:(p:Props)=>void;camera:(view:string)=>void;pan:(horizontal:number,vertical:number)=>void}|null>(null),latest=useRef(props);latest.current=props;const savedCamera=useRef<{key:string;position:THREE.Vector3;target:THREE.Vector3}|null>(null);
+ const host=useRef<HTMLDivElement>(null),api=useRef<{update:(p:Props)=>void;camera:(view:string)=>void;pan:(horizontal:number,vertical:number)=>void}|null>(null),latest=useRef(props);latest.current=props;const savedCamera=useRef<{key:string;position:THREE.Vector3;target:THREE.Vector3;length:number;width:number;framing:CameraFramingSnapshot;move:CameraMove|null;userMoved:boolean}|null>(null);
  const rendererRef=useRef<THREE.WebGLRenderer|null>(null);
  const [geometryVersion,setGeometryVersion]=useState(0),[geometryRetry,setGeometryRetry]=useState(0),[geometryError,setGeometryError]=useState<string|null>(null);
  const geometryKey=[...new Set(props.pieces.map(p=>p.part))].sort().join(","),geometryReady=partGeometriesReady(props.pieces);
@@ -53,21 +53,92 @@ export default function Viewport(props:Props){
   const explodedTracks=inspectionTracks(props.pieces,L,W,props.height??43);
   const reducedMotion=window.matchMedia("(prefers-reduced-motion: reduce)");
   const captureTracks=()=>{
-   camera.updateMatrixWorld();const halfHeight=camera.position.distanceTo(controls.target)*Math.tan(THREE.MathUtils.degToRad(camera.fov)/2);
-   const frame={center:controls.target.clone(),right:new THREE.Vector3().setFromMatrixColumn(camera.matrixWorld,0),up:new THREE.Vector3().setFromMatrixColumn(camera.matrixWorld,1),halfWidth:halfHeight*camera.aspect,halfHeight};
+   // Start beyond the destination frame while automatic fitting eases outward.
+   const framingCamera=camera.clone(),target=cameraMove?.toTarget??controls.target;
+   framingCamera.position.copy(cameraMove?.toPosition??camera.position);framingCamera.lookAt(target);framingCamera.updateMatrixWorld();
+   const halfHeight=framingCamera.position.distanceTo(target)*Math.tan(THREE.MathUtils.degToRad(camera.fov)/2);
+   const frame={center:target.clone(),right:new THREE.Vector3().setFromMatrixColumn(framingCamera.matrixWorld,0),up:new THREE.Vector3().setFromMatrixColumn(framingCamera.matrixWorld,1),halfWidth:halfHeight*camera.aspect,halfHeight};
    tracks=assemblyTracks(props.pieces,L,W,props.height??43,frame);
-   if(props.arrivals){if(arrivalState.current.epoch!==props.arrivals.epoch)arrivalState.current={epoch:props.arrivals.epoch,clock:0,entries:new Map()};arrivalState.current.entries=reconcileArrivals(arrivalState.current.entries,props.pieces,arrivalState.current.clock,L,W,props.height??43,frame);}
-   arrivalEnd=Math.max(0,...[...arrivalState.current.entries.values()].map(e=>e.at+ARRIVAL_FLIGHT_SECONDS));
+   if(props.arrivals){
+    // Returning from Edit brief remounts the viewport around an existing model.
+    // Seed that baseline as settled; only subsequent changes should dissolve.
+    const seedRevision=arrivalState.current.epoch===-1&&props.arrivals.mode==="revise";
+    if(arrivalState.current.epoch!==props.arrivals.epoch)arrivalState.current={epoch:props.arrivals.epoch,clock:0,entries:new Map()};
+    arrivalState.current.entries=reconcileArrivals(arrivalState.current.entries,props.pieces,arrivalState.current.clock,L,W,props.height??43,frame,seedRevision?"still":props.arrivals.mode);
+   }
+   arrivalEnd=Math.max(0,...[...arrivalState.current.entries.values()].map(arrivalEndTime));
   };
-  const groups=new Map<string,Piece[]>();for(const p of props.pieces){const k=`${p.part}:${p.color}:${p.rotated}:${p.face||""}`;const list=groups.get(k)||[];list.push(p);groups.set(k,list);}
-  const batches:{body:THREE.InstancedMesh;studs:THREE.InstancedMesh|null;hubs:THREE.InstancedMesh|null;pieces:Piece[];studded:[number,number][]}[]=[],meshes:THREE.InstancedMesh[]=[];
-  for(const list of groups.values()){
-   const p=list[0],material=new THREE.MeshStandardMaterial({color:0xffffff,roughness:.3,metalness:0}),studded=hasExactPartGeometry(p.part)?[]:studCells(p);
+  let cameraMove:CameraMove|null=null;
+  const bounds=settledPieceBounds(props.pieces,L,W);
+  let framing:CameraFramingSnapshot|null=null,initialized=false;
+  const ensureCameraRange=(position:THREE.Vector3,target:THREE.Vector3)=>{
+   const distance=Math.max(position.distanceTo(target),camera.position.distanceTo(controls.target));controls.maxDistance=Math.max(controls.maxDistance,distance*1.5);
+   camera.far=Math.max(1500,controls.maxDistance+(bounds?bounds.max.distanceTo(bounds.min):Math.max(L,W,H))*2);camera.updateProjectionMatrix();
+  };
+  const moveCamera=(toPosition:THREE.Vector3,toTarget:THREE.Vector3,duration:number,manual=true)=>{
+   if(manual)userMoved=true;ensureCameraRange(toPosition,toTarget);
+   if(reducedMotion.matches){cameraMove=null;camera.position.copy(toPosition);controls.target.copy(toTarget);camera.lookAt(toTarget);controls.update();return;}
+   cameraMove={position:camera.position.clone(),target:controls.target.clone(),toPosition,toTarget,start:performance.now(),duration};
+  };
+  const setCamera=(view:string)=>{
+   const aspect=Math.max(.1,camera.aspect),vFov=THREE.MathUtils.degToRad(camera.fov),hFov=2*Math.atan(Math.tan(vFov/2)*aspect);
+   const e=latest.current.explode;
+   const min=bounds?.min.clone()??new THREE.Vector3(-L/2,0,-W/2),max=bounds?.max.clone()??new THREE.Vector3(L/2,H,W/2);
+   min.sub(new THREE.Vector3(e*flightMax,0,e*backMax));max.add(new THREE.Vector3(e*flightMax,e*liftMax+1,e*backMax));
+   const target=min.clone().add(max).multiplyScalar(.5);controls.target.copy(target);
+   const direction=(view==="front"?new THREE.Vector3(0,.10,1):view==="top"?new THREE.Vector3(0,1,.001):new THREE.Vector3(.8,.72,1)).normalize();
+   const right=new THREE.Vector3(0,1,0).cross(direction).normalize(),up=direction.clone().cross(right).normalize();
+   let distance=1;
+   for(const x of [min.x,max.x])for(const y of [min.y,max.y])for(const z of [min.z,max.z]){const corner=new THREE.Vector3(x,y,z).sub(target);distance=Math.max(distance,corner.dot(direction)+Math.max(Math.abs(corner.dot(right))/Math.tan(hFov/2),Math.abs(corner.dot(up))/Math.tan(vFov/2)));}
+   camera.position.copy(target).add(direction.multiplyScalar(Math.max(controls.minDistance,distance*1.22+3)));ensureCameraRange(camera.position,target);camera.lookAt(target);controls.update();
+  };
+  const autoFrame=()=>{
+   if(!sweeping()&&latest.current.explode===0){
+    const destination=camera.clone();destination.position.copy(cameraMove?.toPosition??camera.position);
+    const fit=cameraAutoFit(destination,cameraMove?.toTarget??controls.target,bounds,framing);
+    if(fit)moveCamera(fit.position,fit.target,420,false);
+   }
+   framing=cameraFramingSnapshot(bounds,camera.aspect);
+  };
+  const cinematicCamera=new THREE.Vector3();let cameraRevision=0;
+  const resize=()=>{cameraRevision++;const w=node.clientWidth,h=node.clientHeight;renderer.setSize(w,h);camera.aspect=Math.max(.1,w/Math.max(h,1));camera.updateProjectionMatrix();if(sweeping()&&!userMoved){setCamera("perspective");camera.position.sub(controls.target).multiplyScalar(1.12).add(controls.target);cinematicCamera.copy(camera.position).sub(controls.target);}else if(initialized&&w&&h)autoFrame();};
+  const observer=new ResizeObserver(resize);observer.observe(node);resize();
+  const saved=savedCamera.current;
+  if(saved?.key===(props.modelKey??"model")){
+   // Declared dimensions change the scene's centered origin. Translate the camera
+   // equally so existing bricks stay in place on screen as the build grows.
+   const offset=new THREE.Vector3((saved.length-L)/2,0,(saved.width-W)/2);
+   camera.position.copy(saved.position).add(offset);controls.target.copy(saved.target).add(offset);userMoved=saved.userMoved;
+   framing=cameraFramingSnapshot(saved.framing.bounds,saved.framing.aspect);framing.bounds?.min.add(offset);framing.bounds?.max.add(offset);
+   if(saved.move)cameraMove={...saved.move,position:saved.move.position.clone().add(offset),target:saved.move.target.clone().add(offset),toPosition:saved.move.toPosition.clone().add(offset),toTarget:saved.move.toTarget.clone().add(offset)};
+   ensureCameraRange(cameraMove?.toPosition??camera.position,cameraMove?.toTarget??controls.target);controls.update();autoFrame();
+  }else{setCamera(latest.current.view);framing=cameraFramingSnapshot(bounds,camera.aspect);}
+  initialized=true;captureTracks();
+  const fitCamera=(view:string)=>{const position=camera.position.clone(),target=controls.target.clone();setCamera(view);const toPosition=camera.position.clone(),toTarget=controls.target.clone();camera.position.copy(position);controls.target.copy(target);camera.lookAt(target);moveCamera(toPosition,toTarget,520);};
+  const panCamera=(horizontal:number,vertical:number)=>{
+   const toPosition=(cameraMove?.toPosition??camera.position).clone(),toTarget=(cameraMove?.toTarget??controls.target).clone();
+   const offset=cameraPanOffset(camera,controls.target,horizontal,vertical);
+   moveCamera(toPosition.add(offset),toTarget.add(offset),160);
+  };
+  // Revisions dissolve changed bricks at their final position. Stock MSAA
+  // coverage avoids transparent-instance sorting; alpha hash is the fallback.
+  const gl=renderer.getContext(),coverage=Boolean(gl.getContextAttributes()?.antialias)&&gl.getParameter(gl.SAMPLES)>1;
+  const groups=new Map<string,{pieces:Piece[];arrival?:Arrival}>();
+  for(const p of props.pieces){
+   const entry=arrivalState.current.entries.get(brickIdentity(p));
+   const arrival=props.arrivals?.mode==="revise"&&entry?.mode==="revise"&&arrivalState.current.clock<arrivalEndTime(entry)&&!reducedMotion.matches?entry:undefined;
+   const k=`${p.part}:${p.color}:${p.rotated}:${p.face||""}:${arrival?arrival.at:"solid"}`;
+   const group=groups.get(k)||{pieces:[],arrival};group.pieces.push(p);groups.set(k,group);
+  }
+  const batches:{body:THREE.InstancedMesh;studs:THREE.InstancedMesh|null;hubs:THREE.InstancedMesh|null;pieces:Piece[];studded:[number,number][];arrival?:Arrival;materials:THREE.MeshStandardMaterial[]}[]=[],meshes:THREE.InstancedMesh[]=[];
+  for(const {pieces:list,arrival} of groups.values()){
+   const reveal={opacity:arrival?arrivalOpacity(arrival,arrivalState.current.clock,reducedMotion.matches):1,alphaToCoverage:Boolean(arrival)&&coverage,alphaHash:Boolean(arrival)&&!coverage};
+   const p=list[0],material=new THREE.MeshStandardMaterial({color:0xffffff,roughness:.3,metalness:0,...reveal}),materials=[material],studded=hasExactPartGeometry(p.part)?[]:studCells(p);
    const body=new THREE.InstancedMesh(pieceGeometry(p),material,list.length);body.castShadow=true;body.receiveShadow=true;body.userData.pieces=list;meshes.push(body);scene.add(body);
    let studs:THREE.InstancedMesh|null=null;if(studded.length){studs=new THREE.InstancedMesh(new THREE.CylinderGeometry(.30,.30,.18,12),material,list.length*studded.length);studs.castShadow=true;studs.receiveShadow=true;scene.add(studs);}
-   const hubShape=hubGeometry(p);let hubs:THREE.InstancedMesh|null=null;if(hubShape){hubs=new THREE.InstancedMesh(hubShape,new THREE.MeshStandardMaterial({color:0xa9b1b8,roughness:.5,metalness:.1}),list.length);scene.add(hubs);}
+   const hubShape=hubGeometry(p);let hubs:THREE.InstancedMesh|null=null;if(hubShape){const hubMaterial=new THREE.MeshStandardMaterial({color:0xa9b1b8,roughness:.5,metalness:.1,...reveal});materials.push(hubMaterial);hubs=new THREE.InstancedMesh(hubShape,hubMaterial,list.length);scene.add(hubs);}
    if(presentation||cinematic){body.frustumCulled=false;body.instanceMatrix.setUsage(THREE.DynamicDrawUsage);if(studs){studs.frustumCulled=false;studs.instanceMatrix.setUsage(THREE.DynamicDrawUsage);}if(hubs){hubs.frustumCulled=false;hubs.instanceMatrix.setUsage(THREE.DynamicDrawUsage);}}
-   batches.push({body,studs,hubs,pieces:list,studded});
+   batches.push({body,studs,hubs,pieces:list,studded,arrival,materials});
   }
   const temp=new THREE.Object3D(),studLocal=new THREE.Matrix4(),studWorld=new THREE.Matrix4(),baseColor=new THREE.Color(),dimColor=new THREE.Color("#c2cbd0");
   let previousAssemblyTime:number|undefined;
@@ -77,7 +148,7 @@ export default function Viewport(props:Props){
    const assemblyTime=time??state.assembly?.time()??1,animationOnly=time!==undefined,highlighted=new Set(state.highlightIds||[]);
    const sunTarget=state.light??.38;placeSun(sunTarget);
    const reusePoses=animationOnly&&cinematic&&!state.arrivals&&state.explode===0&&previousAssemblyTime!==undefined;
-   for(const batch of batches){let studIndex=0,matrixChanged=!animationOnly;batch.pieces.forEach((p,i)=>{
+   for(const batch of batches){if(batch.arrival){const opacity=arrivalOpacity(batch.arrival,arrivalState.current.clock,reducedMotion.matches);for(const material of batch.materials)material.opacity=opacity;}let studIndex=0,matrixChanged=!animationOnly;batch.pieces.forEach((p,i)=>{
     const visible=p.stage<=state.stage,key=`${p.part}:${p.color}`,selected=!state.selected||state.selected===key;
     const e=state.explode,y=p.y*.4,track=tracks.get(p.id)!;
     // Waiting and landed bricks have identical matrices; only active flights
@@ -94,33 +165,7 @@ export default function Viewport(props:Props){
    });batch.body.instanceMatrix.needsUpdate=matrixChanged;if(batch.hubs)batch.hubs.instanceMatrix.needsUpdate=matrixChanged;if(!animationOnly){if(batch.body.instanceColor)batch.body.instanceColor.needsUpdate=true;if(!presentation)batch.body.computeBoundingSphere();}if(batch.studs){batch.studs.instanceMatrix.needsUpdate=matrixChanged;if(!animationOnly){if(batch.studs.instanceColor)batch.studs.instanceColor.needsUpdate=true;if(!presentation)batch.studs.computeBoundingSphere();}}}
    previousAssemblyTime=cinematic&&!state.arrivals&&state.explode===0?assemblyTime:undefined;
   };
-  let cameraMove:CameraMove|null=null;
-  const setCamera=(view:string)=>{
-   const aspect=Math.max(.3,node.clientWidth/Math.max(1,node.clientHeight)),vFov=THREE.MathUtils.degToRad(35),hFov=2*Math.atan(Math.tan(vFov/2)*aspect);
-   const e=latest.current.explode,displayH=H+e*liftMax+4,spreadX=L/2+e*flightMax,spreadZ=W/2+e*backMax;
-   const target=new THREE.Vector3(0,displayH*.45,0);controls.target.copy(target);
-   const direction=(view==="front"?new THREE.Vector3(0,.10,1):view==="top"?new THREE.Vector3(0,1,.001):new THREE.Vector3(.8,.72,1)).normalize();
-   const right=new THREE.Vector3(0,1,0).cross(direction).normalize(),up=direction.clone().cross(right).normalize();
-   let distance=1;
-   for(const x of [-spreadX,spreadX])for(const y of [0,displayH])for(const z of [-spreadZ,spreadZ]){const corner=new THREE.Vector3(x,y,z).sub(target);distance=Math.max(distance,corner.dot(direction)+Math.max(Math.abs(corner.dot(right))/Math.tan(hFov/2),Math.abs(corner.dot(up))/Math.tan(vFov/2)));}
-   camera.position.copy(target).add(direction.multiplyScalar(distance*1.16+3));camera.lookAt(target);controls.update();
-  };
-  const cinematicCamera=new THREE.Vector3();let cameraRevision=0;
-  const resize=()=>{cameraRevision++;const w=node.clientWidth,h=node.clientHeight;renderer.setSize(w,h);camera.aspect=w/Math.max(h,1);camera.updateProjectionMatrix();if(sweeping()&&!userMoved){setCamera("perspective");camera.position.sub(controls.target).multiplyScalar(1.12).add(controls.target);cinematicCamera.copy(camera.position).sub(controls.target);}};
-  const observer=new ResizeObserver(resize);observer.observe(node);resize();if(savedCamera.current?.key===(props.modelKey??"model")){camera.position.copy(savedCamera.current.position);controls.target.copy(savedCamera.current.target);controls.update();}else setCamera(latest.current.view);captureTracks();update(latest.current);
-  const moveCamera=(toPosition:THREE.Vector3,toTarget:THREE.Vector3,duration:number)=>{
-   userMoved=true;
-   if(reducedMotion.matches){cameraMove=null;camera.position.copy(toPosition);controls.target.copy(toTarget);camera.lookAt(toTarget);controls.update();return;}
-   cameraMove={position:camera.position.clone(),target:controls.target.clone(),toPosition,toTarget,start:performance.now(),duration};
-  };
-  const fitCamera=(view:string)=>{const position=camera.position.clone(),target=controls.target.clone();setCamera(view);const toPosition=camera.position.clone(),toTarget=controls.target.clone();camera.position.copy(position);controls.target.copy(target);camera.lookAt(target);moveCamera(toPosition,toTarget,520);};
-  const panCamera=(horizontal:number,vertical:number)=>{
-   // Repeated clicks accumulate at the destination, even during the short transition.
-   const toPosition=(cameraMove?.toPosition??camera.position).clone(),toTarget=(cameraMove?.toTarget??controls.target).clone();
-   const offset=cameraPanOffset(camera,controls.target,horizontal,vertical);
-   moveCamera(toPosition.add(offset),toTarget.add(offset),160);
-  };
-  api.current={update,camera:fitCamera,pan:panCamera};
+  update(latest.current);api.current={update,camera:fitCamera,pan:panCamera};
   const keyboard=(event:KeyboardEvent)=>{
    const direction=event.key==="ArrowUp"?[0,1]:event.key==="ArrowDown"?[0,-1]:event.key==="ArrowLeft"?[-1,0]:event.key==="ArrowRight"?[1,0]:null;
    if(direction){event.preventDefault();panCamera(direction[0],direction[1]);}else if(event.key==="Home"){event.preventDefault();fitCamera(latest.current.view);}
@@ -135,8 +180,8 @@ export default function Viewport(props:Props){
   let raf=0,lastTime=-1,lastCameraRevision=-1,lastFrame=performance.now();const axis=new THREE.Vector3(0,1,0);const animate=()=>{raf=requestAnimationFrame(animate);const now=performance.now(),delta=Math.min(.05,(now-lastFrame)/1000);lastFrame=now;if(inView&&node.clientWidth&&node.clientHeight&&!document.hidden&&!latest.current.suspended){if(latest.current.arrivals&&arrivalState.current.clock<=arrivalEnd){if(!latest.current.arrivals.paused)arrivalState.current.clock+=delta;update(latest.current,arrivalState.current.clock);}
 if(cameraMove&&advanceCameraMove(camera,controls.target,cameraMove,now,reducedMotion.matches))cameraMove=null;
 const time=latest.current.assembly?.time();if(time!==undefined&&(time!==lastTime||cameraRevision!==lastCameraRevision)){if(time<lastTime){captureTracks();previousAssemblyTime=undefined;}update(latest.current,time);if(sweeping()&&!userMoved&&cinematicCamera.lengthSq()>0){camera.position.copy(cinematicCamera).applyAxisAngle(axis,(Math.min(time/.88,1)-1)*.16).multiplyScalar(1-.035*Math.min(time/.88,1)).add(controls.target);camera.lookAt(controls.target);}lastTime=time;lastCameraRevision=cameraRevision;}controls.update();renderer.render(scene,camera);if(time!==undefined)latest.current.assembly?.onFrame?.(renderer.domElement,time);}};animate();
-  return()=>{savedCamera.current={key:props.modelKey??"model",position:camera.position.clone(),target:controls.target.clone()};api.current=null;cancelAnimationFrame(raf);observer.disconnect();themeWatch.disconnect();visibility.disconnect();controls.dispose();renderer.domElement.removeEventListener("keydown",keyboard);renderer.domElement.removeEventListener("pointerdown",down);renderer.domElement.removeEventListener("pointerup",pick);renderer.domElement.removeEventListener("webglcontextlost",lost);const materials=new Set<THREE.Material>();scene.traverse(obj=>{if(obj instanceof THREE.Mesh){obj.geometry.dispose();if(Array.isArray(obj.material))obj.material.forEach(m=>materials.add(m));else materials.add(obj.material);}});materials.forEach(m=>m.dispose());sun.shadow.map?.dispose();renderer.renderLists.dispose();};
- },[props.pieces,props.length,props.width,props.height,props.modelKey,props.arrivals?.epoch,geometryVersion]);
+  return()=>{savedCamera.current={key:props.modelKey??"model",position:camera.position.clone(),target:controls.target.clone(),length:L,width:W,framing:framing!,move:cameraMove,userMoved};api.current=null;cancelAnimationFrame(raf);observer.disconnect();themeWatch.disconnect();visibility.disconnect();controls.dispose();renderer.domElement.removeEventListener("keydown",keyboard);renderer.domElement.removeEventListener("pointerdown",down);renderer.domElement.removeEventListener("pointerup",pick);renderer.domElement.removeEventListener("webglcontextlost",lost);const materials=new Set<THREE.Material>();scene.traverse(obj=>{if(obj instanceof THREE.Mesh){obj.geometry.dispose();if(Array.isArray(obj.material))obj.material.forEach(m=>materials.add(m));else materials.add(obj.material);}});materials.forEach(m=>m.dispose());sun.shadow.map?.dispose();renderer.renderLists.dispose();};
+ },[props.pieces,props.length,props.width,props.height,props.modelKey,props.arrivals?.epoch,props.arrivals?.mode,geometryVersion]);
  useEffect(()=>{api.current?.update(props);},[props.explode,props.stage,props.selected,props.rotate,props.highlightIds,props.heat,props.light,touchActive]);
  useEffect(()=>{const old=previousFraming.current;previousFraming.current={view:props.view,reset:props.reset,explode:props.explode};if(old.view!==props.view||old.reset!==props.reset||old.explode!==props.explode)api.current?.camera(props.view);},[props.view,props.reset,props.explode]);
  return <div className={"canvas-host "+(props.editMode&&props.editMode!=="inspect"?"is-editing":"")} ref={host}>{!presentationProp&&!error&&geometryReady&&<>

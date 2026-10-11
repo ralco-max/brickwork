@@ -92,3 +92,46 @@ test('research uses real search provenance, retains selected image results and r
  raw={...raw,relations:[],image_urls:[]};search={type:'web_search_call',action:{type:'search'}};await assert.rejects(()=>m.researchSubject(brief.idea,'key','model',signal(),fetcher),/No usable source/);
  raw={};await assert.rejects(()=>m.researchSubject(brief.idea,'key','model',signal(),fetcher),/reference plan is incomplete/);
 });
+
+// These are provider fixtures: they verify the instructions, forwarded evidence,
+// and workflow gates without making a paid model request or forcing an identity
+// with a client-side Washington Monument special case.
+const monumentPlan=(location,status='confirmed',question='')=>({...sheet,kind:'monument',subject:`Washington Monument, ${location}`,summary:`The Washington Monument in ${location}.`,identity:{status,location,question},contextAdequate:status==='confirmed',included:['Monument'],excluded:[],relations:[],uncertainties:[],images:[],image_urls:[],sources:['https://official.example.test/monument'],proportions:'Tall narrow monument',silhouette:['Tall monument on a base'],layout:'The main approach faces +z.'});
+function monumentProvider(plans,requests){return async(_url,request)=>{requests.push(JSON.parse(request.body));const plan=plans[Math.min(requests.length-1,plans.length-1)];return Response.json({status:'completed',output:[{type:'web_search_call',action:{type:'search',query:plan.subject,sources:plan.sources.map(url=>({url}))}},{content:[{type:'output_text',text:JSON.stringify(plan)}]}]});};}
+
+test('an unqualified landmark uses a source-verified dominant interpretation and proceeds after one lookup',async()=>{
+ const requests=[],fetcher=monumentProvider([monumentPlan('Washington, DC')],requests),calls=[];
+ const result=await m.runDesignWorkflow({signal:signal(),lookup:async()=>{
+  const researched=await m.researchWithContext({},context=>m.researchSubject('the Washington Monument','key','model',signal(),fetcher,undefined,context),signal());
+  assert.equal(researched.passes,1);assert.equal(researched.needsClarification,false);assert.equal(researched.question,'');calls.push('research');return {sheet:researched.sheet};
+ },design:async ref=>{assert.equal(ref.sheet.identity.location,'Washington, DC');calls.push('design');return scene;},compile:async()=>({pieces:[]}),review:async()=>{calls.push('review');return {recognizable:true};}});
+ assert.deepEqual(calls,['research','design','review']);assert.equal(result.review.recognizable,true);assert.equal(requests.length,1);
+ const sent=requests[0],input=JSON.parse(sent.input[0].content[0].text);assert.equal(input.idea,'the Washington Monument');assert.equal(input.identityHint,'');assert.equal(sent.max_tool_calls,2);
+ assert.match(sent.instructions,/first search to verify the dominant conventional interpretation/);assert.match(sent.instructions,/A shared name alone is not genuine ambiguity/);assert.match(sent.instructions,/Washington Monument.*Washington, DC/);assert.match(sent.instructions,/Never identify a named place from memory alone/);
+ assert.doesNotMatch(sent.instructions,/Shared names, conflicting images, or multiple plausible sites mean ambiguous/);
+});
+
+test('explicit Baltimore wording, location hints, correction feedback and photos reach research unchanged',async()=>{
+ const secondPhoto='data:image/jpeg;base64,Yg==';
+ for(const {idea,context} of [
+  {idea:'the Washington Monument in Baltimore',context:{}},
+  {idea:'the Washington Monument',context:{identityHint:'Mount Vernon, Baltimore',reference:photo,photos:[secondPhoto]}},
+  {idea:'the Washington Monument',context:{feedback:'I mean the one in Baltimore, not the DC obelisk.',reference:photo}},
+ ]){
+  const requests=[],fetcher=monumentProvider([monumentPlan('Baltimore')],requests);
+  const result=await m.researchWithContext(context,c=>m.researchSubject(idea,'key','model',signal(),fetcher,undefined,c),signal());
+  assert.equal(requests.length,1);assert.equal(result.needsClarification,false);assert.equal(result.sheet.identity.location,'Baltimore');
+  const sent=requests[0],input=JSON.parse(sent.input[0].content[0].text);assert.equal(input.idea,idea);assert.equal(input.identityHint,context.identityHint||'');assert.equal(input.feedback,context.feedback||'');
+  assert.deepEqual(sent.input[0].content.filter(c=>c.type==='input_image').map(c=>c.image_url),m.collectReferencePhotos(context.reference,context.photos));
+  assert.match(sent.instructions,/Explicit location, a supplied source, identifiable photo details, or a correction take precedence/);
+ }
+});
+
+test('genuine conflicting landmark evidence still asks after bounded research and never reaches design',async()=>{
+ const requests=[],ambiguous=monumentPlan('','ambiguous','Your photos show two different monuments. Which one should this build follow?'),fetcher=monumentProvider([ambiguous,ambiguous],requests);let designed=false;
+ await assert.rejects(()=>m.runDesignWorkflow({signal:signal(),lookup:async()=>{
+  const result=await m.researchWithContext({reference:photo,feedback:'Match this photo'},c=>m.researchSubject('the Washington Monument','key','model',signal(),fetcher,undefined,c),signal());
+  assert.equal(result.passes,2);assert.equal(result.needsClarification,true);assert.match(result.question,/two different monuments/);throw Error(result.question);
+ },design:async()=>{designed=true;return scene;},compile:async()=>({pieces:[]}),review:async()=>({})}),/two different monuments/);
+ assert.equal(designed,false);assert.equal(requests.length,2);assert.match(requests[1].instructions,/earlier unnecessary namesake question does not require a user answer/);
+});
