@@ -23,7 +23,7 @@ export async function POST(request:Request){
  }catch{return Response.json({error:"Use a description of 3–2,000 characters, a JPEG reference under 1.5 MB and a valid previous design."},{status:400});}
  return eventResponse(request,async(signal,send)=>{
   send({type:"status",message:"Connecting to your builder…"});
-  const provider=budgetedProvider(requireBudgetDb(config.db),key,budget=>send({type:"budget",budget}),fetch,usage=>send({type:"usage",usage}));
+  const provider=budgetedProvider(requireBudgetDb(config.db),key,budget=>send({type:"budget",budget}),fetch,usage=>send({type:"usage",usage}),config.period);
   const chosen=input.brief?.quality?QUALITY_MODELS[input.brief.quality]:model;
   for await(const event of generateScene(input,key,chosen,signal,provider.fetch,provider.recordUsage))send(event);
  },{timeoutMs:input.brief?.quality&&input.brief.quality!=="standard"?420000:240000});

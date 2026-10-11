@@ -29,12 +29,12 @@ test('count before generation, enforce standard service, then release unused and
  const {db,sqlite}=budgetDb();t.after(()=>sqlite.close());const calls=[],events=[],usageEvents=[];
  const provider=budgetedProvider(db,key,b=>events.push(b),async(u,init)=>{calls.push([u,JSON.parse(init.body)]);return u.endsWith('/input_tokens')?Response.json({input_tokens:1000}):Response.json({ok:true});},u=>usageEvents.push(u));
  await provider.fetch(url,payload({service_tier:'priority',text:{format:{type:'json_schema',schema:{type:'object'}}}}));
- assert.equal(calls[0][0],url+'/input_tokens');assert.equal(calls[0][1].input,'A castle');assert.equal(calls[1][1].service_tier,'default');assert.ok(events[0].held>.38);
+ assert.equal(calls[0][0],url+'/input_tokens');assert.equal(calls[0][1].input,'A castle');assert.equal(calls[1][1].service_tier,'default');assert.ok(events[0].held>.32);
  await provider.recordUsage({input_tokens:1000,output_tokens:2000,input_tokens_details:{cached_tokens:400}});
- assert.deepEqual(events.at(-1),{limit:10,spent:.02528,held:0,remaining:9.97472});
- await provider.recordUsage({input_tokens:1000,output_tokens:2000});assert.equal((await budgetSnapshot(db,await keyFingerprint(key))).spent,.02528);
- assert.equal(usageEvents.length,1);assert.equal(usageEvents[0].cost,.02528);assert.equal(usageEvents[0].inputTokens,1000);
- assert.equal(tokenCost(272001,1000),272001*4000+1000*18000);
+ assert.deepEqual(events.at(-1),{limit:10,spent:.02124,held:0,remaining:9.97876});
+ await provider.recordUsage({input_tokens:1000,output_tokens:2000});assert.equal((await budgetSnapshot(db,await keyFingerprint(key))).spent,.02124);
+ assert.equal(usageEvents.length,1);assert.equal(usageEvents[0].cost,.02124);assert.equal(usageEvents[0].inputTokens,1000);
+ assert.equal(tokenCost(272001,1000),272001*4000+1000*15000);
 });
 
 test('budget exhaustion, missing storage and unknown prices never start a paid request',async t=>{
@@ -57,7 +57,7 @@ test('insufficient remaining funds block the request after counting and counting
 test('uncertain failures hold the ceiling; explicit authentication rejection releases it',async t=>{
  const {db,sqlite}=budgetDb();t.after(()=>sqlite.close());const hash=await keyFingerprint(key);
  const unknown=budgetedProvider(db,key,()=>{},async u=>{if(u.endsWith('/input_tokens'))return Response.json({input_tokens:100});throw new DOMException('Cancelled','AbortError');});
- await assert.rejects(unknown.fetch(url,payload()),{name:'AbortError'});const held=(await budgetSnapshot(db,hash)).held;assert.ok(held>.38);
+ await assert.rejects(unknown.fetch(url,payload()),{name:'AbortError'});const held=(await budgetSnapshot(db,hash)).held;assert.ok(held>.32);
  await unknown.recordUsage(null);await unknown.recordUsage({input_tokens:-1,output_tokens:2});assert.equal((await budgetSnapshot(db,hash)).held,held);
  const rejected=budgetedProvider(db,key,()=>{},async u=>u.endsWith('/input_tokens')?Response.json({input_tokens:100}):Response.json({error:{}},{status:401}));
  assert.equal((await rejected.fetch(url,payload())).status,401);assert.equal((await budgetSnapshot(db,hash)).held,held);
@@ -68,7 +68,7 @@ test('an incomplete streamed design records real usage before reporting its erro
  const events=[{type:'response.incomplete',response:{status:'incomplete',usage:{input_tokens:800,output_tokens:32000}}}];
  const provider=budgetedProvider(db,key,()=>{},async u=>u.endsWith('/input_tokens')?Response.json({input_tokens:800}):new Response(events.map(e=>'data: '+JSON.stringify(e)+'\n\n').join('')));
  await assert.rejects(async()=>{for await(const _ of generateScene({prompt:'castle',detail:'medium'},key,BUDGET_MODEL,signal(),provider.fetch,provider.recordUsage)){}},{code:'INCOMPLETE_RESPONSE'});
- assert.deepEqual(await budgetSnapshot(db,await keyFingerprint(key)),{limit:10,spent:.3856,held:0,remaining:9.6144});
+ assert.deepEqual(await budgetSnapshot(db,await keyFingerprint(key)),{limit:10,spent:.3216,held:0,remaining:9.6784});
 });
 
 test('generation, review and budget routes share the personal key ledger instead of the configured key',async t=>{
@@ -83,7 +83,8 @@ test('generation, review and budget routes share the personal key ledger instead
  const reviewed=await collect(await reviewPOST(req('review',{brief,images:Array(3).fill('data:image/jpeg;base64,YQ==')})));assert.deepEqual(reviewed.at(-1),{type:'complete',review});
  assert.equal(calls.length,4);assert.ok(calls.every(([,init])=>new Headers(init.headers).get('Authorization')===`Bearer ${key}`));
  const response=await budgetGET(new Request('https://brickwork.test/api/budget',{headers:{'x-brickwork-api-key':key}}));assert.match(response.headers.get('cache-control'),/no-store/);
- assert.equal((await response.json()).budget.spent,.038);   // the default brief designs on Sol ($4/$20 per million: 2.4¢) and reviews on Terra ($2/$12: 1.4¢)assert.equal((await budgetSnapshot(db,await keyFingerprint('fixture-server-key'))).spent,0);
+ assert.equal((await response.json()).budget.spent,.024);   // Sol 6.1 Low design and review.
+ assert.equal((await budgetSnapshot(db,await keyFingerprint('fixture-server-key'))).spent,0);
 });
 
 test('a web search lookup reserves per-call fees and content tokens, settles on the calls that ran, and other tools stay refused',async t=>{
@@ -93,7 +94,7 @@ test('a web search lookup reserves per-call fees and content tokens, settles on 
  assert.ok(events[0].held>.1&&events[0].held<.2,String(events[0].held));
  await provider.recordUsage({input_tokens:9000,output_tokens:800},{searchCalls:1});
  const spent=(await budgetSnapshot(db,await keyFingerprint(key))).spent;
- assert.ok(Math.abs(spent-(9000*2000+800*12000+10000000)/1e9)<1e-9,String(spent));
+ assert.ok(Math.abs(spent-(9000*2000+800*10000+10000000)/1e9)<1e-9,String(spent));
  const other=budgetedProvider(db,key,()=>{},async()=>Response.json({ok:true}));
  await assert.rejects(other.fetch(url,payload({tools:[{type:'function',name:'x'}]})),{code:'BUDGET_MODEL'});
 });
@@ -107,4 +108,26 @@ test('the best-quality model is priced at its own rates and unknown models are r
  assert.ok(Math.abs((await budgetSnapshot(db,await keyFingerprint(key))).spent-(1000*10000+1000*50000)/1e9)<1e-9);
  const other=budgetedProvider(db,key,()=>{},async()=>Response.json({ok:true}));
  await assert.rejects(other.fetch(url,payload({model:'gpt-4o'})),{code:'BUDGET_MODEL'});
+});
+
+test('studio reset preserves old ledger and personal-key budget; new period is stable',async t=>{
+ const {db,sqlite}=budgetDb();t.after(()=>{sqlite.close();delete testEnv.DB;delete testEnv.OPENAI_API_KEY;delete testEnv.STUDIO_BUDGET_PERIOD;});
+ testEnv.DB=db;testEnv.OPENAI_API_KEY='studio';testEnv.STUDIO_BUDGET_PERIOD='reset-2026-10-11';
+ await reserveBudget(db,await keyFingerprint('studio'),9e9);await reserveBudget(db,await keyFingerprint(key),2e9);
+ const snapshot=async headers=>(await (await budgetGET(new Request('https://brickwork.test/api/budget',{headers}))).json()).budget;
+ assert.equal((await snapshot()).remaining,10);assert.equal((await snapshot({'x-brickwork-api-key':key})).remaining,8);
+ await reserveBudget(db,await keyFingerprint('studio','reset-2026-10-11'),1e9);
+ assert.equal((await snapshot()).remaining,9);assert.equal((await snapshot()).remaining,9);
+ assert.equal((await budgetSnapshot(db,await keyFingerprint('studio'))).held,9);
+});
+test('Sol reasoning modes reach the provider and cache-write charges are included',async t=>{
+ for(const quality of ['sol_low','sol_medium']){
+  let payload;
+  await assert.rejects(async()=>{for await(const event of generateScene({prompt:'castle',detail:'medium',brief:{...defaultBrief('castle'),quality}},key,'gpt-6.1-sol',signal(),async(u,init)=>{payload=JSON.parse(init.body);return new Response('',{status:401});})){};});
+  assert.equal(payload.reasoning.effort,quality==='sol_low'?'low':'medium');
+ }
+ const {db,sqlite}=budgetDb();t.after(()=>sqlite.close());
+ const provider=budgetedProvider(db,key,()=>{},async u=>u.endsWith('/input_tokens')?Response.json({input_tokens:1000}):Response.json({}));
+ await provider.fetch(url,payload());await provider.recordUsage({input_tokens:1000,output_tokens:2000,input_tokens_details:{cached_tokens:400,cache_write_tokens:200}});
+ assert.equal((await budgetSnapshot(db,await keyFingerprint(key))).spent,.02134);
 });

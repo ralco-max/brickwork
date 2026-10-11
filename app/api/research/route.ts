@@ -13,7 +13,7 @@ export async function POST(request:Request){
  let input;try{input=schema.parse(await request.json());}catch{return Response.json({error:"Describe the idea in 3–2,000 characters."},{status:400});}
  let budget:BudgetSnapshot|null=null,usage:RequestUsage|undefined;
  try{
-  const provider=budgetedProvider(requireBudgetDb(config.db),key,b=>{budget=b;},fetch,u=>{usage=u;});
+  const provider=budgetedProvider(requireBudgetDb(config.db),key,b=>{budget=b;},fetch,u=>{usage=u;},config.period);
   const {thinking,searches,...sheet}=await researchSubject(input.idea,key,model,request.signal,provider.fetch,provider.recordUsage,input);
   return Response.json({sheet,thinking,searches,budget,usage},{headers:{"Cache-Control":"no-store"}});
  }catch(error){const failure=generationFailure(error);console.error(JSON.stringify({event:"brickwork_request_failed",route:"/api/research",code:failure.code,upstreamStatus:failure.upstreamStatus}));return Response.json({error:failure.message,code:failure.code,budget,usage},{status:503,headers:{"Cache-Control":"no-store"}});}

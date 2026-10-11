@@ -1,17 +1,16 @@
 import {GenerationError,upstreamError} from "./generation-errors";
 
 // USD nanodollars avoid floating-point rounding in the durable ledger.
-// Standard GPT-5.6 Terra rates, checked 2026-09-08. The model page lists only
-// the undated alias, so that alias is pinned here:
-// https://developers.openai.com/api/docs/models/gpt-5.6-terra
+// Default: GPT-6.1 Sol standard rates, verified 2026-10-11.
+// https://developers.openai.com/api/docs/models/gpt-6.1-sol
 export const BUDGET_NANOS=10_000_000_000;
-export const BUDGET_MODEL="gpt-5.6-terra";
+export const BUDGET_MODEL="gpt-6.1-sol";
 // Standard rates in nanodollars per token for every model the ledger will pay for.
 // GPT-6 Astra: https://developers.openai.com/api/docs/models/gpt-6-astra ($10 / $1 cached / $50).
-export const PRICED_MODELS:Record<string,{input:number;cached:number;output:number}>={"gpt-5.6-terra":{input:2000,cached:200,output:12000},"gpt-5.6-sol":{input:4000,cached:400,output:20000},"gpt-6-astra":{input:10000,cached:1000,output:50000}};
-export const QUALITY_MODELS={standard:"gpt-5.6-terra",better:"gpt-5.6-sol",best:"gpt-6-astra"} as const;
+export const PRICED_MODELS:Record<string,{input:number;cached:number;output:number;write?:number}>={"gpt-6.1-sol":{input:2000,cached:100,write:2500,output:10000},"gpt-5.6-terra":{input:2000,cached:200,output:12000},"gpt-5.6-sol":{input:4000,cached:400,output:20000},"gpt-6-astra":{input:10000,cached:1000,output:50000}};
+export const QUALITY_MODELS={sol_low:"gpt-6.1-sol",sol_medium:"gpt-6.1-sol",standard:"gpt-5.6-terra",better:"gpt-5.6-sol",best:"gpt-6-astra"} as const;
 export const BEST_MODEL=QUALITY_MODELS.best;
-const INPUT=2000,CACHED_INPUT=200,OUTPUT=12000;
+const INPUT=2000,CACHED_INPUT=100,OUTPUT=10000;
 // The built-in web search tool: $10 per 1,000 calls, and its page content is billed as input tokens.
 const SEARCH_CALL_NANOS=10_000_000,SEARCH_CONTENT_TOKENS=30000;
 type Statement={bind:(...values:(string|number|null)[])=>Statement;run:()=>Promise<{meta:{changes?:number}}>;
@@ -19,11 +18,11 @@ type Statement={bind:(...values:(string|number|null)[])=>Statement;run:()=>Promi
 export type BudgetDatabase={prepare:(sql:string)=>Statement};
 export type RequestUsage={cost:number;model:string;inputTokens:number;outputTokens:number;searchCalls:number};
 export type BudgetSnapshot={limit:number;spent:number;held:number;remaining:number};
-type Usage={input_tokens:number;output_tokens:number;input_tokens_details?:{cached_tokens?:number}};
+type Usage={input_tokens:number;output_tokens:number;input_tokens_details?:{cached_tokens?:number;cache_write_tokens?:number}};
 const unavailable=()=>new GenerationError("Spending checks are temporarily unavailable. Further AI requests are paused. Your draft is kept.","BUDGET_UNAVAILABLE");
 
-export async function keyFingerprint(key:string){
- const digest=await crypto.subtle.digest("SHA-256",new TextEncoder().encode(`brickwork-budget-v1:${key}`));
+export async function keyFingerprint(key:string,period="v1"){
+ const digest=await crypto.subtle.digest("SHA-256",new TextEncoder().encode(`brickwork-budget-${period}:${key}`));
  return Array.from(new Uint8Array(digest),b=>b.toString(16).padStart(2,"0")).join("");
 }
 export async function budgetSnapshot(db:BudgetDatabase,keyHash:string):Promise<BudgetSnapshot>{
@@ -33,10 +32,10 @@ export async function budgetSnapshot(db:BudgetDatabase,keyHash:string):Promise<B
   return {limit:10,spent:row.spent/1e9,held:row.held/1e9,remaining:Math.max(0,(BUDGET_NANOS-row.spent-row.held)/1e9)};
  }catch{throw unavailable();}
 }
-export function tokenCost(input:number,output:number,cached=0,rates={input:INPUT,cached:CACHED_INPUT,output:OUTPUT}){
- if(![input,output,cached].every(n=>Number.isSafeInteger(n)&&n>=0)||cached>input)throw unavailable();
+export function tokenCost(input:number,output:number,cached=0,rates:{input:number;cached:number;output:number;write?:number}={input:INPUT,cached:CACHED_INPUT,output:OUTPUT,write:2500},written=0){
+ if(![input,output,cached,written].every(n=>Number.isSafeInteger(n)&&n>=0)||cached+written>input)throw unavailable();
  const long=input>272000;
- return (input-cached)*rates.input*(long?2:1)+cached*rates.cached*(long?2:1)+output*rates.output*(long?1.5:1);
+ return ((input-cached-written)*rates.input+written*(rates.write??rates.input))*(long?2:1)+cached*rates.cached*(long?2:1)+output*rates.output*(long?1.5:1);
 }
 export async function reserveBudget(db:BudgetDatabase,keyHash:string,amount:number){
  if(!Number.isSafeInteger(amount)||amount<=0)throw unavailable();
@@ -58,10 +57,10 @@ async function settle(db:BudgetDatabase,id:string,amount:number){
 
 // Providers pass their exact outgoing payload through this guard. The client
 // cannot supply a balance, raise the limit, or bypass review/repair accounting.
-export function budgetedProvider(db:BudgetDatabase,key:string,notify:(budget:BudgetSnapshot)=>void,fetcher:typeof fetch=fetch,onUsage?:(usage:RequestUsage)=>void){
+export function budgetedProvider(db:BudgetDatabase,key:string,notify:(budget:BudgetSnapshot)=>void,fetcher:typeof fetch=fetch,onUsage?:(usage:RequestUsage)=>void,period="v1"){
  let recorded=false,requestModel="";
  let reservation:{id:string;input:number;maxOutput:number;searchCalls:number;rates:{input:number;cached:number;output:number}}|undefined;
- const fingerprint=keyFingerprint(key);
+ const fingerprint=keyFingerprint(key,period);
  const report=async()=>notify(await budgetSnapshot(db,await fingerprint));
  const guardedFetch:typeof fetch=async(url,init)=>{
   if(url!=="https://api.openai.com/v1/responses"||reservation)throw unavailable();
@@ -84,7 +83,7 @@ export function budgetedProvider(db:BudgetDatabase,key:string,notify:(budget:Bud
   const searchCalls=search?Math.min(5,Math.max(1,Number(body.max_tool_calls)||3)):0;
   const input=counted.input_tokens+new TextEncoder().encode(JSON.stringify(body.text??{})).length+4096+(search?SEARCH_CONTENT_TOKENS:0);
   if(input>1_000_000)throw new GenerationError("This design is too large to budget safely. Shorten the brief or lower the detail level.","BUDGET_INPUT");
-  const amount=tokenCost(input,body.max_output_tokens,0,rates)+searchCalls*SEARCH_CALL_NANOS,id=await reserveBudget(db,keyHash,amount);
+  const amount=tokenCost(input,body.max_output_tokens,0,rates,input)+searchCalls*SEARCH_CALL_NANOS,id=await reserveBudget(db,keyHash,amount);
   reservation={id,input,maxOutput:body.max_output_tokens,searchCalls,rates};
   await report();
   // Disconnects and streams that end without usage keep the entire reservation:
@@ -98,9 +97,9 @@ export function budgetedProvider(db:BudgetDatabase,key:string,notify:(budget:Bud
  };
  const recordUsage=async(value:unknown,extra:{searchCalls?:number}={})=>{
   if(recorded||!reservation||!value||typeof value!=="object")return;
-  const usage=value as Usage,cached=usage.input_tokens_details?.cached_tokens??0,calls=Math.max(0,Math.floor(extra.searchCalls||0));
+  const usage=value as Usage,cached=usage.input_tokens_details?.cached_tokens??0,written=usage.input_tokens_details?.cache_write_tokens??0,calls=Math.max(0,Math.floor(extra.searchCalls||0));
   let amount:number;
-  try{amount=tokenCost(usage.input_tokens,usage.output_tokens,cached,reservation.rates)+calls*SEARCH_CALL_NANOS;}catch{return;}
+  try{amount=tokenCost(usage.input_tokens,usage.output_tokens,cached,reservation.rates,written)+calls*SEARCH_CALL_NANOS;}catch{return;}
   // Unexpected provider accounting keeps a full budget hold and stops later
   // requests. Never silently undercount usage outside the reserved bounds.
   if(usage.input_tokens>reservation.input||usage.output_tokens>reservation.maxOutput||calls>reservation.searchCalls){

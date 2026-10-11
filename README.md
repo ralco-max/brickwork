@@ -192,3 +192,8 @@ An atomic conditional SQLite insert prevents parallel requests spending the same
 `node --test tests/reference-workflow.test.mjs tests/design-workflow.test.mjs tests/design-library.test.mjs tests/generation-resilience.test.mjs tests/ai-budget.test.mjs tests/slopes.test.mjs` exercises ordered call counts, over-budget drafts without automatic trimming, failed lookup/cancellation, source provenance, source-image forwarding, composition rejection, saved references and actual component-count parity. These are authored fixtures and mocked provider responses.
 
 Use `tests/accuracy-benchmarks.json` and `docs/accuracy-evaluation.md` for live comparisons against baseline commit `10079cb908663ddb601065f03ef6b874954baf27`. Live image-search compatibility, image URL availability, generated visual fidelity and real cost distributions require a connected API key; the automated tests do not establish those outcomes.
+
+## October 11 model and budget update
+Sol 6.1 Low is the default designer, with Medium available for complex designs and repairs. Existing designer choices and saved briefs remain supported. Research and review use Sol 6.1 Low. Standard Sol rates include cache reads and writes.
+
+STUDIO_BUDGET_PERIOD in wrangler.jsonc starts a fresh $10 pool for the configured studio key on deployment. This owner-requested reset is fixed at reset-2026-10-11; subsequent deployments do not reset it again. Old ledger rows are retained, and personal-key budgets retain their original period. This does not add OpenAI credits.

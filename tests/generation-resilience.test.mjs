@@ -57,7 +57,7 @@ test('review route forwards the saved reference and five model views and reports
  let sent; t.mock.method(globalThis,'fetch',async(url,init)=>{if(url.endsWith('/input_tokens'))return Response.json({input_tokens:100});sent=JSON.parse(init.body);return Response.json({status:'completed',usage:{input_tokens:100,output_tokens:100},output:[{content:[{type:'output_text',text:JSON.stringify(review)}]}]});});
  const payload={brief,sheet,reference:photo,images:Array(5).fill('data:image/jpeg;base64,YQ==')};
  const response=await reviewPOST(new Request('https://brickwork.test/api/review',{method:'POST',headers:{'x-brickwork-api-key':'fixture-key'},body:JSON.stringify(payload)}));
- const events=await collect(response.body);assert.deepEqual(events.find(e=>e.type==='complete').review,review);assert.equal(events.filter(e=>e.type==='usage').length,1);assert.equal(events.find(e=>e.type==='usage').usage.cost,.0014);
+ const events=await collect(response.body);assert.deepEqual(events.find(e=>e.type==='complete').review,review);assert.equal(events.filter(e=>e.type==='usage').length,1);assert.equal(events.find(e=>e.type==='usage').usage.cost,.0012);
  const content=sent.input[0].content;assert.deepEqual(JSON.parse(content[0].text).referenceSheet,sheet);assert.equal(content.filter(c=>c.type==='input_image').length,6);assert.equal(content.at(-1).image_url,photo);
  sent=undefined;const invalid=await reviewPOST(new Request('https://brickwork.test/api/review',{method:'POST',headers:{'x-brickwork-api-key':'fixture-key'},body:JSON.stringify({...payload,reference:'http://localhost/secret'})}));assert.equal(invalid.status,400);assert.equal(sent,undefined);
 });
