@@ -1,5 +1,6 @@
 "use client";
 import {useEffect,useRef,useState} from "react";
+import {ArrowDown,ArrowLeft,ArrowRight,ArrowUp,Scan} from "lucide-react";
 import * as THREE from "three";
 import {OrbitControls} from "three/addons/controls/OrbitControls.js";
 import {COLORS,Piece,studCells} from "@/lib/bridge";
@@ -7,14 +8,16 @@ import {pieceGeometry,hubGeometry} from "@/lib/brick-geometry";
 import {reconcileArrivals,arrivalPose,brickIdentity} from "@/lib/live-arrivals";
 import type {Arrival} from "@/lib/live-arrivals";
 import {assemblyPose,assemblyTracks,assemblyReach} from "@/lib/assembly";
+import {cameraPanOffset,advanceCameraMove,type CameraMove} from "@/lib/camera-navigation";
 
 export type BrickHit={piece:Piece;point:{x:number;y:number;z:number};normal:{x:number;y:number;z:number}};
 type Props={arrivals?:{epoch:number;paused:boolean};suspended?:boolean;light?:number;pieces:Piece[];length:number;width?:number;height?:number;modelKey?:string;editMode?:string;onBrick?:(hit:BrickHit)=>void;highlightIds?:number[];heat?:Map<number,number>;explode:number;stage:number;selected:string|null;view:string;reset:number;rotate:boolean;onPick:(key:string|null)=>void;assembly?:{time:()=>number;onFrame?:(canvas:HTMLCanvasElement,time:number)=>void;sweep?:boolean};presentation?:boolean;onCanvas?:(canvas:HTMLCanvasElement|null)=>void};
 export default function Viewport(props:Props){
- const host=useRef<HTMLDivElement>(null),api=useRef<{update:(p:Props)=>void;camera:(view:string)=>void}|null>(null),latest=useRef(props);latest.current=props;const savedCamera=useRef<{key:string;position:THREE.Vector3;target:THREE.Vector3}|null>(null);
+ const host=useRef<HTMLDivElement>(null),api=useRef<{update:(p:Props)=>void;camera:(view:string)=>void;pan:(horizontal:number,vertical:number)=>void}|null>(null),latest=useRef(props);latest.current=props;const savedCamera=useRef<{key:string;position:THREE.Vector3;target:THREE.Vector3}|null>(null);
  const rendererRef=useRef<THREE.WebGLRenderer|null>(null);
+ const previousFraming=useRef({view:props.view,reset:props.reset,explode:props.explode});
  const arrivalState=useRef({epoch:-1,clock:0,entries:new Map<string,Arrival>()});
- const [error,setError]=useState(false),[touchActive,setTouchActive]=useState(false);const presentationProp=Boolean(props.presentation)||Boolean(props.arrivals);const touchEnabled=useRef(touchActive);touchEnabled.current=touchActive;
+ const [error,setError]=useState(false),[touchActive,setTouchActive]=useState(false);const presentationProp=Boolean(props.presentation);const touchEnabled=useRef(touchActive);touchEnabled.current=touchActive;
  useEffect(()=>()=>{latest.current.onCanvas?.(null);const renderer=rendererRef.current;rendererRef.current=null;renderer?.dispose();renderer?.domElement.remove();},[]);
  useEffect(()=>{
   if(!host.current)return;const node=host.current;let renderer:THREE.WebGLRenderer;
@@ -27,9 +30,9 @@ export default function Viewport(props:Props){
   const themeColor=(name:string,fallback:string)=>new THREE.Color(getComputedStyle(document.documentElement).getPropertyValue(name).trim()||fallback);
   const applyTheme=()=>{renderer.setClearColor(themeColor(presentation?"--stage-bg":"--canvas-bg",presentation?"#ffffff":"#eef2f4"),presentation?1:0);if(scene.fog instanceof THREE.FogExp2)scene.fog.color.copy(themeColor("--stage-bg","#ffffff"));hemi.groundColor.copy(themeColor("--stage-ground","#8794a2"));};
   setError(false);renderer.setPixelRatio(Math.min(window.devicePixelRatio,coarse?1.5:2));renderer.shadowMap.enabled=false;renderer.outputColorSpace=THREE.SRGBColorSpace;if(renderer.domElement.parentElement!==node){node.appendChild(renderer.domElement);latest.current.onCanvas?.(renderer.domElement);}
-  renderer.domElement.setAttribute("aria-label","Interactive 3D brick model. Drag to rotate; pinch or scroll to zoom. Select a brick to inspect its part.");renderer.domElement.setAttribute("role","img");
+  renderer.domElement.setAttribute("aria-label","Interactive 3D brick model. Drag to orbit; right-drag or two-finger drag to pan; pinch or scroll to zoom. Arrow keys move the view; Home fits the model.");renderer.domElement.setAttribute("role","img");renderer.domElement.tabIndex=props.presentation?-1:0;
   const scene=new THREE.Scene(),camera=new THREE.PerspectiveCamera(35,1,.1,1500),L=props.length,W=props.width??16,H=(props.height??43)*.4,centerX=L/2,centerZ=W/2;
-  const controls=new OrbitControls(camera,renderer.domElement);controls.enabled=true;controls.enableDamping=true;controls.addEventListener("start",()=>{userMoved=true;});controls.dampingFactor=.07;controls.minDistance=18;controls.maxDistance=Math.max(L,W,H)*6;controls.maxPolarAngle=Math.PI*.49;controls.target.set(0,H*.44,0);controls.autoRotateSpeed=.6;
+  const controls=new OrbitControls(camera,renderer.domElement);controls.enabled=true;controls.enableDamping=true;controls.enablePan=true;controls.screenSpacePanning=true;controls.touches.TWO=THREE.TOUCH.DOLLY_PAN;controls.addEventListener("start",()=>{userMoved=true;cameraMove=null;});controls.dampingFactor=.07;controls.minDistance=18;controls.maxDistance=Math.max(L,W,H)*6;controls.maxPolarAngle=Math.PI*.49;controls.target.set(0,H*.44,0);controls.autoRotateSpeed=.6;
   const hemi=new THREE.HemisphereLight(0xffffff,0x8794a2,2.8);scene.add(hemi);const sun=new THREE.DirectionalLight(0xfff6e6,3.3);sun.position.set(-20,80,50);
   // The key light sits on an arc over the model, low on the left at 0, overhead at 0.5, low on
   // the right at 1, warming slightly as it drops. Keep this light steady during
@@ -82,7 +85,7 @@ export default function Viewport(props:Props){
    });batch.body.instanceMatrix.needsUpdate=matrixChanged;if(batch.hubs)batch.hubs.instanceMatrix.needsUpdate=matrixChanged;if(!animationOnly){if(batch.body.instanceColor)batch.body.instanceColor.needsUpdate=true;if(!presentation)batch.body.computeBoundingSphere();}if(batch.studs){batch.studs.instanceMatrix.needsUpdate=matrixChanged;if(!animationOnly){if(batch.studs.instanceColor)batch.studs.instanceColor.needsUpdate=true;if(!presentation)batch.studs.computeBoundingSphere();}}}
    previousAssemblyTime=cinematic&&!state.arrivals&&state.explode===0?assemblyTime:undefined;
   };
-  let cameraMove:{position:THREE.Vector3;target:THREE.Vector3;toPosition:THREE.Vector3;toTarget:THREE.Vector3;start:number}|null=null;
+  let cameraMove:CameraMove|null=null;
   const setCamera=(view:string)=>{
    const aspect=Math.max(.3,node.clientWidth/Math.max(1,node.clientHeight)),vFov=THREE.MathUtils.degToRad(35),hFov=2*Math.atan(Math.tan(vFov/2)*aspect);
    const e=latest.current.explode,displayH=H+e*liftMax+4,spreadX=L/2+e*flightMax,spreadZ=W/2+e*backMax;
@@ -95,19 +98,48 @@ export default function Viewport(props:Props){
   };
   const cinematicCamera=new THREE.Vector3();let cameraRevision=0;
   const resize=()=>{cameraRevision++;const w=node.clientWidth,h=node.clientHeight;renderer.setSize(w,h);camera.aspect=w/Math.max(h,1);camera.updateProjectionMatrix();if(sweeping()&&!userMoved){setCamera("perspective");camera.position.sub(controls.target).multiplyScalar(1.12).add(controls.target);cinematicCamera.copy(camera.position).sub(controls.target);}};
-  const observer=new ResizeObserver(resize);observer.observe(node);resize();if(savedCamera.current?.key===(props.modelKey??"model")){camera.position.copy(savedCamera.current.position);controls.target.copy(savedCamera.current.target);controls.update();}else setCamera(latest.current.view);update(latest.current);api.current={update,camera:(view)=>{if(reducedMotion.matches){cameraMove=null;setCamera(view);return;}const position=camera.position.clone(),target=controls.target.clone();setCamera(view);cameraMove={position,target,toPosition:camera.position.clone(),toTarget:controls.target.clone(),start:performance.now()};camera.position.copy(position);controls.target.copy(target);camera.lookAt(target);}};
+  const observer=new ResizeObserver(resize);observer.observe(node);resize();if(savedCamera.current?.key===(props.modelKey??"model")){camera.position.copy(savedCamera.current.position);controls.target.copy(savedCamera.current.target);controls.update();}else setCamera(latest.current.view);update(latest.current);
+  const moveCamera=(toPosition:THREE.Vector3,toTarget:THREE.Vector3,duration:number)=>{
+   userMoved=true;
+   if(reducedMotion.matches){cameraMove=null;camera.position.copy(toPosition);controls.target.copy(toTarget);camera.lookAt(toTarget);controls.update();return;}
+   cameraMove={position:camera.position.clone(),target:controls.target.clone(),toPosition,toTarget,start:performance.now(),duration};
+  };
+  const fitCamera=(view:string)=>{const position=camera.position.clone(),target=controls.target.clone();setCamera(view);const toPosition=camera.position.clone(),toTarget=controls.target.clone();camera.position.copy(position);controls.target.copy(target);camera.lookAt(target);moveCamera(toPosition,toTarget,520);};
+  const panCamera=(horizontal:number,vertical:number)=>{
+   // Repeated clicks accumulate at the destination, even during the short transition.
+   const toPosition=(cameraMove?.toPosition??camera.position).clone(),toTarget=(cameraMove?.toTarget??controls.target).clone();
+   const offset=cameraPanOffset(camera,controls.target,horizontal,vertical);
+   moveCamera(toPosition.add(offset),toTarget.add(offset),160);
+  };
+  api.current={update,camera:fitCamera,pan:panCamera};
+  const keyboard=(event:KeyboardEvent)=>{
+   const direction=event.key==="ArrowUp"?[0,1]:event.key==="ArrowDown"?[0,-1]:event.key==="ArrowLeft"?[-1,0]:event.key==="ArrowRight"?[1,0]:null;
+   if(direction){event.preventDefault();panCamera(direction[0],direction[1]);}else if(event.key==="Home"){event.preventDefault();fitCamera(latest.current.view);}
+  };
+  if(!props.presentation)renderer.domElement.addEventListener("keydown",keyboard);
   const ray=new THREE.Raycaster(),pointer=new THREE.Vector2();let downX=0,downY=0;
   const down=(e:PointerEvent)=>{cameraMove=null;downX=e.clientX;downY=e.clientY;};
-  const pick=(e:PointerEvent)=>{if((coarse&&!touchEnabled.current)||Math.hypot(e.clientX-downX,e.clientY-downY)>5)return;const rect=node.getBoundingClientRect();pointer.set((e.clientX-rect.left)/rect.width*2-1,-(e.clientY-rect.top)/rect.height*2+1);ray.setFromCamera(pointer,camera);const hit=ray.intersectObjects(meshes)[0];if(hit&&hit.instanceId!==undefined){const p=hit.object.userData.pieces[hit.instanceId] as Piece;if(latest.current.editMode&&latest.current.editMode!=="inspect"&&latest.current.onBrick){const n=hit.face?.normal??new THREE.Vector3(0,1,0);latest.current.onBrick({piece:p,point:{x:hit.point.x+centerX,y:hit.point.y/.4,z:hit.point.z+centerZ},normal:{x:n.x,y:n.y,z:n.z}});return;}const key=`${p.part}:${p.color}`;latest.current.onPick(latest.current.selected===key?null:key);}else latest.current.onPick(null);};
+  const pick=(e:PointerEvent)=>{if(e.button!==0||(coarse&&!touchEnabled.current)||Math.hypot(e.clientX-downX,e.clientY-downY)>5)return;const rect=node.getBoundingClientRect();pointer.set((e.clientX-rect.left)/rect.width*2-1,-(e.clientY-rect.top)/rect.height*2+1);ray.setFromCamera(pointer,camera);const hit=ray.intersectObjects(meshes)[0];if(hit&&hit.instanceId!==undefined){const p=hit.object.userData.pieces[hit.instanceId] as Piece;if(latest.current.editMode&&latest.current.editMode!=="inspect"&&latest.current.onBrick){const n=hit.face?.normal??new THREE.Vector3(0,1,0);latest.current.onBrick({piece:p,point:{x:hit.point.x+centerX,y:hit.point.y/.4,z:hit.point.z+centerZ},normal:{x:n.x,y:n.y,z:n.z}});return;}const key=`${p.part}:${p.color}`;latest.current.onPick(latest.current.selected===key?null:key);}else latest.current.onPick(null);};
   renderer.domElement.addEventListener("pointerdown",down);renderer.domElement.addEventListener("pointerup",pick);
   const lost=(e:Event)=>{e.preventDefault();latest.current.onCanvas?.(null);setError(true);};renderer.domElement.addEventListener("webglcontextlost",lost);
   let inView=true;const visibility=new IntersectionObserver(entries=>{inView=entries[0]?.isIntersecting??true;});visibility.observe(node);
   let raf=0,lastTime=-1,lastCameraRevision=-1,lastFrame=performance.now();const axis=new THREE.Vector3(0,1,0);const animate=()=>{raf=requestAnimationFrame(animate);const now=performance.now(),delta=Math.min(.05,(now-lastFrame)/1000);lastFrame=now;if(inView&&node.clientWidth&&node.clientHeight&&!document.hidden&&!latest.current.suspended){if(latest.current.arrivals&&arrivalState.current.clock<=arrivalEnd){if(!latest.current.arrivals.paused)arrivalState.current.clock+=delta;update(latest.current,arrivalState.current.clock);}
-if(cameraMove){const u=Math.min(1,(now-cameraMove.start)/520),eased=1-Math.pow(1-u,3);camera.position.lerpVectors(cameraMove.position,cameraMove.toPosition,eased);controls.target.lerpVectors(cameraMove.target,cameraMove.toTarget,eased);camera.lookAt(controls.target);if(u===1)cameraMove=null;}
+if(cameraMove&&advanceCameraMove(camera,controls.target,cameraMove,now,reducedMotion.matches))cameraMove=null;
 const time=latest.current.assembly?.time();if(time!==undefined&&(time!==lastTime||cameraRevision!==lastCameraRevision)){update(latest.current,time);if(sweeping()&&!userMoved&&cinematicCamera.lengthSq()>0){camera.position.copy(cinematicCamera).applyAxisAngle(axis,(Math.min(time/.88,1)-1)*.16).multiplyScalar(1-.035*Math.min(time/.88,1)).add(controls.target);camera.lookAt(controls.target);}lastTime=time;lastCameraRevision=cameraRevision;}controls.update();renderer.render(scene,camera);if(time!==undefined)latest.current.assembly?.onFrame?.(renderer.domElement,time);}};animate();
-  return()=>{savedCamera.current={key:props.modelKey??"model",position:camera.position.clone(),target:controls.target.clone()};api.current=null;cancelAnimationFrame(raf);observer.disconnect();themeWatch.disconnect();visibility.disconnect();controls.dispose();renderer.domElement.removeEventListener("pointerdown",down);renderer.domElement.removeEventListener("pointerup",pick);renderer.domElement.removeEventListener("webglcontextlost",lost);const materials=new Set<THREE.Material>();scene.traverse(obj=>{if(obj instanceof THREE.Mesh){obj.geometry.dispose();if(Array.isArray(obj.material))obj.material.forEach(m=>materials.add(m));else materials.add(obj.material);}});materials.forEach(m=>m.dispose());sun.shadow.map?.dispose();renderer.renderLists.dispose();};
+  return()=>{savedCamera.current={key:props.modelKey??"model",position:camera.position.clone(),target:controls.target.clone()};api.current=null;cancelAnimationFrame(raf);observer.disconnect();themeWatch.disconnect();visibility.disconnect();controls.dispose();renderer.domElement.removeEventListener("keydown",keyboard);renderer.domElement.removeEventListener("pointerdown",down);renderer.domElement.removeEventListener("pointerup",pick);renderer.domElement.removeEventListener("webglcontextlost",lost);const materials=new Set<THREE.Material>();scene.traverse(obj=>{if(obj instanceof THREE.Mesh){obj.geometry.dispose();if(Array.isArray(obj.material))obj.material.forEach(m=>materials.add(m));else materials.add(obj.material);}});materials.forEach(m=>m.dispose());sun.shadow.map?.dispose();renderer.renderLists.dispose();};
  },[props.pieces,props.length,props.width,props.height,props.modelKey,props.arrivals?.epoch]);
  useEffect(()=>{api.current?.update(props);},[props.explode,props.stage,props.selected,props.rotate,props.highlightIds,props.heat,props.light,touchActive]);
- useEffect(()=>{api.current?.camera(props.view);},[props.view,props.reset,props.explode]);
- return <div className={"canvas-host "+(props.editMode&&props.editMode!=="inspect"?"is-editing":"")} ref={host}>{!presentationProp&&!error&&<button className="touch-model-toggle" aria-pressed={touchActive} onClick={()=>setTouchActive(v=>!v)}>{touchActive?"Done · scroll page":"Touch to rotate or edit"}</button>}{error&&<div className="canvas-error"><strong>3D preview is unavailable in this browser.</strong><p>The parts audit and exports still work. Try opening the studio in Safari or Chrome with WebGL enabled.</p></div>}</div>;
+ useEffect(()=>{const old=previousFraming.current;previousFraming.current={view:props.view,reset:props.reset,explode:props.explode};if(old.view!==props.view||old.reset!==props.reset||old.explode!==props.explode)api.current?.camera(props.view);},[props.view,props.reset,props.explode]);
+ return <div className={"canvas-host "+(props.editMode&&props.editMode!=="inspect"?"is-editing":"")} ref={host}>{!presentationProp&&!error&&<>
+  <div className="camera-navigation" role="group" aria-label="Move the camera">
+   <span>Move view</span><div>
+    <button type="button" title="Move view left" aria-label="Move view left" onClick={()=>api.current?.pan(-1,0)}><ArrowLeft size={18}/></button>
+    <button type="button" title="Move view up" aria-label="Move view up" onClick={()=>api.current?.pan(0,1)}><ArrowUp size={18}/></button>
+    <button type="button" title="Move view down" aria-label="Move view down" onClick={()=>api.current?.pan(0,-1)}><ArrowDown size={18}/></button>
+    <button type="button" title="Move view right" aria-label="Move view right" onClick={()=>api.current?.pan(1,0)}><ArrowRight size={18}/></button>
+    <button type="button" className="camera-fit" title="Fit the whole model in view" aria-label="Fit the whole model in view" onClick={()=>api.current?.camera(latest.current.view)}><Scan size={18}/><span>Fit</span></button>
+   </div><small>Right-drag to pan · Scroll to zoom</small>
+  </div>
+  <button type="button" className="touch-model-toggle" aria-pressed={touchActive} onClick={()=>setTouchActive(v=>!v)}>{touchActive?"Done · scroll page":"Touch to orbit · 2 fingers to move"}</button>
+ </>}{error&&<div className="canvas-error"><strong>3D preview is unavailable in this browser.</strong><p>The parts audit and exports still work. Try opening the studio in Safari or Chrome with WebGL enabled.</p></div>}</div>;
 }

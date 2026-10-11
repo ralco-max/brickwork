@@ -3,8 +3,8 @@ import test from 'node:test';
 import {build} from 'esbuild';
 import {budgetDb} from './helpers/budget-db.mjs';
 
-const bundle=await build({stdin:{contents:'export {env as testEnv} from "cloudflare:workers";export * from "./lib/server-events";export * from "./lib/generation-errors";export * from "./lib/generation-stream";export * from "./lib/generation-provider";export * from "./lib/generation-recovery";export * from "./lib/generated-scene";export * from "./lib/assembly";export {defaultBrief} from "./lib/design-project";export {foundationScene} from "./lib/live-arrivals";export {POST as reviewPOST} from "./app/api/review/route";',resolveDir:process.cwd(),loader:'ts'},bundle:true,platform:'node',format:'esm',write:false,plugins:[{name:'fixture-env',setup(b){b.onResolve({filter:/^cloudflare:workers$/},()=>({path:'env',namespace:'fixture'}));b.onLoad({filter:/.*/,namespace:'fixture'},()=>({contents:'export const env={};',loader:'js'}));}}]});
-const {testEnv,eventResponse,GenerationError,upstreamError,readEvents,generateScene,canKeepPartial,continuationPrompt,compileScene,defaultBrief,foundationScene,LandingAssemblyClock,reviewPOST,compactScene}=await import('data:text/javascript;base64,'+Buffer.from(bundle.outputFiles[0].text).toString('base64'));
+const bundle=await build({stdin:{contents:'export {env as testEnv} from "cloudflare:workers";export * from "./lib/server-events";export * from "./lib/generation-errors";export * from "./lib/generation-stream";export * from "./lib/generation-provider";export * from "./lib/generation-recovery";export * from "./lib/generated-scene";export * from "./lib/assembly";export {defaultBrief} from "./lib/design-project";export {foundationScene} from "./lib/live-arrivals";export {POST as reviewPOST} from "./app/api/review/route";export {POST as generatePOST} from "./app/api/generate/route";',resolveDir:process.cwd(),loader:'ts'},bundle:true,platform:'node',format:'esm',write:false,plugins:[{name:'fixture-env',setup(b){b.onResolve({filter:/^cloudflare:workers$/},()=>({path:'env',namespace:'fixture'}));b.onLoad({filter:/.*/,namespace:'fixture'},()=>({contents:'export const env={};',loader:'js'}));}}]});
+const {testEnv,eventResponse,GenerationError,upstreamError,readEvents,generateScene,canKeepPartial,continuationPrompt,compileScene,defaultBrief,foundationScene,LandingAssemblyClock,reviewPOST,generatePOST,compactScene}=await import('data:text/javascript;base64,'+Buffer.from(bundle.outputFiles[0].text).toString('base64'));
 const request=()=>new Request('https://brickwork.test/api/generate',{headers:{'cf-ray':'fixture-ray'}});
 const collect=async stream=>{const items=[];for await(const item of readEvents(stream))items.push(item);return items;};
 
@@ -55,11 +55,46 @@ test('review route forwards the saved reference and five model views and reports
  const brief=defaultBrief('Dulles terminal'),sheet={searchable:true,kind:'building',subject:'Dulles terminal',summary:'Terminal only',length_m:null,width_m:null,height_m:null,openness:null,proportions:'',colors:[],silhouette:[],distinctive:[],sources:[],included:['Terminal'],excluded:['Runways'],relations:[]},photo='data:image/jpeg;base64,Yg==';
  const review={composition:{status:'matches',evidence:'No runway in the overhead view.'},summary:'Terminal visible',recognizable:true,features:[],improvements:[],revision:{status:'not_requested',evidence:''}};
  let sent; t.mock.method(globalThis,'fetch',async(url,init)=>{if(url.endsWith('/input_tokens'))return Response.json({input_tokens:100});sent=JSON.parse(init.body);return Response.json({status:'completed',usage:{input_tokens:100,output_tokens:100},output:[{content:[{type:'output_text',text:JSON.stringify(review)}]}]});});
- const payload={brief,sheet,reference:photo,images:Array(5).fill('data:image/jpeg;base64,YQ==')};
+ const extra=['data:image/jpeg;base64,Yw==','data:image/jpeg;base64,ZA=='];const payload={brief,sheet,reference:photo,photos:extra,images:Array(5).fill('data:image/jpeg;base64,YQ==')};
  const response=await reviewPOST(new Request('https://brickwork.test/api/review',{method:'POST',headers:{'x-brickwork-api-key':'fixture-key'},body:JSON.stringify(payload)}));
  const events=await collect(response.body);assert.deepEqual(events.find(e=>e.type==='complete').review,review);assert.equal(events.filter(e=>e.type==='usage').length,1);assert.equal(events.find(e=>e.type==='usage').usage.cost,.0012);
- const content=sent.input[0].content;assert.deepEqual(JSON.parse(content[0].text).referenceSheet,sheet);assert.equal(content.filter(c=>c.type==='input_image').length,6);assert.equal(content.at(-1).image_url,photo);
+ const content=sent.input[0].content;assert.deepEqual(JSON.parse(content[0].text).referenceSheet,sheet);assert.equal(content.filter(c=>c.type==='input_image').length,8);assert.deepEqual(content.filter(c=>c.type==='input_image').slice(-3).map(c=>c.image_url),[photo,...extra]);
  sent=undefined;const invalid=await reviewPOST(new Request('https://brickwork.test/api/review',{method:'POST',headers:{'x-brickwork-api-key':'fixture-key'},body:JSON.stringify({...payload,reference:'http://localhost/secret'})}));assert.equal(invalid.status,400);assert.equal(sent,undefined);
+});
+
+test('generation sends all user photo angles with feedback while keeping source and model evidence distinct',async()=>{
+ const brief=defaultBrief('A tower'),scene=foundationScene(brief),photo='data:image/jpeg;base64,YQ==',additional='data:image/jpeg;base64,Yg==';let sent;
+ const frames=[{type:'response.output_text.delta',delta:JSON.stringify(compactScene(scene))},{type:'response.completed',response:{status:'completed'}}];
+ const fetcher=async(_url,init)=>{sent=JSON.parse(init.body);return new Response(frames.map(e=>'data: '+JSON.stringify(e)+'\n\n').join(''));};
+ for await(const _ of generateScene({prompt:'Match the roof in the new angle',detail:'medium',brief,reference:photo,photos:[additional,photo]},'fixture-key','fixture-model',new AbortController().signal,fetcher)){}
+ const content=sent.input[0].content,meta=JSON.parse(content[0].text);
+ assert.equal(meta.idea,'Match the roof in the new angle');assert.equal(meta.referencePhotoCount,2);
+ assert.deepEqual(content.filter(c=>c.type==='input_image').map(c=>c.image_url),[photo,additional]);
+ assert.match(content[1].text,/original/);assert.match(content[3].text,/additional evidence/);assert.match(sent.instructions,/photos added during refinement/);
+});
+
+test('generation route accepts four distinct reference photos and forwards each through its budgeted request',async t=>{
+ const {db,sqlite}=budgetDb();testEnv.DB=db;t.after(()=>{sqlite.close();delete testEnv.DB;});
+ const brief=defaultBrief('A tower'),scene=foundationScene(brief),photos=['YQ==','Yg==','Yw==','ZA=='].map(s=>'data:image/jpeg;base64,'+s);let sent;
+ const frames=[{type:'response.output_text.delta',delta:JSON.stringify(compactScene(scene))},{type:'response.completed',response:{status:'completed',usage:{input_tokens:100,output_tokens:100}}}];
+ t.mock.method(globalThis,'fetch',async(url,init)=>{if(url.endsWith('/input_tokens'))return Response.json({input_tokens:100});sent=JSON.parse(init.body);return new Response(frames.map(e=>'data: '+JSON.stringify(e)+'\n\n').join(''));});
+ const response=await generatePOST(new Request('https://brickwork.test/api/generate',{method:'POST',headers:{'x-brickwork-api-key':'fixture-key'},body:JSON.stringify({brief,prompt:'Match the new photos',detail:'medium',reference:photos[0],photos:photos.slice(1),research:{searchable:false,kind:'object',subject:'Photo tower',summary:'A generic photo-based tower',length_m:null,width_m:null,height_m:null,proportions:'Tall',colors:[],silhouette:[],distinctive:[],sources:[],identity:{status:'generic',location:'',question:''},contextAdequate:false}})}));
+ const events=await collect(response.body);assert.ok(events.some(e=>e.type==='complete'));assert.equal(events.filter(e=>e.type==='usage').length,1);
+ assert.deepEqual(sent.input[0].content.filter(c=>c.type==='input_image').map(c=>c.image_url),photos);
+});
+
+test('generation and review reject too many, malformed, oversized or unresolved references before paid requests',async t=>{
+ let requests=0;t.mock.method(globalThis,'fetch',async()=>{requests++;throw Error('Should not request paid work');});
+ const brief=defaultBrief('A tower'),photos=['YQ==','Yg==','Yw==','ZA==','ZQ=='].map(s=>'data:image/jpeg;base64,'+s);
+ const unresolved={searchable:true,kind:'building',subject:'Unidentified tower',summary:'More detail needed',length_m:null,width_m:null,height_m:null,proportions:'',colors:[],silhouette:[],distinctive:[],sources:[],identity:{status:'ambiguous',location:'',question:'Which city?'},contextAdequate:false};
+ for(const [handler,path,base,sheetField,limit] of [[generatePOST,'generate',{prompt:'A tower',detail:'medium',brief},'research',7000000],[reviewPOST,'review',{brief,images:Array(5).fill(photos[0])},'sheet',10000000]]){
+  for(const change of [{reference:photos[0],photos:photos.slice(1)},{photos:['https://example.com/photo.jpg']},{photos:['data:image/jpeg;base64,'+'A'.repeat(1500000)]},{[sheetField]:unresolved}]){
+   const response=await handler(new Request('https://brickwork.test/api/'+path,{method:'POST',headers:{'x-brickwork-api-key':'fixture-key'},body:JSON.stringify({...base,...change})}));
+   assert.equal(response.status,400);if(change[sheetField])assert.equal((await response.json()).code,'REFERENCE_UNCLEAR');
+  }
+  const response=await handler(new Request('https://brickwork.test/api/'+path,{method:'POST',headers:{'x-brickwork-api-key':'fixture-key'},body:' '.repeat(limit+1)}));assert.equal(response.status,400);
+ }
+ assert.equal(requests,0);
 });
 
 test('landing plays the studio intro: bricks assemble in 5.6 seconds, then the model stays until replayed',()=>{

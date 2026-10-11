@@ -1,21 +1,23 @@
 import {z} from "zod";
-import {referenceSheetSchema,referencePhotoSchema} from "./design-research";
+import {SIGN_TEXT_PATTERN,SIGN_TEXT_HELP,normalizedSignText,signPixels} from "./brick-lettering";
+import {referenceSheetSchema} from "./design-research";
+import {referencePhotoSchema,referencePhotosSchema,collectReferencePhotos,MAX_REFERENCE_PHOTOS} from "./reference-photos";
 import type {ReferenceSheet} from "./design-research";
 import {COLORS,PARTS,auditModel} from "./bridge";
 import type {Piece} from "./bridge";
 import {finishModel,intersects} from "./models";
 import type {BuildModel,VoxelMap} from "./models";
-import {validateScene,sceneVoxels,compileScene,looseByComponent} from "./generated-scene";
+import {validateScene,sceneVoxels,compileScene,looseByComponent,expandShapes} from "./generated-scene";
 import {simulateClutch} from "./clutch";
 import type {GeneratedScene} from "./generated-scene";
 
-export const briefSchema=z.object({idea:z.string().min(3).max(2000),size:z.enum(["small","medium","large"]),detail:z.enum(["balanced","detailed","signature"]),maxPieces:z.number().int().min(100).max(16000),maxWidth:z.number().int().min(16).max(80),maxDepth:z.number().int().min(16).max(80),maxHeight:z.number().int().min(16).max(160),features:z.array(z.string().min(1).max(160)).max(12),style:z.string().max(120),scope:z.enum(["subject","site"]).optional(),composition:z.string().max(600).optional(),hollow:z.boolean(),finish:z.enum(["smooth","studded"]).optional(),quality:z.enum(["standard","better","best","sol_low","sol_medium"]).optional()}).strict();
+export const briefSchema=z.object({idea:z.string().min(3).max(2000),size:z.enum(["small","medium","large"]),detail:z.enum(["balanced","detailed","signature"]),maxPieces:z.number().int().min(100).max(16000),maxWidth:z.number().int().min(16).max(80),maxDepth:z.number().int().min(16).max(80),maxHeight:z.number().int().min(16).max(160),features:z.array(z.string().min(1).max(160)).max(12),style:z.string().max(120),scope:z.enum(["subject","site"]).optional(),composition:z.string().max(600).optional(),signText:z.string().max(12,SIGN_TEXT_HELP).regex(SIGN_TEXT_PATTERN,SIGN_TEXT_HELP).optional(),hollow:z.boolean(),finish:z.enum(["smooth","studded"]).optional(),quality:z.enum(["standard","better","best","sol_low","sol_medium"]).optional()}).strict();
 export type DesignBrief=z.infer<typeof briefSchema>;
 export const defaultBrief=(idea=""):DesignBrief=>({idea,size:"medium",detail:"detailed",maxPieces:600,maxWidth:48,maxDepth:48,maxHeight:96,features:[],style:"Recognizable proportions and purposeful detail",scope:"subject",composition:"",hollow:false,finish:"smooth",quality:"sol_low"});
 export type Cuboid=Pick<Piece,"x"|"y"|"z"|"w"|"h"|"d">;
 export type ManualEdits={erase:Cuboid[];bricks:Piece[]};
 export type VisualReview={composition?:{status:"matches"|"mismatch"|"uncertain"|"not_applicable";evidence:string};revision?:{status:"visible"|"missing"|"uncertain"|"not_requested";evidence:string};summary:string;recognizable:boolean;features:{feature:string;status:"visible"|"missing"|"uncertain";evidence:string}[];improvements:string[];thinking?:string};
-export type DesignReference={sheet?:ReferenceSheet;photo?:string;briefKey:string};
+export type DesignReference={sheet?:ReferenceSheet;photo?:string;photos?:string[];identityHint?:string;briefKey:string};
 export const referenceKey=(b:DesignBrief)=>JSON.stringify([b.idea.trim(),b.scope||"subject",b.composition||"",b.features]);
 export type DesignContext={unfinished?:boolean;reviewRequest?:string;reference?:DesignReference;brief:DesignBrief;manual:ManualEdits;locked:string[];revisions:{request:string;summary:string;at:string}[];review?:VisualReview;reviewStale?:boolean};
 export type Quote={available:number;unitPrice:number;url:string;checkedAt:string};
@@ -29,7 +31,7 @@ export const manualSchema=z.object({erase:z.array(boxSchema).max(32000),bricks:z
 const clip=(n:number)=>z.string().transform(v=>v.slice(0,n));
 const reviewSchema=z.object({composition:z.object({status:z.enum(["matches","mismatch","uncertain","not_applicable"]),evidence:clip(1000)}).optional(),revision:z.object({status:z.enum(["visible","missing","uncertain","not_requested"]),evidence:clip(500)}).optional(),summary:clip(1500),recognizable:z.boolean(),features:z.array(z.object({feature:z.string().max(160),status:z.enum(["visible","missing","uncertain"]),evidence:clip(500)})).max(12),improvements:z.array(clip(500)).max(8),thinking:clip(4000).optional()});
 export {reviewSchema};
-export const contextSchema=z.object({unfinished:z.boolean().optional(),reviewRequest:z.string().max(2000).optional(),reference:z.object({sheet:referenceSheetSchema.optional(),photo:referencePhotoSchema.optional(),briefKey:z.string().max(5000)}).optional(),brief:briefSchema,manual:manualSchema,locked:z.array(z.string().max(80)).max(240),revisions:z.array(z.object({request:z.string().max(2000),summary:z.string().max(1000),at:z.string().max(40)})).max(50),review:reviewSchema.optional(),reviewStale:z.boolean().optional()});
+export const contextSchema=z.object({unfinished:z.boolean().optional(),reviewRequest:z.string().max(2000).optional(),reference:z.object({sheet:referenceSheetSchema.optional(),photo:referencePhotoSchema.optional(),photos:referencePhotosSchema.optional(),identityHint:z.string().max(300).optional(),briefKey:z.string().max(5000)}).refine(r=>collectReferencePhotos(r.photo,r.photos).length<=MAX_REFERENCE_PHOTOS,"Use at most four reference photos.").optional(),brief:briefSchema,manual:manualSchema,locked:z.array(z.string().max(80)).max(240),revisions:z.array(z.object({request:z.string().max(2000),summary:z.string().max(1000),at:z.string().max(40)})).max(50),review:reviewSchema.optional(),reviewStale:z.boolean().optional()});
 const recordKey=z.string().regex(/^\d{4,5}b?:(red|orange|blue|navy|black|gray|white|green|tan|yellow|brown|darkbrown|pink)$/);
 const shoppingSchema=z.object({owned:z.record(recordKey,z.number().int().min(0).max(16000)),elementIds:z.record(recordKey,z.string().regex(/^\d{0,8}$/)),priceOverrides:z.record(recordKey,z.number().finite().min(0).max(10000)),quotes:z.record(recordKey,z.object({available:z.number().int().min(0).max(100000),unitPrice:z.number().finite().min(0).max(10000),url:z.string().url().max(1000).refine(s=>/^https:\/\//.test(s)),checkedAt:z.string().datetime()}))});
 const pieceKey=(p:Piece)=>`${p.part}:${p.color}:${p.x}:${p.y}:${p.z}:${p.rotated}`;
@@ -62,6 +64,26 @@ export function readProjectMetadata(data:Record<string,unknown>,pieces:Piece[]):
 }
 export function designChecks(model:BuildModel,brief:DesignBrief,target?:{x:number;y:number;z:number}){
  const audit=auditModel(model.pieces),issues:string[]=[];
+ if(brief.signText!==undefined&&!brief.signText.trim()&&model.generation?.shapes.some(s=>s.kind==="text"))issues.push("Remove the existing sign lettering: the exact sign field has been cleared.");
+ if(brief.signText?.trim()){try{
+  const wanted=normalizedSignText(brief.signText),signs=model.generation?expandShapes(model.generation.shapes).filter(s=>s.kind==="text"&&s.text&&normalizedSignText(s.text)===wanted):[];
+  if(!signs.length)issues.push(`The exact sign “${wanted}” is missing. Add a text shape with this spelling; do not approximate letters with separate boxes.`);
+  else{
+   const occupied:VoxelMap=new Map();for(const p of model.pieces)for(let x=p.x;x<p.x+p.w;x++)for(let y=p.y;y<p.y+p.h;y++)for(let z=p.z;z<p.z+p.d;z++)occupied.set(`${x},${y},${z}`,p.color);
+   for(const sign of signs){
+    const pixels=signPixels(sign.text!,sign.size,sign.face!).map(p=>({x:p.x+sign.position.x,y:p.y+sign.position.y,z:p.z+sign.position.z}));
+    const glyph=new Set(pixels.map(p=>`${p.x},${p.y},${p.z}`)),axis=sign.face==="px"||sign.face==="nx"?"x":"z",step=sign.face==="px"||sign.face==="pz"?1:-1,limit=model.generation!.dimensions[axis];
+    let altered=false;
+    const width=axis==="x"?sign.size.z:sign.size.x;
+    for(let u=0;u<width;u++)for(let y=0;y<sign.size.y;y++){
+     const x=sign.position.x+(axis==="x"?(step===1?sign.size.x-1:0):u),z=sign.position.z+(axis==="z"?(step===1?sign.size.z-1:0):u),key=`${x},${sign.position.y+y},${z}`;
+     if(occupied.get(key)!==(glyph.has(key)?sign.color:sign.background))altered=true;
+    }
+    if(altered){issues.push(`The sign “${wanted}” has missing or altered letter pixels. Restore its lettering or remove conflicting manual edits.`);continue;}
+    if(pixels.some(p=>{for(let at=p[axis]+step;at>=0&&at<limit;at+=step){const q={...p,[axis]:at};if(occupied.has(`${q.x},${q.y},${q.z}`))return true;}return false;}))issues.push(`The sign “${wanted}” is obscured. Put its lettered face on the outside of the building.`);
+   }
+  }
+ }catch(error){issues.push(error instanceof Error?error.message:"The sign text is invalid.");}}
  if(audit.overlaps)issues.push(`${audit.overlaps} overlapping volume cells.`);
  if(audit.ungrounded.length){const by=model.generation?looseByComponent(model.generation,audit.ungrounded,model):[];issues.push(`${audit.ungrounded.length} pieces have no stud path to the ground${by.length?`: ${by.slice(0,6).map(r=>`${r.component} ${r.pieces}`).join(", ")}. Root each of those components into a mass by extending its shapes at least one cell into the mass or onto a studded surface`:""}.`);}
  if(audit.groups>1)issues.push(`${audit.groups} separate assemblies. Connect them with overlapping studded plates.`);

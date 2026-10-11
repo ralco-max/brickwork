@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import {build} from 'esbuild';
-const bundle=await build({stdin:{contents:'export * from "./lib/design-workflow";export * from "./lib/design-research";export * from "./lib/design-review";export * from "./lib/design-project";export * from "./lib/design-library";export * from "./lib/generated-scene";export {validateProject} from "./lib/models";',resolveDir:process.cwd(),loader:'ts'},bundle:true,platform:'node',format:'esm',write:false});
+const bundle=await build({stdin:{contents:'export * from "./lib/reference-photos";export * from "./lib/design-workflow";export * from "./lib/design-research";export * from "./lib/design-review";export * from "./lib/design-project";export * from "./lib/design-library";export * from "./lib/generated-scene";export {validateProject} from "./lib/models";',resolveDir:process.cwd(),loader:'ts'},bundle:true,platform:'node',format:'esm',write:false});
 const m=await import('data:text/javascript;base64,'+Buffer.from(bundle.outputFiles[0].text).toString('base64'));
 const signal=()=>new AbortController().signal;
 const photo='data:image/jpeg;base64,YQ==';
@@ -45,6 +45,16 @@ test('project export, browser save and repacking all preserve the reference shee
  json.pieces=json.pieces.slice(1);const repacked=m.unpackDesign({...saved,project:JSON.stringify(json)});assert.deepEqual(repacked.design.reference,reference);assert.equal(repacked.design.reviewStale,true);
  delete json.design.reference;assert.ok(m.unpackDesign({...saved,project:JSON.stringify(json)}).generation);
 });
+test('additional feedback photos and a place hint survive export, reopen and repacking',()=>{
+ const extra=['data:image/jpeg;base64,Yg==','data:image/jpeg;base64,Yw==','data:image/jpeg;base64,ZA=='];
+ const pack={...reference,photos:extra,identityHint:'Chantilly, Virginia; original terminal'},model={...m.compileScene(scene,{smooth:true}),generation:scene,libraryId:'photos-fixture',design:{brief,reference:pack,manual:m.emptyManual(),locked:[],revisions:[]}};
+ const json=JSON.parse(m.projectJSON(model,m.emptyShopping()));assert.deepEqual(m.validateProject(json).design.reference,pack);
+ const saved=m.packDesign(model,'draft');assert.deepEqual(m.unpackDesign(saved).design.reference,pack);
+ json.pieces=json.pieces.slice(1);assert.deepEqual(m.unpackDesign({...saved,project:JSON.stringify(json)}).design.reference,pack);
+ assert.deepEqual(m.collectReferencePhotos(photo,[photo,...extra]),[photo,...extra]);
+ assert.equal(m.contextSchema.safeParse({...model.design,reference:{...pack,photos:[...extra,'data:image/jpeg;base64,ZQ==']}}).success,false);
+ assert.equal(m.contextSchema.safeParse({...model.design,reference:{...pack,photos:['https://example.com/private.jpg']}}).success,false);
+});
 test('component counts use final smooth/hollow/manual pieces and add up to the displayed total',()=>{
  for(const options of [{smooth:true},{hollow:true,smooth:true},{manual:{erase:[],bricks:[{id:900,part:'3001',color:'blue',x:0,y:2,z:12,w:4,h:3,d:2,rotated:false,stage:0}]},smooth:true}]){
   const model=m.compileScene(scene,options),by=m.componentBudget(scene,model);assert.equal(by.reduce((n,c)=>n+c.pieces,0),model.pieces.length);
@@ -60,6 +70,17 @@ test('review distinguishes generated views, source photo and retrieved reference
  const result=await m.reviewDesign(brief,Array(5).fill('data:image/jpeg;base64,Yg=='),'key','model',signal(),fetcher,'',undefined,reference);
  const content=sent.input[0].content;assert.deepEqual(JSON.parse(content[0].text).referenceSheet,sheet);assert.equal(content.filter(c=>c.type==='input_image').length,7);assert.equal(content.at(-1).image_url,photo);assert.ok(content.some(c=>c.text?.includes('overhead')));assert.equal(result.recognizable,false);
  delete review.composition;await assert.rejects(()=>m.reviewDesign(brief,[], 'key','model',signal(),fetcher,'',undefined,reference),/reference composition/);
+});
+test('review includes every feedback photo once and never confuses them with generated views',async()=>{
+ const second='data:image/jpeg;base64,Yw==',third='data:image/jpeg;base64,ZA==';let sent;
+ const review={composition:{status:'matches',evidence:'The tower now matches the additional angle.'},summary:'Revised tower',recognizable:true,features:[],improvements:[],revision:{status:'visible',evidence:'Additional tower angle applied.'}};
+ const fetcher=async(_url,request)=>{sent=JSON.parse(request.body);return Response.json({status:'completed',output:[{content:[{type:'output_text',text:JSON.stringify(review)}]}]});};
+ await m.reviewDesign(brief,Array(5).fill('data:image/jpeg;base64,Yg=='),'key','model',signal(),fetcher,'Match the tower in these photos',undefined,{...reference,photos:[second,photo,third]});
+ const content=sent.input[0].content,sourceLabels=content.filter(c=>c.text?.startsWith('USER REFERENCE PHOTO'));
+ assert.equal(sourceLabels.length,3);assert.match(sourceLabels[0].text,/original/);assert.match(sourceLabels[1].text,/additional evidence/);
+ assert.deepEqual(content.filter(c=>c.type==='input_image').slice(-3).map(c=>c.image_url),[photo,second,third]);
+ assert.equal(JSON.parse(content[0].text).generatedViewCount,5);assert.equal(JSON.parse(content[0].text).sourcePhotoCount,3);
+ assert.match(sent.instructions,/never use any reference photo as evidence/);
 });
 test('research uses real search provenance, retains selected image results and rejects invented sources or dangling relations',async()=>{
  let sent;let raw={...sheet,image_urls:['https://example.com/source.jpg','https://invented.test/image.jpg']};
