@@ -47,7 +47,7 @@ export async function reserveBudget(db:BudgetDatabase,keyHash:string,amount:numb
    .bind(id,keyHash,amount,Date.now(),amount,keyHash,BUDGET_NANOS).run();
   changes=result.meta.changes??0;
  }catch{throw unavailable();}
- if(changes!==1)throw new GenerationError("This request would exceed your $10 Brickwork budget. Your design is kept; you can still edit it in the studio.","BUDGET_LIMIT");
+ if(changes!==1)throw new GenerationError("This request would exceed your $10 Bricks budget. Your design is kept; you can still edit it in the studio.","BUDGET_LIMIT");
  return id;
 }
 async function settle(db:BudgetDatabase,id:string,amount:number){
@@ -69,7 +69,7 @@ export function budgetedProvider(db:BudgetDatabase,key:string,notify:(budget:Bud
   const rates=PRICED_MODELS[body.model];requestModel=String(body.model);
   if(!rates||!Number.isSafeInteger(body.max_output_tokens)||body.max_output_tokens<1||body.max_output_tokens>32000||(body.tools&&!search))throw new GenerationError("The spending limit needs verified pricing for this model. No AI request was started.","BUDGET_MODEL");
   const keyHash=await fingerprint;
-  if((await budgetSnapshot(db,keyHash)).remaining<=0)throw new GenerationError("Your $10 Brickwork budget is used. Your design is kept and the studio is still available.","BUDGET_LIMIT");
+  if((await budgetSnapshot(db,keyHash)).remaining<=0)throw new GenerationError("Your $10 Bricks budget is used. Your design is kept and the studio is still available.","BUDGET_LIMIT");
   // Count text and image inputs before generation. Conservatively include the
   // output schema's UTF-8 byte length and a formatting margin separately;
   // input_tokens does not expose the Responses text.format parameter.

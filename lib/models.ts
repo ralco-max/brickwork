@@ -171,7 +171,7 @@ export function addPiece(pieces:Piece[],part:PartId,color:ColorKey,x:number,y:nu
  return [...pieces,p];
 }
 export function validateProject(raw:unknown):BuildModel{
- if(!raw||typeof raw!=="object")throw Error("Choose a Brickwork project JSON file.");const data=raw as Record<string,unknown>;
+ if(!raw||typeof raw!=="object")throw Error("Choose a Bricks project JSON file.");const data=raw as Record<string,unknown>;
  if(!Array.isArray(data.pieces)||data.pieces.length<1||data.pieces.length>16000)throw Error("The project must contain between 1 and 16,000 pieces.");
  const pieces:Piece[]=data.pieces.map((v:unknown,id:number)=>{
   if(!v||typeof v!=="object")throw Error("Invalid piece.");
@@ -182,7 +182,7 @@ export function validateProject(raw:unknown):BuildModel{
   return {id,part:p.part,color:p.color,x:p.x,y:p.y,z:p.z,...dimensions,stage:0,...(p.support===true?{support:true}:{})};
  });
  const occupied=new Set<string>();for(const p of pieces)forEachPieceCell(p,(x,y,z)=>{const k=voxelKey(x,y,z);if(occupied.has(k))throw Error("The project has overlapping pieces. Repair the file before importing.");occupied.add(k);if(occupied.size>350000)throw Error("The project is too complex. Import a smaller version.");});
- return finishModel(pieces,{name:typeof data.name==="string"?data.name.slice(0,80):"Imported project",description:typeof data.description==="string"?data.description.slice(0,500):"Your editable Brickwork project",source:"custom",...readProjectMetadata(data,pieces)});
+ return finishModel(pieces,{name:typeof data.name==="string"?data.name.slice(0,80):"Imported project",description:typeof data.description==="string"?data.description.slice(0,500):"Your editable Bricks project",source:"custom",...readProjectMetadata(data,pieces)});
 }
 export function supportLoosePieces(input:Piece[]):{pieces:Piece[];added:number}{
  let pieces=input.map((p,id)=>({...p,id})),added=0;

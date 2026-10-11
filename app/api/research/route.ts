@@ -8,7 +8,7 @@ import {collectReferencePhotos,referencePhotoSchema,referencePhotosSchema,MAX_RE
 
 const schema=z.object({idea:z.string().trim().min(3).max(2000),scope:z.enum(["subject","site"]).optional(),composition:z.string().max(600).optional(),features:z.array(z.string().max(160)).max(12).optional(),reference:referencePhotoSchema.optional(),photos:referencePhotosSchema.optional(),identityHint:z.string().max(300).optional(),feedback:z.string().max(2000).optional()}).strict().refine(input=>collectReferencePhotos(input.reference,input.photos).length<=MAX_REFERENCE_PHOTOS);
 export async function POST(request:Request){
- const origin=request.headers.get("origin");if(origin&&origin!==new URL(request.url).origin)return Response.json({error:"Open Brickwork in its own tab."},{status:403});
+ const origin=request.headers.get("origin");if(origin&&origin!==new URL(request.url).origin)return Response.json({error:"Open Bricks in its own tab."},{status:403});
  let config;try{config=aiSettings(request);}catch(error){const failure=generationFailure(error);return Response.json({error:failure.message,code:failure.code},{status:400});}const {key,model}=config;
  if(!key)return Response.json({error:"Connect AI to look up a subject.",code:"AI_NOT_CONNECTED"},{status:503});
  let input;

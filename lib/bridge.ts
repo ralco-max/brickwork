@@ -123,4 +123,4 @@ function ldrawPlacement(p:Piece):string{
  const z=face==="px"?w-ox:face==="nx"?ox:face==="nz"?d-oz:oz;
  return `1 ${COLORS[p.color].ldraw} ${p.x*20+x} ${-p.y*8+oy} ${p.z*20+z} ${matrix} ${definition.sourcePart}.dat`;
 }
-export function ldrawFile(pieces:Piece[],name="Golden Gate Bridge",stages=STAGES){return [`0 ${name.replace(/[\r\n]/g," ")} - Brickwork custom concept`,"0 Physical stability and assembly not tested.",...stages.flatMap((s,i)=>["0 STEP",`0 ${s.title}`,...pieces.filter(p=>p.stage===i).map(ldrawPlacement)])].join("\n");}
+export function ldrawFile(pieces:Piece[],name="Golden Gate Bridge",stages=STAGES){return [`0 ${name.replace(/[\r\n]/g," ")} - Bricks custom concept`,"0 Physical stability and assembly not tested.",...stages.flatMap((s,i)=>["0 STEP",`0 ${s.title}`,...pieces.filter(p=>p.stage===i).map(ldrawPlacement)])].join("\n");}

@@ -56,7 +56,7 @@ export function applyManual(voxels:VoxelMap,manual:ManualEdits){
 export function projectJSON(model:BuildModel,shopping:ShoppingState){return JSON.stringify({format:"brickwork",version:3,name:model.name,description:model.description,pieces:model.pieces,generation:model.generation,design:model.design,shopping},null,2);}
 export function readProjectMetadata(data:Record<string,unknown>,pieces:Piece[]):Partial<BuildModel>{
  if(data.version!==3)return {};
- if(data.format!=="brickwork")throw Error("This is not a Brickwork project.");
+ if(data.format!=="brickwork")throw Error("This is not a Bricks project.");
  const generation=data.generation?validateScene(data.generation):undefined;
  const parsed=data.design?contextSchema.safeParse(data.design):null;
  if(parsed&&!parsed.success)throw Error("The project's design history or protected edits are invalid.");

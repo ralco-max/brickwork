@@ -1,4 +1,4 @@
-# Brickwork by Ralc
+# Bricks by Ralc
 
 A custom brick design studio using React, Three.js and Vinext.
 
@@ -122,7 +122,7 @@ The Designer choice still selects Terra, Sol or Astra for geometry, with Terra f
 
 ## Deploying to Cloudflare
 
-Brickwork runs as a Cloudflare Worker with static assets, using the D1 database in `wrangler.jsonc` for the spending ledger. Production lives at https://brickwork.ryan-c-alcorn.workers.dev.
+Bricks runs as a Cloudflare Worker with static assets, using the D1 database in `wrangler.jsonc` for the spending ledger. Production lives at https://brickwork.ryan-c-alcorn.workers.dev.
 
 1. `npx wrangler login` once, then `npx wrangler d1 migrations apply brickwork-db --remote` whenever `drizzle/` gains a migration.
 2. `npx wrangler secret put OPENAI_API_KEY` to set or rotate the shared studio key. The $10 budget is tracked per key fingerprint, so every visitor who uses the studio key shares one $10 pool; rotating the key starts a fresh pool. Also set a matching hard limit on the OpenAI project itself as a backstop.
@@ -176,7 +176,7 @@ Opening the tools does not change pages. The tools panel slides in on the right,
 
 ## Personal AI budget
 
-A fixed $10 USD budget applies to Brickwork token usage per API key from this version onward. It includes generation, visual reviews, every manual revision and retry. It does not reset on refresh, closing the dialog or disconnecting/reconnecting the same key. It does not include earlier calls, usage outside this Site, taxes or custom account pricing. The key remains in tab memory. D1 stores only a SHA-256 fingerprint, timestamps and monetary ledger entries, never the raw key, prompt or images.
+A fixed $10 USD budget applies to Bricks token usage per API key from this version onward. It includes generation, visual reviews, every manual revision and retry. It does not reset on refresh, closing the dialog or disconnecting/reconnecting the same key. It does not include earlier calls, usage outside this Site, taxes or custom account pricing. The key remains in tab memory. D1 stores only a SHA-256 fingerprint, timestamps and monetary ledger entries, never the raw key, prompt or images.
 
 Before a Responses request, count text and image input using OpenAI's input-token endpoint, add the output schema's byte length plus a 4,096-token formatting margin, and atomically reserve the uncached input cost plus the maximum allowed output cost. Prices are GPT-5.6 Terra standard rates checked 2026-09-08: $2/M input, $0.20/M cached input and $12/M output. Inputs above 272K use 2× input and 1.5× output rates. Explicit standard service prevents priority routing costs. Recheck published pricing before changing the model or rates.
 

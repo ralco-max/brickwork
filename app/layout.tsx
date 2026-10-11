@@ -5,12 +5,12 @@ import {ThemeProvider} from "./theme";
 export const viewport: Viewport = {width:"device-width",initialScale:1,viewportFit:"cover"};
 
 export const metadata: Metadata = {
-  title: "Brickwork by Ralc",
+  title: "Bricks by Ralc",
   description: "Turn ideas, images and 3D models into custom brick creations. Edit every piece, audit your build and export your parts list.",
   icons: {
-    icon: "/brickwork-logo.png",
-    shortcut: "/brickwork-logo.png",
-    apple: "/brickwork-logo.png",
+    icon: "/favicon.png",
+    shortcut: "/favicon.png",
+    apple: "/bricks-logo.png",
   },
 };
 

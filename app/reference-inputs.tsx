@@ -37,6 +37,6 @@ export default function ReferenceInputs({value,disabled=false,question,onChange,
   {question&&<p className="reference-question" role="status">{question}</p>}
   <label className="reference-place-label" htmlFor={`${id}-place`}><MapPin size={14}/>Place or structure <span>{question?"Help identify it":"Optional"}</span></label>
   <input id={`${id}-place`} className="reference-place-input" value={value.identityHint} maxLength={300} disabled={disabled||preparing} onChange={e=>onChange({...value,identityHint:e.target.value})} placeholder="Name, city, specific building or era" aria-describedby={`${id}-help`}/>
-  <p id={`${id}-help`}>For a known place, Brickwork looks up its shape and layout. If the structure is still unclear, it will ask before building.</p>
+  <p id={`${id}-help`}>For a known place, Bricks looks up its shape and layout. If the structure is still unclear, it will ask before building.</p>
  </section>;
 }
