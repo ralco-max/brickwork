@@ -2,12 +2,14 @@ import * as THREE from "three";
 import {RoundedBoxGeometry} from "three/addons/geometries/RoundedBoxGeometry.js";
 import {SLOPES,WHEELS} from "./bridge";
 import type {Face,Piece} from "./bridge";
+import {exactPartGeometry,hasExactPartGeometry} from "./part-meshes";
 
 // Geometry for one kind of piece: a rounded box for bricks, plates and tiles, or
 // a wedge for slopes, already turned to face the way the piece's slope descends.
 // Sizes are world units: one stud across, 0.4 per plate of height.
 export const PLATE=.4;
 export function pieceGeometry(p:Pick<Piece,"part"|"w"|"d"|"h"|"face"|"rotated">):THREE.BufferGeometry{
+ if(hasExactPartGeometry(p.part))return exactPartGeometry(p);
  const wheel=WHEELS[p.part];
  if(wheel){
   // A tire: a cylinder on the axle, slightly rounded by a torus-like profile, sized to the element.
@@ -37,6 +39,7 @@ export function pieceGeometry(p:Pick<Piece,"part"|"w"|"d"|"h"|"face"|"rotated">)
 
 // The hub of a wheel, drawn in light gray inside the tire.
 export function hubGeometry(p:Pick<Piece,"part"|"rotated">):THREE.BufferGeometry|null{
+ if(hasExactPartGeometry(p.part))return null;
  const wheel=WHEELS[p.part];if(!wheel)return null;
  const radius=wheel.diameter/2*.58,width=wheel.width+.14,geometry=new THREE.CylinderGeometry(radius,radius,width,20,1);
  if(p.rotated)geometry.rotateZ(Math.PI/2);else geometry.rotateX(Math.PI/2);

@@ -526,3 +526,53 @@ h1,.landing-film-caption h1,.project-heading h1,[data-slot=dialog-title]{text-wr
 .shopping-auto .quote-editor{margin-top:12px}
 .shopping-auto .quote-editor summary{font-size:12px;font-weight:500;color:var(--ink-3)}
 @media(max-width:600px){.shopping-auto .lego-coverage strong,.shopping-auto .lego-coverage span{font-size:14px}.shopping-auto .shopping-row-price{grid-column:2;align-items:center;flex-direction:row}.shopping-auto .shopping-row-price small{text-align:right}.shopping-auto .shopping-adjustments>summary{font-size:14px;min-height:44px;padding:11px 0}.shopping-auto .shopping-override-fields{grid-template-columns:1fr}.shopping-auto .shopping-override-fields label{font-size:14px}.shopping-auto .shopping-override-fields input{min-height:44px;font-size:16px}.shopping-auto .lego-unmatched .button{height:auto;min-height:44px;white-space:normal;font-size:13px}.shopping-auto .quote-editor summary{font-size:14px}}
+
+/* Searchable part catalog in the manual brick editor. */
+.part-picker{width:100%;min-width:0}
+.part-picker-current{display:flex;align-items:center;gap:10px}
+.part-picker-trigger{display:flex;align-items:center;gap:12px;flex:1;min-width:0;text-align:left;background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:8px 12px;color:var(--ink)}
+.part-picker-trigger>span:not(.part-picker-thumbnail){flex:1;min-width:0}
+.part-picker-trigger strong{display:block;font-size:14px;line-height:1.4;font-weight:600}
+.part-picker-trigger small{display:block;font-size:12px;line-height:1.5;color:var(--ink-3);margin-top:3px}
+.part-picker .part-picker-thumbnail{display:grid;place-items:center;width:62px;height:48px;flex:none;color:var(--ink-3);overflow:hidden}
+.part-picker .part-picker-thumbnail img{width:100%;height:100%;object-fit:contain}
+.part-picker .part-picker-thumbnail>svg{width:28px;height:28px}
+.part-picker-rotate{min-width:84px;height:44px!important}
+.part-picker-browser{margin-top:12px;padding:16px;border:1px solid var(--line);border-radius:10px;background:var(--surface-2)}
+.part-picker-browser-heading{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;margin-bottom:12px}
+.part-picker-browser-heading strong{display:block;font-size:17px;letter-spacing:-.025em}
+.part-picker-browser-heading span{display:block;font-size:12px;line-height:1.5;color:var(--ink-3);margin-top:4px}
+.part-picker-search{display:flex;align-items:center;gap:10px;background:var(--surface);border:1px solid var(--line);border-radius:7px;padding:0 12px;color:var(--ink-3)}
+.part-picker-search:focus-within{outline:2px solid var(--primary);outline-offset:2px}
+.part-picker-search input{width:100%;min-width:0;border:0;background:transparent;font-size:14px;padding:12px 0;color:var(--ink);outline:none}
+.part-picker-families{display:flex;flex-wrap:wrap;gap:6px;margin:12px 0}
+.part-picker-families button{border:1px solid var(--line);background:var(--surface);border-radius:20px;color:var(--ink-3);font-size:12px;line-height:1.4;padding:7px 10px}
+.part-picker-families button[aria-pressed=true]{border-color:var(--accent-muted);background:var(--accent-soft);color:var(--accent-deep)}
+.part-picker-result-count{font-size:12px;line-height:1.5;color:var(--ink-3);margin:12px 0}
+.part-picker-results{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));align-content:start;gap:8px;list-style:none;margin:0;padding:2px;max-height:420px;overflow-y:auto;overscroll-behavior:contain}
+.part-picker-results li{min-width:0}
+.part-picker-results button{position:relative;display:flex;align-items:center;gap:9px;width:100%;height:100%;min-height:100px;border:1px solid var(--line);border-radius:7px;background:var(--surface);padding:10px;text-align:left;color:var(--ink)}
+.part-picker-results button.selected{border-color:var(--accent-deep);box-shadow:inset 0 0 0 1px var(--accent-deep)}
+.part-picker-results button>span:not(.part-picker-thumbnail){min-width:0}
+.part-picker-results .part-picker-thumbnail{width:52px;height:56px}
+.part-picker-results small{display:block;font-size:10px;line-height:1.4;color:var(--ink-3);padding-right:9px}
+.part-picker-results strong{display:block;font-size:12px;font-weight:600;line-height:1.45;margin:4px 0}
+.part-picker-results button>span>span{display:block;font-size:10px;line-height:1.45;color:var(--ink-3)}
+.part-picker-selected{position:absolute;top:7px;right:6px;color:var(--accent-deep)}
+.part-picker-pagination{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-top:12px}
+.part-picker-pagination .button{height:36px;font-size:12px;padding:0 10px}
+.part-picker-pagination>span{font-size:12px;color:var(--ink-3)}
+.part-picker-details{padding-top:10px}
+.part-picker-specs{display:flex;align-items:center;gap:7px 14px;flex-wrap:wrap;font-size:12px;line-height:1.5;color:var(--ink-3)}
+.part-picker-specs button{display:inline-flex;align-items:center;gap:2px;color:var(--accent-deep);text-decoration:underline;text-underline-offset:3px}
+.part-picker-colors{border:0;padding:0;margin:12px 0 0}
+.part-picker-colors legend{font-size:12px;line-height:1.5;font-weight:600;color:var(--ink-2);padding:0}
+.part-picker-colors legend span{font-weight:400;color:var(--ink-3)}
+.part-picker-colors>div{display:flex;gap:8px;flex-wrap:wrap;margin-top:8px}
+.part-picker-colors button{display:grid;place-items:center;width:30px;height:30px;border-radius:6px;background:var(--part-color);border:3px solid var(--surface);box-shadow:0 0 0 1px var(--line);color:#fff}
+.part-picker-colors button[aria-pressed=true]{box-shadow:0 0 0 2px var(--primary)}
+.part-picker-colors button svg{background:#0008;border-radius:50%;padding:1px}
+.part-picker-color-warning{font-size:12px;line-height:1.6;color:var(--accent-deep);padding:9px 12px;margin-top:12px;border-radius:6px;background:var(--warn-bg)}
+.part-picker-guidance{font-size:12px;line-height:1.6;color:var(--ink-3);margin-top:10px}
+@media(max-width:1100px){.part-picker-results{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:600px){.part-picker-current{gap:7px}.part-picker-trigger{padding:8px;gap:7px}.part-picker-trigger strong{font-size:13px}.part-picker-trigger small{font-size:11px}.part-picker-trigger .part-picker-thumbnail{width:44px;height:44px}.part-picker-rotate{min-width:72px;padding:0 9px!important;font-size:12px}.part-picker-browser{padding:12px}.part-picker-browser-heading strong{font-size:16px}.part-picker-search input{font-size:16px}.part-picker-families{flex-wrap:nowrap;overflow-x:auto;padding:3px;scrollbar-width:thin}.part-picker-families button{white-space:nowrap;min-height:42px}.part-picker-results{grid-template-columns:1fr;max-height:390px}.part-picker-results button{min-height:92px}.part-picker-results strong{font-size:14px}.part-picker-results small,.part-picker-results button>span>span{font-size:12px}.part-picker-results .part-picker-thumbnail{width:66px;height:60px}.part-picker-pagination .button{min-height:44px}.part-picker-specs{font-size:13px}.part-picker-specs button{min-height:36px}.part-picker-colors legend,.part-picker-guidance,.part-picker-color-warning{font-size:13px}.part-picker-colors button{width:38px;height:38px}.part-picker-colors>div{gap:10px}}

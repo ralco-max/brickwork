@@ -91,7 +91,7 @@ export default function Generator({open,onOpenChange,initialPrompt,initialImage,
  function stop(){previewQueue.current?.cancel();requestId.current++;controller.current?.abort();running.current=false;setBusy(false);setPhase("");if(partialDraft.current){const saved=partialDraft.current;setDraft(saved.model);setScene(saved.scene);setReview(null);setInterrupted(true);persist(saved.model,saved.scene,null,saved.brief,saved.reference,true);setStatus("Stopped. Your in-progress draft is kept in your designs.");}else{setStatus("Stopped. Your last completed draft is preserved.");restore();}}
  const headers=(key=apiKey)=>({"Content-Type":"application/json",...(key?{"x-brickwork-api-key":key}:{})});
  async function visual(model:BuildModel,b:DesignBrief,abort:AbortController,revision="",key=apiKey,signature:string[]=[],ref=referencePack.current){
-  setPhase("review");setStatus("Looking over the finished model…");const {renderReviewViews}=await import("@/lib/render-review");abort.signal.throwIfAborted();const images=renderReviewViews(model);abort.signal.throwIfAborted();
+  setPhase("review");setStatus("Looking over the finished model…");const {renderReviewViews}=await import("@/lib/render-review");abort.signal.throwIfAborted();const images=await renderReviewViews(model);abort.signal.throwIfAborted();
   // The designer's own signature features are reviewed alongside the brief's required ones.
   const features=[...b.features,...signature.filter(f=>!b.features.includes(f))].slice(0,12);
   const response=await fetch("/api/review",{method:"POST",signal:abort.signal,headers:headers(key),body:JSON.stringify({brief:{...b,features},images,revision,sheet:ref?.sheet,reference:ref?.photo,photos:ref?.photos})});

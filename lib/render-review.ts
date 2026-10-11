@@ -3,10 +3,12 @@ import type {BuildModel} from "./models";
 import type {Piece} from "./bridge";
 import {COLORS,studCells} from "./bridge";
 import {pieceGeometry,hubGeometry} from "./brick-geometry";
+import {hasExactPartGeometry,preloadPartGeometries} from "./part-meshes";
 
 // Render the actual packed pieces, slopes included, for the visual critic: front, front-right,
 // rear-left, and the left end and overhead, so a subject detailed on one face only is caught.
-export function renderReviewViews(model:BuildModel):string[]{
+export async function renderReviewViews(model:BuildModel):Promise<string[]>{
+ await preloadPartGeometries(model.pieces);
  const renderer=new THREE.WebGLRenderer({antialias:true,preserveDrawingBuffer:true});
  renderer.setSize(640,640);renderer.setPixelRatio(1);renderer.setClearColor(0xe9edf2,1);renderer.outputColorSpace=THREE.SRGBColorSpace;
  const scene=new THREE.Scene(),studGeometry=new THREE.CylinderGeometry(.3,.3,.18,8),material=new THREE.MeshStandardMaterial({roughness:.45}),temp=new THREE.Object3D(),color=new THREE.Color();
@@ -14,7 +16,7 @@ export function renderReviewViews(model:BuildModel):string[]{
  const h=model.height*.4,groups=new Map<string,Piece[]>();for(const p of model.pieces){const k=`${p.part}:${p.rotated}:${p.face||""}`;const list=groups.get(k)||[];list.push(p);groups.set(k,list);}
  const geometries:THREE.BufferGeometry[]=[];
  for(const list of groups.values()){
-  const first=list[0],studded=studCells(first),geometry=pieceGeometry(first);geometries.push(geometry);
+  const first=list[0],studded=hasExactPartGeometry(first.part)?[]:studCells(first),geometry=pieceGeometry(first);geometries.push(geometry);
   const body=new THREE.InstancedMesh(geometry,material,list.length),studs=studded.length?new THREE.InstancedMesh(studGeometry,material,list.length*studded.length):null;let index=0;
   const hubShape=hubGeometry(first),hubs=hubShape?new THREE.InstancedMesh(hubShape,new THREE.MeshStandardMaterial({color:0xa9b1b8,roughness:.5}),list.length):null;if(hubShape)geometries.push(hubShape);
   list.forEach((p,i)=>{temp.position.set(p.x+p.w/2-model.length/2,p.y*.4+p.h*.2-h/2,p.z+p.d/2-model.width/2);temp.rotation.set(0,0,0);temp.scale.setScalar(1);temp.updateMatrix();body.setMatrixAt(i,temp.matrix);color.set(COLORS[p.color].hex);body.setColorAt(i,color);if(hubs)hubs.setMatrixAt(i,temp.matrix);
