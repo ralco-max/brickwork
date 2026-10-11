@@ -62,9 +62,9 @@ test('review route forwards the saved reference and five model views and reports
  sent=undefined;const invalid=await reviewPOST(new Request('https://brickwork.test/api/review',{method:'POST',headers:{'x-brickwork-api-key':'fixture-key'},body:JSON.stringify({...payload,reference:'http://localhost/secret'})}));assert.equal(invalid.status,400);assert.equal(sent,undefined);
 });
 
-test('landing plays the studio intro: bricks fly in over 18 seconds, then the model stays until replayed',()=>{
+test('landing plays the studio intro: bricks assemble in 5.6 seconds, then the model stays until replayed',()=>{
  const c=new LandingAssemblyClock();let now=0;const advance=until=>{let value;for(;now<until;){now+=20;value=c.tick(now);}return value;};
- assert.equal(c.paused,false);assert.equal(c.tick(0),0);assert.ok(Math.abs(advance(9000)-.5)<.01);assert.equal(c.done,false);assert.equal(advance(18100),1);assert.equal(c.done,true);assert.equal(advance(30000),1);assert.equal(c.opacity,1);
+ assert.equal(c.paused,false);assert.equal(c.tick(0),0);assert.ok(Math.abs(advance(2800)-.5)<.01);assert.equal(c.done,false);assert.equal(advance(5700),1);assert.equal(c.done,true);assert.equal(advance(30000),1);assert.equal(c.opacity,1);
  c.reset();assert.equal(c.tick(now+20),0);assert.equal(c.done,false);
  c.paused=true;const stopped=c.tick(now+40);assert.equal(c.tick(now+999999),stopped);c.paused=false;c.resume();assert.equal(c.tick(now+1000000),stopped);c.reduced=true;assert.equal(c.tick(now+1000020),1);assert.equal(c.done,true);
 });

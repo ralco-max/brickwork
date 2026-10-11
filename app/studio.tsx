@@ -13,6 +13,7 @@ import {Toaster,toast} from "sonner";
 import Viewport from "./viewport";
 import DesignsDrawer from "./designs-drawer";
 import Generator from "./generator";
+import {LANDING_INTRO} from "@/lib/assembly";
 import {useAssemblyRecorder} from "@/lib/assembly-recorder";
 import {ThemeToggle} from "./theme";
 import {listDesigns,saveDesign,deleteDesign,packDesign,unpackDesign,newDesignId} from "@/lib/design-library";
@@ -44,10 +45,10 @@ export default function Studio(){
  const startIdea=(prompt:string,image?:string)=>{setCreateOpen(false);setGenerationPrompt(prompt);setGenerationImage(image);setGenerationPrevious(undefined);setGenerationOpen(true);};
  const [config,setConfig]=useState<Config>({size:"display",color:"red",water:"blue",landscape:true});
  const [model,setModel]=useState<BuildModel>(()=>generateRecipe("bridge","large"));
- // A design seen assembling once plays at double speed on every return.
- const intro=useRef({time:1,playing:false,last:0,speed:1}),[introPlaying,setIntroPlaying]=useState(false),[introSpeed,setIntroSpeed]=useState(1),introDone=useRef<(()=>void)|null>(null),introSeen=useRef(new Set<string>());
- const readIntro=useCallback(()=>{const c=intro.current,now=performance.now();if(c.playing){const elapsed=c.last?Math.min(.08,(now-c.last)/1000):0;c.time=Math.min(1,c.time+elapsed*c.speed/18);if(c.time>=1){c.playing=false;setIntroPlaying(false);introDone.current?.();introDone.current=null;}}c.last=now;return c.time;},[]);
- const playIntro=useCallback(()=>{if(window.matchMedia("(prefers-reduced-motion: reduce)").matches)return;const c=intro.current,key=`${model.libraryId||model.name}:${model.pieces.length}`;c.speed=introSeen.current.has(key)?2:1;introSeen.current.add(key);setIntroSpeed(c.speed);c.time=0;c.playing=true;c.last=performance.now();setIntroPlaying(true);},[model.libraryId,model.name,model.pieces.length]);
+ // One consistent short reveal, including replays and recordings.
+ const intro=useRef({time:1,playing:false,last:0,speed:1}),[introPlaying,setIntroPlaying]=useState(false),[introSpeed,setIntroSpeed]=useState(1),introDone=useRef<(()=>void)|null>(null);
+ const readIntro=useCallback(()=>{const c=intro.current,now=performance.now();if(c.playing){const elapsed=c.last?Math.min(.08,(now-c.last)/1000):0;c.time=Math.min(1,c.time+elapsed*c.speed/LANDING_INTRO);if(c.time>=1){c.playing=false;setIntroPlaying(false);introDone.current?.();introDone.current=null;}}c.last=now;return c.time;},[]);
+ const playIntro=useCallback(()=>{const c=intro.current;if(window.matchMedia("(prefers-reduced-motion: reduce)").matches){c.time=1;c.playing=false;setIntroPlaying(false);return;}c.speed=1;setIntroSpeed(1);c.time=0;c.playing=true;c.last=performance.now();setIntroPlaying(true);},[]);
  const skipIntro=useCallback(()=>{const c=intro.current;c.time=1;c.playing=false;setIntroPlaying(false);introDone.current?.();introDone.current=null;},[]);
  const pauseIntro=useCallback(()=>{intro.current.playing=false;setIntroPlaying(false);},[]);
  const resumeIntro=useCallback(()=>{const c=intro.current;c.last=performance.now();c.playing=true;setIntroPlaying(true);},[]);

@@ -32,8 +32,8 @@ export default function Viewport(props:Props){
   const controls=new OrbitControls(camera,renderer.domElement);controls.enabled=true;controls.enableDamping=true;controls.addEventListener("start",()=>{userMoved=true;});controls.dampingFactor=.07;controls.minDistance=18;controls.maxDistance=Math.max(L,W,H)*6;controls.maxPolarAngle=Math.PI*.49;controls.target.set(0,H*.44,0);controls.autoRotateSpeed=.6;
   const hemi=new THREE.HemisphereLight(0xffffff,0x8794a2,2.8);scene.add(hemi);const sun=new THREE.DirectionalLight(0xfff6e6,3.3);sun.position.set(-20,80,50);
   // The key light sits on an arc over the model, low on the left at 0, overhead at 0.5, low on
-  // the right at 1, warming slightly as it drops. During the assembly intro it travels across
-  // from the left to wherever the Light slider sits; afterwards the slider moves it directly.
+  // the right at 1, warming slightly as it drops. Keep this light steady during
+  // assembly so the moving geometry stays readable.
   const sunNoon=new THREE.Color(0xfff6e6),sunLow=new THREE.Color(0xffb36b);
   const placeSun=(a:number)=>{const th=Math.max(.03,Math.min(.97,a))*Math.PI;sun.position.set(-Math.cos(th)*95,16+Math.sin(th)*84,48);const warmth=.55*Math.pow(1-Math.sin(th),1.6);sun.color.copy(sunNoon).lerp(sunLow,warmth);sun.intensity=2.8+.5*Math.sin(th);};sun.castShadow=false;sun.shadow.mapSize.set(coarse?1024:2048,coarse?1024:2048);sun.shadow.camera.left=-75;sun.shadow.camera.right=75;sun.shadow.camera.top=70;sun.shadow.camera.bottom=-70;sun.shadow.bias=-.0004;sun.shadow.normalBias=.06;scene.add(sun);
   const fill=new THREE.DirectionalLight(0xccdeff,2);fill.position.set(40,20,-40);scene.add(fill);
@@ -54,18 +54,24 @@ export default function Viewport(props:Props){
    const body=new THREE.InstancedMesh(pieceGeometry(p),material,list.length);body.castShadow=true;body.receiveShadow=true;body.userData.pieces=list;meshes.push(body);scene.add(body);
    let studs:THREE.InstancedMesh|null=null;if(studded.length){studs=new THREE.InstancedMesh(new THREE.CylinderGeometry(.30,.30,.18,12),material,list.length*studded.length);studs.castShadow=true;studs.receiveShadow=true;scene.add(studs);}
    const hubShape=hubGeometry(p);let hubs:THREE.InstancedMesh|null=null;if(hubShape){hubs=new THREE.InstancedMesh(hubShape,new THREE.MeshStandardMaterial({color:0xa9b1b8,roughness:.5,metalness:.1}),list.length);scene.add(hubs);}
-   if(presentation){body.frustumCulled=false;body.instanceMatrix.setUsage(THREE.DynamicDrawUsage);if(studs){studs.frustumCulled=false;studs.instanceMatrix.setUsage(THREE.DynamicDrawUsage);}}
+   if(presentation||cinematic){body.frustumCulled=false;body.instanceMatrix.setUsage(THREE.DynamicDrawUsage);if(studs){studs.frustumCulled=false;studs.instanceMatrix.setUsage(THREE.DynamicDrawUsage);}if(hubs){hubs.frustumCulled=false;hubs.instanceMatrix.setUsage(THREE.DynamicDrawUsage);}}
    batches.push({body,studs,hubs,pieces:list,studded});
   }
   const temp=new THREE.Object3D(),studLocal=new THREE.Matrix4(),studWorld=new THREE.Matrix4(),baseColor=new THREE.Color(),dimColor=new THREE.Color("#c2cbd0");
+  let previousAssemblyTime:number|undefined;
   const update=(state:Props,time?:number)=>{
    controls.enabled=!coarse||touchEnabled.current;renderer.domElement.style.touchAction=coarse&&!touchEnabled.current?"pan-y":"none";
    controls.autoRotate=state.rotate&&!window.matchMedia("(prefers-reduced-motion: reduce)").matches;
    const assemblyTime=time??state.assembly?.time()??1,animationOnly=time!==undefined,highlighted=new Set(state.highlightIds||[]);
-   const sunTarget=state.light??.38;placeSun(cinematic&&assemblyTime<1?.04+(sunTarget-.04)*assemblyTime:sunTarget);
-   for(const batch of batches){let studIndex=0;batch.pieces.forEach((p,i)=>{
+   const sunTarget=state.light??.38;placeSun(sunTarget);
+   const reusePoses=animationOnly&&cinematic&&!state.arrivals&&state.explode===0&&previousAssemblyTime!==undefined;
+   for(const batch of batches){let studIndex=0,matrixChanged=!animationOnly;batch.pieces.forEach((p,i)=>{
     const visible=p.stage<=state.stage,key=`${p.part}:${p.color}`,selected=!state.selected||state.selected===key;
     const e=state.explode,y=p.y*.4,track=tracks.get(p.id)!;
+    // Waiting and landed bricks have identical matrices; only active flights
+    // need CPU transforms. Replay and reverse seeking still cross these bounds.
+    if(reusePoses&&((assemblyTime<=track.start&&previousAssemblyTime!<=track.start)||(assemblyTime>=track.start+track.duration&&previousAssemblyTime!>=track.start+track.duration))){studIndex+=batch.studded.length;return;}
+    matrixChanged=true;
     const entry=state.arrivals?arrivalState.current.entries.get(brickIdentity(p)):null;
     const px=p.x+p.w/2-L/2,py=y+p.h*.2,pz=p.z+p.d/2-centerZ;
     const pose=entry?arrivalPose(entry,arrivalState.current.clock,reducedMotion.matches):e>0?assemblyPose(track,1-e):cinematic?assemblyPose(track,assemblyTime):null;
@@ -73,7 +79,8 @@ export default function Viewport(props:Props){
     if(!animationOnly){baseColor.set(COLORS[p.color].hex);if(state.heat){const r=state.heat.get(p.id);if(r===undefined)baseColor.lerp(dimColor,.8);else baseColor.set(r>1?"#e5484d":r>.5?"#f2b134":"#3f9d5a");}else if(highlighted.size){if(highlighted.has(p.id))baseColor.set("#fb541e");else baseColor.lerp(dimColor,.85);}else if(!selected)baseColor.lerp(dimColor,.85);batch.body.setColorAt(i,baseColor);}
     if(batch.hubs){batch.hubs.setMatrixAt(i,temp.matrix);}
     if(batch.studs)for(const [x,z] of batch.studded){studLocal.makeTranslation(x+.5-p.w/2,p.h*.2+.07,z+.5-p.d/2);studWorld.multiplyMatrices(temp.matrix,studLocal);batch.studs.setMatrixAt(studIndex,studWorld);if(!animationOnly)batch.studs.setColorAt(studIndex,baseColor);studIndex++;}
-   });batch.body.instanceMatrix.needsUpdate=true;if(batch.hubs)batch.hubs.instanceMatrix.needsUpdate=true;if(!animationOnly){if(batch.body.instanceColor)batch.body.instanceColor.needsUpdate=true;if(!presentation)batch.body.computeBoundingSphere();}if(batch.studs){batch.studs.instanceMatrix.needsUpdate=true;if(!animationOnly){if(batch.studs.instanceColor)batch.studs.instanceColor.needsUpdate=true;if(!presentation)batch.studs.computeBoundingSphere();}}}
+   });batch.body.instanceMatrix.needsUpdate=matrixChanged;if(batch.hubs)batch.hubs.instanceMatrix.needsUpdate=matrixChanged;if(!animationOnly){if(batch.body.instanceColor)batch.body.instanceColor.needsUpdate=true;if(!presentation)batch.body.computeBoundingSphere();}if(batch.studs){batch.studs.instanceMatrix.needsUpdate=matrixChanged;if(!animationOnly){if(batch.studs.instanceColor)batch.studs.instanceColor.needsUpdate=true;if(!presentation)batch.studs.computeBoundingSphere();}}}
+   previousAssemblyTime=cinematic&&!state.arrivals&&state.explode===0?assemblyTime:undefined;
   };
   let cameraMove:{position:THREE.Vector3;target:THREE.Vector3;toPosition:THREE.Vector3;toTarget:THREE.Vector3;start:number}|null=null;
   const setCamera=(view:string)=>{
@@ -87,7 +94,7 @@ export default function Viewport(props:Props){
    camera.position.copy(target).add(direction.multiplyScalar(distance*1.16+3));camera.lookAt(target);controls.update();
   };
   const cinematicCamera=new THREE.Vector3();let cameraRevision=0;
-  const resize=()=>{cameraRevision++;const w=node.clientWidth,h=node.clientHeight;renderer.setSize(w,h);camera.aspect=w/Math.max(h,1);camera.updateProjectionMatrix();if(sweeping()&&!userMoved){setCamera("perspective");camera.position.sub(controls.target).multiplyScalar(1.4).add(controls.target);cinematicCamera.copy(camera.position).sub(controls.target);}};
+  const resize=()=>{cameraRevision++;const w=node.clientWidth,h=node.clientHeight;renderer.setSize(w,h);camera.aspect=w/Math.max(h,1);camera.updateProjectionMatrix();if(sweeping()&&!userMoved){setCamera("perspective");camera.position.sub(controls.target).multiplyScalar(1.12).add(controls.target);cinematicCamera.copy(camera.position).sub(controls.target);}};
   const observer=new ResizeObserver(resize);observer.observe(node);resize();if(savedCamera.current?.key===(props.modelKey??"model")){camera.position.copy(savedCamera.current.position);controls.target.copy(savedCamera.current.target);controls.update();}else setCamera(latest.current.view);update(latest.current);api.current={update,camera:(view)=>{if(reducedMotion.matches){cameraMove=null;setCamera(view);return;}const position=camera.position.clone(),target=controls.target.clone();setCamera(view);cameraMove={position,target,toPosition:camera.position.clone(),toTarget:controls.target.clone(),start:performance.now()};camera.position.copy(position);controls.target.copy(target);camera.lookAt(target);}};
   const ray=new THREE.Raycaster(),pointer=new THREE.Vector2();let downX=0,downY=0;
   const down=(e:PointerEvent)=>{cameraMove=null;downX=e.clientX;downY=e.clientY;};
@@ -97,7 +104,7 @@ export default function Viewport(props:Props){
   let inView=true;const visibility=new IntersectionObserver(entries=>{inView=entries[0]?.isIntersecting??true;});visibility.observe(node);
   let raf=0,lastTime=-1,lastCameraRevision=-1,lastFrame=performance.now();const axis=new THREE.Vector3(0,1,0);const animate=()=>{raf=requestAnimationFrame(animate);const now=performance.now(),delta=Math.min(.05,(now-lastFrame)/1000);lastFrame=now;if(inView&&node.clientWidth&&node.clientHeight&&!document.hidden&&!latest.current.suspended){if(latest.current.arrivals&&arrivalState.current.clock<=arrivalEnd){if(!latest.current.arrivals.paused)arrivalState.current.clock+=delta;update(latest.current,arrivalState.current.clock);}
 if(cameraMove){const u=Math.min(1,(now-cameraMove.start)/520),eased=1-Math.pow(1-u,3);camera.position.lerpVectors(cameraMove.position,cameraMove.toPosition,eased);controls.target.lerpVectors(cameraMove.target,cameraMove.toTarget,eased);camera.lookAt(controls.target);if(u===1)cameraMove=null;}
-const time=latest.current.assembly?.time();if(time!==undefined&&(time!==lastTime||cameraRevision!==lastCameraRevision)){update(latest.current,time);if(sweeping()&&!userMoved&&cinematicCamera.lengthSq()>0){camera.position.copy(cinematicCamera).applyAxisAngle(axis,(time-.5)*.38).multiplyScalar(1-.08*time).add(controls.target);camera.lookAt(controls.target);}lastTime=time;lastCameraRevision=cameraRevision;}controls.update();renderer.render(scene,camera);if(time!==undefined)latest.current.assembly?.onFrame?.(renderer.domElement,time);}};animate();
+const time=latest.current.assembly?.time();if(time!==undefined&&(time!==lastTime||cameraRevision!==lastCameraRevision)){update(latest.current,time);if(sweeping()&&!userMoved&&cinematicCamera.lengthSq()>0){camera.position.copy(cinematicCamera).applyAxisAngle(axis,(Math.min(time/.88,1)-1)*.16).multiplyScalar(1-.035*Math.min(time/.88,1)).add(controls.target);camera.lookAt(controls.target);}lastTime=time;lastCameraRevision=cameraRevision;}controls.update();renderer.render(scene,camera);if(time!==undefined)latest.current.assembly?.onFrame?.(renderer.domElement,time);}};animate();
   return()=>{savedCamera.current={key:props.modelKey??"model",position:camera.position.clone(),target:controls.target.clone()};api.current=null;cancelAnimationFrame(raf);observer.disconnect();themeWatch.disconnect();visibility.disconnect();controls.dispose();renderer.domElement.removeEventListener("pointerdown",down);renderer.domElement.removeEventListener("pointerup",pick);renderer.domElement.removeEventListener("webglcontextlost",lost);const materials=new Set<THREE.Material>();scene.traverse(obj=>{if(obj instanceof THREE.Mesh){obj.geometry.dispose();if(Array.isArray(obj.material))obj.material.forEach(m=>materials.add(m));else materials.add(obj.material);}});materials.forEach(m=>m.dispose());sun.shadow.map?.dispose();renderer.renderLists.dispose();};
  },[props.pieces,props.length,props.width,props.height,props.modelKey,props.arrivals?.epoch]);
  useEffect(()=>{api.current?.update(props);},[props.explode,props.stage,props.selected,props.rotate,props.highlightIds,props.heat,props.light,touchActive]);
