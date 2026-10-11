@@ -27,7 +27,7 @@ export async function POST(request:Request){
  const reference=input.research;if(reference?.searchable&&(reference.identity!==undefined||reference.contextAdequate!==undefined)&&!referenceReady(reference))return Response.json({error:referenceClarification(reference),code:"REFERENCE_UNCLEAR"},{status:400});
  return eventResponse(request,async(signal,send)=>{
   send({type:"status",message:"Connecting to your builder…"});
-  const provider=budgetedProvider(requireBudgetDb(config.db),key,budget=>send({type:"budget",budget}),fetch,usage=>send({type:"usage",usage}),config.period);
+  const provider=budgetedProvider(requireBudgetDb(config.db),key,budget=>send({type:"budget",budget}),fetch,usage=>{console.info(JSON.stringify({event:"bricks_ai_usage",stage:"design",...usage}));send({type:"usage",usage});},config.period);
   const chosen=input.brief?.quality?QUALITY_MODELS[input.brief.quality]:model;
   for await(const event of generateScene(input,key,chosen,signal,provider.fetch,provider.recordUsage))send(event);
  },{timeoutMs:input.brief?.quality&&input.brief.quality!=="standard"?420000:240000});

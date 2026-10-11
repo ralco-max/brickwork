@@ -746,3 +746,5 @@ h1,.landing-film-caption h1,.project-heading h1,[data-slot=dialog-title]{text-wr
  .region-marker-help>span{display:none}
 }
 @media(prefers-reduced-motion:reduce){.mobile-studio-sheet{animation:none!important;transition:none!important}}
+
+.run-usage{flex:1 1 100%;min-width:0;font-size:12px}.run-usage>summary{cursor:pointer;min-height:44px;display:flex;align-items:center;text-decoration:underline;text-underline-offset:3px}.run-usage-content{display:grid;gap:12px;padding:12px;border:1px solid var(--line);border-radius:10px;overflow-wrap:anywhere}.run-usage-stage{display:grid;gap:4px}.run-usage-stage strong{display:flex;justify-content:space-between;gap:12px;color:var(--ink-2)}.run-usage-stage small{font-size:12px;line-height:1.5}.run-usage-content p{font-size:12px;line-height:1.5}

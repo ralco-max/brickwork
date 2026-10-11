@@ -25,9 +25,9 @@ test('unclear known place gets one targeted follow-up, retaining photos and char
  const response=await m.POST(request({reference:photo,photos:[extraPhoto],identityHint:'Fixture City',feedback:'The courtyard should be open.'}));
  assert.equal(response.status,200);const data=await response.json();assert.equal(data.passes,2);assert.equal(data.needsClarification,false);assert.equal(data.question,'');assert.equal(data.usages.length,2);assert.deepEqual(data.usage,data.usages[1]);assert.equal(data.budget.spent,.034);assert.equal(data.budget.held,0);
  assert.equal(sqlite.prepare('SELECT COUNT(*) AS n FROM ai_spend WHERE charged_nanos IS NOT NULL').get().n,2);
- const first=JSON.parse(bodies[0].input[0].content[0].text),second=JSON.parse(bodies[1].input[0].content[0].text);
+ const first=JSON.parse(bodies[0].input.find(message=>message.role==="user").content[0].text),second=JSON.parse(bodies[1].input.find(message=>message.role==="user").content[0].text);
  assert.equal(first.previousReference,undefined);assert.equal(second.previousReference.identity.status,'ambiguous');assert.equal(second.identityHint,'Fixture City');assert.equal(second.feedback,'The courtyard should be open.');
- for(const body of bodies){assert.equal(body.max_tool_calls,2);assert.deepEqual(body.input[0].content.filter(c=>c.type==='input_image').map(c=>c.image_url),[photo,extraPhoto]);}
+ for(const body of bodies){assert.equal(body.max_tool_calls,2);assert.deepEqual(body.input.filter(message=>message.role==="user").flatMap(message=>message.content).filter(c=>c.type==='input_image').map(c=>c.image_url),[photo,extraPhoto]);}
 });
 
 test('ambiguity after the second lookup returns a clarification instead of selecting a place',async t=>{

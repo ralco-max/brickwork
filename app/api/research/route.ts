@@ -20,7 +20,7 @@ export async function POST(request:Request){
  let budget:BudgetSnapshot|null=null;const usages:RequestUsage[]=[];
  try{
   const result=await researchWithContext(input,async context=>{
-   const provider=budgetedProvider(requireBudgetDb(config.db),key,b=>{budget=b;},fetch,u=>{usages.push(u);},config.period);
+   const provider=budgetedProvider(requireBudgetDb(config.db),key,b=>{budget=b;},fetch,u=>{console.info(JSON.stringify({event:"bricks_ai_usage",stage:"research",...u}));usages.push(u);},config.period);
    return researchSubject(input.idea,key,model,request.signal,provider.fetch,provider.recordUsage,context);
   },request.signal);
   return Response.json({...result,budget,usages,usage:usages.at(-1)},{headers:{"Cache-Control":"no-store"}});

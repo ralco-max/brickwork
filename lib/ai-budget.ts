@@ -1,3 +1,4 @@
+import {cacheStableContext} from "./ai-efficiency";
 import {GenerationError,upstreamError} from "./generation-errors";
 
 // USD nanodollars avoid floating-point rounding in the durable ledger.
@@ -16,9 +17,9 @@ const SEARCH_CALL_NANOS=10_000_000,SEARCH_CONTENT_TOKENS=30000;
 type Statement={bind:(...values:(string|number|null)[])=>Statement;run:()=>Promise<{meta:{changes?:number}}>;
  first:<T>()=>Promise<T|null>};
 export type BudgetDatabase={prepare:(sql:string)=>Statement};
-export type RequestUsage={cost:number;model:string;inputTokens:number;outputTokens:number;searchCalls:number};
+export type RequestUsage={cost:number;model:string;inputTokens:number;outputTokens:number;searchCalls:number;cachedTokens:number;cacheWriteTokens:number;reasoningTokens:number};
 export type BudgetSnapshot={limit:number;spent:number;held:number;remaining:number};
-type Usage={input_tokens:number;output_tokens:number;input_tokens_details?:{cached_tokens?:number;cache_write_tokens?:number}};
+type Usage={input_tokens:number;output_tokens:number;input_tokens_details?:{cached_tokens?:number;cache_write_tokens?:number};output_tokens_details?:{reasoning_tokens?:number}};
 const unavailable=()=>new GenerationError("Spending checks are temporarily unavailable. Further AI requests are paused. Your draft is kept.","BUDGET_UNAVAILABLE");
 
 export async function keyFingerprint(key:string,period="v1"){
@@ -64,7 +65,7 @@ export function budgetedProvider(db:BudgetDatabase,key:string,notify:(budget:Bud
  const report=async()=>notify(await budgetSnapshot(db,await fingerprint));
  const guardedFetch:typeof fetch=async(url,init)=>{
   if(url!=="https://api.openai.com/v1/responses"||reservation)throw unavailable();
-  const body=JSON.parse(String(init?.body));
+  const body=cacheStableContext(JSON.parse(String(init?.body)));
   const search=Array.isArray(body.tools)&&body.tools.length===1&&body.tools[0]?.type==="web_search";
   const rates=PRICED_MODELS[body.model];requestModel=String(body.model);
   if(!rates||!Number.isSafeInteger(body.max_output_tokens)||body.max_output_tokens<1||body.max_output_tokens>32000||(body.tools&&!search))throw new GenerationError("The spending limit needs verified pricing for this model. No AI request was started.","BUDGET_MODEL");
@@ -107,7 +108,9 @@ export function budgetedProvider(db:BudgetDatabase,key:string,notify:(budget:Bud
    throw new GenerationError("AI usage exceeded the expected request bounds. Further spending is paused; your draft is kept.","BUDGET_ACCOUNTING");
   }
   await settle(db,reservation.id,amount);recorded=true;await report();
-  onUsage?.({cost:amount/1e9,model:requestModel,inputTokens:usage.input_tokens,outputTokens:usage.output_tokens,searchCalls:calls});
+  const reasoning=usage.output_tokens_details?.reasoning_tokens;
+  const reasoningTokens=typeof reasoning==="number"&&Number.isSafeInteger(reasoning)&&reasoning>=0&&reasoning<=usage.output_tokens?reasoning:0;
+  onUsage?.({cost:amount/1e9,model:requestModel,inputTokens:usage.input_tokens,outputTokens:usage.output_tokens,searchCalls:calls,cachedTokens:cached,cacheWriteTokens:written,reasoningTokens});
  };
  return {fetch:guardedFetch,recordUsage};
 }

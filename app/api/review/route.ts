@@ -17,7 +17,7 @@ export async function POST(request:Request){
  let input;try{const reader=request.body?.getReader();if(!reader)throw Error();let text="",size=0;const decoder=new TextDecoder();while(true){const {value,done}=await reader.read();if(done)break;size+=value.byteLength;if(size>10000000+MAX_REVISION_REGION_IMAGE_LENGTH){await reader.cancel();throw Error();}text+=decoder.decode(value,{stream:true});}text+=decoder.decode();input=schema.parse(JSON.parse(text));}catch{return Response.json({error:"Use a valid brief, three to five rendered views, at most four JPEG reference photos under 1.5 MB each, and an optional marked JPEG/PNG area under 1.5 MB."},{status:400});}
  const reference=input.sheet;if(reference?.searchable&&(reference.identity!==undefined||reference.contextAdequate!==undefined)&&!referenceReady(reference))return Response.json({error:referenceClarification(reference),code:"REFERENCE_UNCLEAR"},{status:400});
  return eventResponse(request,async(signal,send)=>{
-  const provider=budgetedProvider(requireBudgetDb(config.db),key,budget=>send({type:"budget",budget}),fetch,usage=>send({type:"usage",usage}),config.period);
+  const provider=budgetedProvider(requireBudgetDb(config.db),key,budget=>send({type:"budget",budget}),fetch,usage=>{console.info(JSON.stringify({event:"bricks_ai_usage",stage:"review",...usage}));send({type:"usage",usage});},config.period);
   const review=await reviewDesign(input.brief,input.images,key,model,signal,provider.fetch,input.revision,provider.recordUsage,{sheet:input.sheet as ReferenceSheet|undefined,photo:input.reference,photos:input.photos},input.region);
   send({type:"complete",review});
  },{timeoutMs:120000});

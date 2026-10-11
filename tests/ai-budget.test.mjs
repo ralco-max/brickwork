@@ -131,3 +131,13 @@ test('Sol reasoning modes reach the provider and cache-write charges are include
  await provider.fetch(url,payload());await provider.recordUsage({input_tokens:1000,output_tokens:2000,input_tokens_details:{cached_tokens:400,cache_write_tokens:200}});
  assert.equal((await budgetSnapshot(db,await keyFingerprint(key))).spent,.02134);
 });
+
+test('budget preflight counts the exact cached input and reports cache and reasoning usage once',async t=>{
+ const {db,sqlite}=budgetDb();t.after(()=>sqlite.close());const calls=[],reported=[];
+ const provider=budgetedProvider(db,key,()=>{},async(u,init)=>{calls.push(JSON.parse(init.body));return u.endsWith('/input_tokens')?Response.json({input_tokens:1000}):Response.json({ok:true});},usage=>reported.push(usage));
+ await provider.fetch(url,payload({instructions:'Stable rules',input:[{role:'user',content:[{type:'input_text',text:'Make the roof darker'}]}]}));
+ assert.deepEqual(calls[0].input,calls[1].input);assert.equal(calls[1].input[0].role,'developer');assert.equal(calls[1].instructions,undefined);assert.deepEqual(calls[1].prompt_cache_options,{mode:'explicit'});
+ const usage={input_tokens:1000,output_tokens:300,input_tokens_details:{cached_tokens:600,cache_write_tokens:100},output_tokens_details:{reasoning_tokens:200}};
+ await provider.recordUsage(usage);await provider.recordUsage(usage);
+ assert.equal(reported.length,1);assert.equal(reported[0].cachedTokens,600);assert.equal(reported[0].cacheWriteTokens,100);assert.equal(reported[0].reasoningTokens,200);assert.equal(reported[0].cost,tokenCost(1000,300,600,undefined,100)/1e9);
+});

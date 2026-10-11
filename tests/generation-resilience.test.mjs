@@ -58,7 +58,7 @@ test('review route forwards the saved reference and five model views and reports
  const extra=['data:image/jpeg;base64,Yw==','data:image/jpeg;base64,ZA=='];const payload={brief,sheet,reference:photo,photos:extra,images:Array(5).fill('data:image/jpeg;base64,YQ==')};
  const response=await reviewPOST(new Request('https://brickwork.test/api/review',{method:'POST',headers:{'x-brickwork-api-key':'fixture-key'},body:JSON.stringify(payload)}));
  const events=await collect(response.body);assert.deepEqual(events.find(e=>e.type==='complete').review,review);assert.equal(events.filter(e=>e.type==='usage').length,1);assert.equal(events.find(e=>e.type==='usage').usage.cost,.0012);
- const content=sent.input[0].content;assert.deepEqual(JSON.parse(content[0].text).referenceSheet,sheet);assert.equal(content.filter(c=>c.type==='input_image').length,8);assert.deepEqual(content.filter(c=>c.type==='input_image').slice(-3).map(c=>c.image_url),[photo,...extra]);
+ const content=sent.input.filter(message=>message.role==="user").flatMap(message=>message.content);assert.deepEqual(JSON.parse(content[0].text).referenceSheet,sheet);assert.equal(content.filter(c=>c.type==='input_image').length,8);assert.deepEqual(content.filter(c=>c.type==='input_image').slice(-3).map(c=>c.image_url),[photo,...extra]);
  sent=undefined;const invalid=await reviewPOST(new Request('https://brickwork.test/api/review',{method:'POST',headers:{'x-brickwork-api-key':'fixture-key'},body:JSON.stringify({...payload,reference:'http://localhost/secret'})}));assert.equal(invalid.status,400);assert.equal(sent,undefined);
 });
 
@@ -67,7 +67,7 @@ test('generation sends all user photo angles with feedback while keeping source 
  const frames=[{type:'response.output_text.delta',delta:JSON.stringify(compactScene(scene))},{type:'response.completed',response:{status:'completed'}}];
  const fetcher=async(_url,init)=>{sent=JSON.parse(init.body);return new Response(frames.map(e=>'data: '+JSON.stringify(e)+'\n\n').join(''));};
  for await(const _ of generateScene({prompt:'Match the roof in the new angle',detail:'medium',brief,reference:photo,photos:[additional,photo]},'fixture-key','fixture-model',new AbortController().signal,fetcher)){}
- const content=sent.input[0].content,meta=JSON.parse(content[0].text);
+ const content=sent.input.filter(message=>message.role==="user").flatMap(message=>message.content),meta=JSON.parse(content[0].text);
  assert.equal(meta.idea,'Match the roof in the new angle');assert.equal(meta.referencePhotoCount,2);
  assert.deepEqual(content.filter(c=>c.type==='input_image').map(c=>c.image_url),[photo,additional]);
  assert.match(content[1].text,/original/);assert.match(content[3].text,/additional evidence/);assert.match(sent.instructions,/photos added during refinement/);
@@ -80,7 +80,7 @@ test('generation route accepts four distinct reference photos and forwards each 
  t.mock.method(globalThis,'fetch',async(url,init)=>{if(url.endsWith('/input_tokens'))return Response.json({input_tokens:100});sent=JSON.parse(init.body);return new Response(frames.map(e=>'data: '+JSON.stringify(e)+'\n\n').join(''));});
  const response=await generatePOST(new Request('https://brickwork.test/api/generate',{method:'POST',headers:{'x-brickwork-api-key':'fixture-key'},body:JSON.stringify({brief,prompt:'Match the new photos',detail:'medium',reference:photos[0],photos:photos.slice(1),research:{searchable:false,kind:'object',subject:'Photo tower',summary:'A generic photo-based tower',length_m:null,width_m:null,height_m:null,proportions:'Tall',colors:[],silhouette:[],distinctive:[],sources:[],identity:{status:'generic',location:'',question:''},contextAdequate:false}})}));
  const events=await collect(response.body);assert.ok(events.some(e=>e.type==='complete'));assert.equal(events.filter(e=>e.type==='usage').length,1);
- assert.deepEqual(sent.input[0].content.filter(c=>c.type==='input_image').map(c=>c.image_url),photos);
+ assert.deepEqual(sent.input.filter(message=>message.role==="user").flatMap(message=>message.content).filter(c=>c.type==='input_image').map(c=>c.image_url),photos);
 });
 
 test('generation and review reject too many, malformed, oversized or unresolved references before paid requests',async t=>{
