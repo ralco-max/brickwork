@@ -49,3 +49,20 @@ test('completion clears only the submitted composer version and never erases new
  assert.equal(mayClearSubmittedFeedback(2,3,false),false);
  assert.equal(mayClearSubmittedFeedback(2,2,true),false,'review-only should leave the draft intact');
 });
+
+const region=(sceneKey='scene-v1-old')=>({image:'data:image/jpeg;base64,YQ==',polygon:[{x:.1,y:.1},{x:.6,y:.1},{x:.6,y:.7},{x:.1,y:.7}],components:['Roof'],bounds:{min:{x:2,y:9,z:3},max:{x:8,y:15,z:7}},sceneKey,description:'Raise the circled roof'});
+test('a queued region keeps the captured image and scene together while the composer redraws',()=>{
+ const queue=new FeedbackQueue(),draft={...snapshot('Raise this roof'),region:region()};queue.submit(draft,21);
+ draft.region.image='data:image/jpeg;base64,Yg==';draft.region.polygon[0].x=.9;draft.region.components.push('Tower');draft.region.bounds.min.y=20;draft.region.sceneKey='scene-v1-new';
+ queue.settle(21,'completed');const submitted=queue.takeReady().value;
+ assert.equal(submitted.region.image,'data:image/jpeg;base64,YQ==');assert.equal(submitted.region.sceneKey,'scene-v1-old');assert.equal(submitted.region.polygon[0].x,.1);assert.deepEqual(submitted.region.components,['Roof']);assert.equal(submitted.region.bounds.min.y,9);
+ assert.equal(queue.takeReady(),null,'a repeated completion must not spend on the marked region twice');
+});
+
+test('failed queued region edits retain the exact capture without replacing a newer queued selection',()=>{
+ const queue=new FeedbackQueue();queue.submit({...snapshot('Raise this roof'),region:region()},31);queue.settle(31,'completed');const submitted=queue.takeReady();
+ queue.restorePaused(submitted);assert.equal(queue.takeReady(),null);assert.equal(queue.pending.value.region.sceneKey,'scene-v1-old');
+ queue.resume();queue.takeReady();const newer={...snapshot('Shorten this tower',2),region:{...region('scene-v1-new'),components:['Tower']}};queue.submit(newer,32);queue.restorePaused(submitted);
+ assert.deepEqual(queue.pending.value,newer);queue.settle(32,'failed');assert.equal(queue.pending.status,'paused');assert.equal(queue.pending.value.region.sceneKey,'scene-v1-new');
+ assert.equal(mayClearSubmittedFeedback(submitted.value.version,newer.version,false),false,'an old completion must not clear a newer drawn region');
+});

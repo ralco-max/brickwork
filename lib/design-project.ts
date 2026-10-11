@@ -1,4 +1,6 @@
 import {z} from "zod";
+import {revisionRegionSchema} from "./revision-region";
+import type {RevisionRegion} from "./revision-region";
 import {SIGN_TEXT_PATTERN,SIGN_TEXT_HELP,normalizedSignText,signPixels} from "./brick-lettering";
 import {referenceSheetSchema} from "./design-research";
 import {referencePhotoSchema,referencePhotosSchema,collectReferencePhotos,MAX_REFERENCE_PHOTOS} from "./reference-photos";
@@ -21,7 +23,7 @@ export type ManualEdits={erase:Cuboid[];bricks:Piece[]};
 export type VisualReview={composition?:{status:"matches"|"mismatch"|"uncertain"|"not_applicable";evidence:string};revision?:{status:"visible"|"missing"|"uncertain"|"not_requested";evidence:string};summary:string;recognizable:boolean;features:{feature:string;status:"visible"|"missing"|"uncertain";evidence:string}[];improvements:string[];thinking?:string};
 export type DesignReference={sheet?:ReferenceSheet;photo?:string;photos?:string[];identityHint?:string;briefKey:string};
 export const referenceKey=(b:DesignBrief)=>JSON.stringify([b.idea.trim(),b.scope||"subject",b.composition||"",b.features]);
-export type DesignContext={unfinished?:boolean;reviewRequest?:string;reference?:DesignReference;brief:DesignBrief;manual:ManualEdits;locked:string[];revisions:{request:string;summary:string;at:string}[];review?:VisualReview;reviewStale?:boolean};
+export type DesignContext={unfinished?:boolean;reviewRequest?:string;reviewRegion?:RevisionRegion;reference?:DesignReference;brief:DesignBrief;manual:ManualEdits;locked:string[];revisions:{request:string;summary:string;at:string}[];review?:VisualReview;reviewStale?:boolean};
 export type Quote={available:number;unitPrice:number;url:string;checkedAt:string};
 export type ShoppingState={owned:Record<string,number>;elementIds:Record<string,string>;priceOverrides:Record<string,number>;quotes:Record<string,Quote>};
 export const emptyShopping=():ShoppingState=>({owned:{},elementIds:{},priceOverrides:{},quotes:{}});
@@ -34,7 +36,7 @@ export const manualSchema=z.object({erase:z.array(eraseSchema).max(32000),bricks
 const clip=(n:number)=>z.string().transform(v=>v.slice(0,n));
 const reviewSchema=z.object({composition:z.object({status:z.enum(["matches","mismatch","uncertain","not_applicable"]),evidence:clip(1000)}).optional(),revision:z.object({status:z.enum(["visible","missing","uncertain","not_requested"]),evidence:clip(500)}).optional(),summary:clip(1500),recognizable:z.boolean(),features:z.array(z.object({feature:z.string().max(160),status:z.enum(["visible","missing","uncertain"]),evidence:clip(500)})).max(12),improvements:z.array(clip(500)).max(8),thinking:clip(4000).optional()});
 export {reviewSchema};
-export const contextSchema=z.object({unfinished:z.boolean().optional(),reviewRequest:z.string().max(2000).optional(),reference:z.object({sheet:referenceSheetSchema.optional(),photo:referencePhotoSchema.optional(),photos:referencePhotosSchema.optional(),identityHint:z.string().max(300).optional(),briefKey:z.string().max(5000)}).refine(r=>collectReferencePhotos(r.photo,r.photos).length<=MAX_REFERENCE_PHOTOS,"Use at most four reference photos.").optional(),brief:briefSchema,manual:manualSchema,locked:z.array(z.string().max(80)).max(240),revisions:z.array(z.object({request:z.string().max(2000),summary:z.string().max(1000),at:z.string().max(40)})).max(50),review:reviewSchema.optional(),reviewStale:z.boolean().optional()});
+export const contextSchema=z.object({unfinished:z.boolean().optional(),reviewRequest:z.string().max(2000).optional(),reviewRegion:revisionRegionSchema.optional(),reference:z.object({sheet:referenceSheetSchema.optional(),photo:referencePhotoSchema.optional(),photos:referencePhotosSchema.optional(),identityHint:z.string().max(300).optional(),briefKey:z.string().max(5000)}).refine(r=>collectReferencePhotos(r.photo,r.photos).length<=MAX_REFERENCE_PHOTOS,"Use at most four reference photos.").optional(),brief:briefSchema,manual:manualSchema,locked:z.array(z.string().max(80)).max(240),revisions:z.array(z.object({request:z.string().max(2000),summary:z.string().max(1000),at:z.string().max(40)})).max(50),review:reviewSchema.optional(),reviewStale:z.boolean().optional()});
 const recordKey=z.string().max(40).refine(key=>{const [part,color,...extra]=key.split(":");return !extra.length&&Object.hasOwn(PARTS,part)&&Object.hasOwn(COLORS,color);});
 const shoppingSchema=z.object({owned:z.record(recordKey,z.number().int().min(0).max(16000)),elementIds:z.record(recordKey,z.string().regex(/^\d{0,8}$/)),priceOverrides:z.record(recordKey,z.number().finite().min(0).max(10000)),quotes:z.record(recordKey,z.object({available:z.number().int().min(0).max(100000),unitPrice:z.number().finite().min(0).max(10000),url:z.string().url().max(1000).refine(s=>/^https:\/\//.test(s)),checkedAt:z.string().datetime()}))});
 const pieceKey=(p:Piece)=>`${p.part}:${p.color}:${p.x}:${p.y}:${p.z}:${p.rotated}:${p.face||(p.rotated?"px":"pz")}`;

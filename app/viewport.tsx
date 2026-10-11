@@ -10,16 +10,22 @@ import type {Arrival,ArrivalMode} from "@/lib/live-arrivals";
 import {assemblyPose,assemblyTracks,inspectionReach,inspectionTracks,type AssemblyTrack} from "@/lib/assembly";
 import {cameraPanOffset,advanceCameraMove,settledPieceBounds,cameraFramingSnapshot,cameraAutoFit,type CameraMove,type CameraFramingSnapshot} from "@/lib/camera-navigation";
 import {hasExactPartGeometry,partGeometriesReady} from "@/lib/part-meshes";
+import RegionMarker from "./region-marker";
+import {regionSamplePoints,regionBoundsForPieces} from "@/lib/region-selection";
+import type {RevisionRegion} from "@/lib/revision-region";
 import {PreviewGeometryBuffer,type PreviewGeometry} from "@/lib/preview-geometry";
 
 export type BrickHit={piece:Piece;point:{x:number;y:number;z:number};normal:{x:number;y:number;z:number}};
-type Props={arrivals?:{epoch:number;paused:boolean;mode?:ArrivalMode};suspended?:boolean;light?:number;pieces:Piece[];length:number;width?:number;height?:number;modelKey?:string;editMode?:string;onBrick?:(hit:BrickHit)=>void;highlightIds?:number[];heat?:Map<number,number>;explode:number;stage:number;selected:string|null;view:string;reset:number;rotate:boolean;onPick:(key:string|null)=>void;assembly?:{time:()=>number;onFrame?:(canvas:HTMLCanvasElement,time:number)=>void;sweep?:boolean};presentation?:boolean;onCanvas?:(canvas:HTMLCanvasElement|null)=>void};
+export type RegionCapture=Pick<RevisionRegion,"image"|"polygon"|"bounds">;
+type Props={regionMode?:boolean;onRegion?:(region:RegionCapture)=>void;onCancelRegion?:()=>void;arrivals?:{epoch:number;paused:boolean;mode?:ArrivalMode};suspended?:boolean;light?:number;pieces:Piece[];length:number;width?:number;height?:number;modelKey?:string;editMode?:string;onBrick?:(hit:BrickHit)=>void;highlightIds?:number[];heat?:Map<number,number>;explode:number;stage:number;selected:string|null;view:string;reset:number;rotate:boolean;onPick:(key:string|null)=>void;assembly?:{time:()=>number;onFrame?:(canvas:HTMLCanvasElement,time:number)=>void;sweep?:boolean};presentation?:boolean;onCanvas?:(canvas:HTMLCanvasElement|null)=>void};
 export default function Viewport(props:Props){
  const buffer=useRef<PreviewGeometryBuffer|null>(null);if(!buffer.current)buffer.current=new PreviewGeometryBuffer();
  const request=useMemo<PreviewGeometry>(()=>({pieces:props.pieces,length:props.length,width:props.width,height:props.height,modelKey:props.modelKey}),[props.pieces,props.length,props.width,props.height,props.modelKey]);
  const [,refresh]=useState(0),[retry,setRetry]=useState(0),[failure,setFailure]=useState<{request:PreviewGeometry;error:unknown}|null>(null);
  const [showPreparing,setShowPreparing]=useState(false);
- const display=buffer.current.select(request),waiting=!partGeometriesReady(request.pieces),currentFailure=waiting&&failure?.request===request?failure:null;
+ const available=buffer.current.select(request),frozen=useRef<PreviewGeometry|null>(null);
+ if(!props.regionMode)frozen.current=available;else if(!frozen.current)frozen.current=available;
+ const display=props.regionMode?frozen.current:available,waiting=!partGeometriesReady(request.pieces),currentFailure=waiting&&failure?.request===request?failure:null;
  useEffect(()=>{setFailure(null);return buffer.current!.prepare(request,()=>refresh(v=>v+1),error=>setFailure({request,error}));},[request,retry,waiting]);
  const hasDisplay=Boolean(display);
  useEffect(()=>{setShowPreparing(false);if(hasDisplay)return;const timer=setTimeout(()=>setShowPreparing(true),450);return()=>clearTimeout(timer);},[hasDisplay,props.modelKey]);
@@ -32,7 +38,7 @@ export default function Viewport(props:Props){
 // This component receives only complete geometry snapshots. Its scene, camera,
 // controls and animation stay alive while the wrapper loads the next update.
 function ReadyViewport(props:Props){
- const host=useRef<HTMLDivElement>(null),api=useRef<{update:(p:Props)=>void;camera:(view:string)=>void;pan:(horizontal:number,vertical:number)=>void}|null>(null),latest=useRef(props);latest.current=props;const savedCamera=useRef<{key:string;position:THREE.Vector3;target:THREE.Vector3;length:number;width:number;framing:CameraFramingSnapshot;move:CameraMove|null;userMoved:boolean}|null>(null);
+ const host=useRef<HTMLDivElement>(null),api=useRef<{update:(p:Props)=>void;camera:(view:string)=>void;pan:(horizontal:number,vertical:number)=>void;captureRegion:(polygon:RevisionRegion["polygon"])=>RegionCapture}|null>(null),latest=useRef(props);latest.current=props;const savedCamera=useRef<{key:string;position:THREE.Vector3;target:THREE.Vector3;length:number;width:number;framing:CameraFramingSnapshot;move:CameraMove|null;userMoved:boolean}|null>(null);
  const rendererRef=useRef<THREE.WebGLRenderer|null>(null);
  const previousFraming=useRef({view:props.view,reset:props.reset,explode:props.explode});
  const arrivalState=useRef({epoch:-1,clock:0,entries:new Map<string,Arrival>()});
@@ -158,12 +164,12 @@ function ReadyViewport(props:Props){
   const temp=new THREE.Object3D(),studLocal=new THREE.Matrix4(),studWorld=new THREE.Matrix4(),baseColor=new THREE.Color(),dimColor=new THREE.Color("#c2cbd0");
   let previousAssemblyTime:number|undefined;
   const update=(state:Props,time?:number)=>{
-   controls.enabled=!coarse||touchEnabled.current;renderer.domElement.style.touchAction=coarse&&!touchEnabled.current?"pan-y":"none";
-   controls.autoRotate=state.rotate&&!window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+   controls.enabled=!state.regionMode&&(!coarse||touchEnabled.current);renderer.domElement.style.touchAction=coarse&&!touchEnabled.current?"pan-y":"none";
+   controls.autoRotate=!state.regionMode&&state.rotate&&!window.matchMedia("(prefers-reduced-motion: reduce)").matches;
    const assemblyTime=time??state.assembly?.time()??1,animationOnly=time!==undefined,highlighted=new Set(state.highlightIds||[]);
    const sunTarget=state.light??.38;placeSun(sunTarget);
    const reusePoses=animationOnly&&cinematic&&!state.arrivals&&state.explode===0&&previousAssemblyTime!==undefined;
-   for(const batch of batches){if(batch.arrival){const opacity=arrivalOpacity(batch.arrival,arrivalState.current.clock,reducedMotion.matches);for(const material of batch.materials)material.opacity=opacity;}let studIndex=0,matrixChanged=!animationOnly;batch.pieces.forEach((p,i)=>{
+   for(const batch of batches){if(batch.arrival){const opacity=state.regionMode?1:arrivalOpacity(batch.arrival,arrivalState.current.clock,reducedMotion.matches);for(const material of batch.materials)material.opacity=opacity;}let studIndex=0,matrixChanged=!animationOnly;batch.pieces.forEach((p,i)=>{
     const visible=p.stage<=state.stage,key=`${p.part}:${p.color}`,selected=!state.selected||state.selected===key;
     const e=state.explode,y=p.y*.4,track=tracks.get(p.id)!;
     // Waiting and landed bricks have identical matrices; only active flights
@@ -172,7 +178,7 @@ function ReadyViewport(props:Props){
     matrixChanged=true;
     const entry=state.arrivals?arrivalState.current.entries.get(brickIdentity(p)):null;
     const px=p.x+p.w/2-L/2,py=y+p.h*.2,pz=p.z+p.d/2-centerZ;
-    const pose=entry?arrivalPose(entry,arrivalState.current.clock,reducedMotion.matches):e>0?assemblyPose(explodedTracks.get(p.id)!,1-e):cinematic?assemblyPose(track,assemblyTime):null;
+    const pose=state.regionMode?null:entry?arrivalPose(entry,arrivalState.current.clock,reducedMotion.matches):e>0?assemblyPose(explodedTracks.get(p.id)!,1-e):cinematic?assemblyPose(track,assemblyTime):null;
     temp.position.set(px+(pose?.x??0),py+(pose?.y??0),pz+(pose?.z??0));temp.rotation.set(pose?.rx??0,pose?.ry??0,pose?.rz??0);temp.scale.setScalar(visible?(pose?.scale??1):0);temp.updateMatrix();batch.body.setMatrixAt(i,temp.matrix);
     if(!animationOnly){baseColor.set(COLORS[p.color].hex);if(state.heat){const r=state.heat.get(p.id);if(r===undefined)baseColor.lerp(dimColor,.8);else baseColor.set(r>1?"#e5484d":r>.5?"#f2b134":"#3f9d5a");}else if(highlighted.size){if(highlighted.has(p.id))baseColor.set("#fb541e");else baseColor.lerp(dimColor,.85);}else if(!selected)baseColor.lerp(dimColor,.85);batch.body.setColorAt(i,baseColor);}
     if(batch.hubs){batch.hubs.setMatrixAt(i,temp.matrix);}
@@ -180,7 +186,29 @@ function ReadyViewport(props:Props){
    });batch.body.instanceMatrix.needsUpdate=matrixChanged;if(batch.hubs)batch.hubs.instanceMatrix.needsUpdate=matrixChanged;if(!animationOnly){if(batch.body.instanceColor)batch.body.instanceColor.needsUpdate=true;if(!presentation)batch.body.computeBoundingSphere();}if(batch.studs){batch.studs.instanceMatrix.needsUpdate=matrixChanged;if(!animationOnly){if(batch.studs.instanceColor)batch.studs.instanceColor.needsUpdate=true;if(!presentation)batch.studs.computeBoundingSphere();}}}
    previousAssemblyTime=cinematic&&!state.arrivals&&state.explode===0?assemblyTime:undefined;
   };
-  update(latest.current);api.current={update,camera:fitCamera,pan:panCamera};
+  update(latest.current);
+  const captureRegion=(polygon:RevisionRegion["polygon"]):RegionCapture=>{
+   // Read the WebGL framebuffer immediately after a render. The normal renderer
+   // does not retain it between frames; a later toDataURL can otherwise be blank.
+   update(latest.current);camera.updateMatrixWorld();scene.updateMatrixWorld(true);renderer.render(scene,camera);
+   const source=renderer.domElement,canvas=document.createElement("canvas"),scale=Math.min(1,960/Math.max(source.width,source.height));
+   canvas.width=Math.max(1,Math.round(source.width*scale));canvas.height=Math.max(1,Math.round(source.height*scale));
+   const context=canvas.getContext("2d");if(!context)throw Error("No image canvas");
+   context.fillStyle=getComputedStyle(document.documentElement).getPropertyValue("--canvas-bg").trim()||"#eef2f4";context.fillRect(0,0,canvas.width,canvas.height);context.drawImage(source,0,0,canvas.width,canvas.height);
+   context.beginPath();polygon.forEach((p,i)=>{if(i)context.lineTo(p.x*canvas.width,p.y*canvas.height);else context.moveTo(p.x*canvas.width,p.y*canvas.height);});context.closePath();context.fillStyle="#fb541e25";context.fill("evenodd");context.lineWidth=3;context.strokeStyle="#fb541e";context.stroke();
+   // A bounded number of rays keeps large builds responsive. Only first visible
+   // surface hits contribute advisory bounds; rear walls are never box-selected.
+   for(const mesh of meshes)mesh.computeBoundingSphere();
+   const selectionRay=new THREE.Raycaster(),selected=new Map<number,Piece>();
+   for(const point of regionSamplePoints(polygon)){
+    selectionRay.setFromCamera(new THREE.Vector2(point.x*2-1,1-point.y*2),camera);
+    const hit=selectionRay.intersectObjects(meshes,false)[0];
+    if(hit?.instanceId!==undefined){const piece=hit.object.userData.pieces[hit.instanceId] as Piece;selected.set(piece.id,piece);}
+   }
+   const bounds=regionBoundsForPieces([...selected.values()]);
+   return {image:canvas.toDataURL("image/jpeg",.82),polygon:polygon.map(p=>({...p})),...(bounds?{bounds}:{})};
+  };
+  api.current={update,camera:fitCamera,pan:panCamera,captureRegion};
   const keyboard=(event:KeyboardEvent)=>{
    const direction=event.key==="ArrowUp"?[0,1]:event.key==="ArrowDown"?[0,-1]:event.key==="ArrowLeft"?[-1,0]:event.key==="ArrowRight"?[1,0]:null;
    if(direction){event.preventDefault();panCamera(direction[0],direction[1]);}else if(event.key==="Home"){event.preventDefault();fitCamera(latest.current.view);}
@@ -188,18 +216,19 @@ function ReadyViewport(props:Props){
   if(!props.presentation)renderer.domElement.addEventListener("keydown",keyboard);
   const ray=new THREE.Raycaster(),pointer=new THREE.Vector2();let downX=0,downY=0;
   const down=(e:PointerEvent)=>{cameraMove=null;downX=e.clientX;downY=e.clientY;};
-  const pick=(e:PointerEvent)=>{if(e.button!==0||(coarse&&!touchEnabled.current)||Math.hypot(e.clientX-downX,e.clientY-downY)>5)return;const rect=node.getBoundingClientRect();pointer.set((e.clientX-rect.left)/rect.width*2-1,-(e.clientY-rect.top)/rect.height*2+1);ray.setFromCamera(pointer,camera);const hit=ray.intersectObjects(meshes)[0];if(hit&&hit.instanceId!==undefined){const p=hit.object.userData.pieces[hit.instanceId] as Piece;if(latest.current.editMode&&latest.current.editMode!=="inspect"&&latest.current.onBrick){const n=hit.face?.normal??new THREE.Vector3(0,1,0);latest.current.onBrick({piece:p,point:{x:hit.point.x+centerX,y:hit.point.y/.4,z:hit.point.z+centerZ},normal:{x:n.x,y:n.y,z:n.z}});return;}const key=`${p.part}:${p.color}`;latest.current.onPick(latest.current.selected===key?null:key);}else latest.current.onPick(null);};
+  const pick=(e:PointerEvent)=>{if(latest.current.regionMode||e.button!==0||(coarse&&!touchEnabled.current)||Math.hypot(e.clientX-downX,e.clientY-downY)>5)return;const rect=node.getBoundingClientRect();pointer.set((e.clientX-rect.left)/rect.width*2-1,-(e.clientY-rect.top)/rect.height*2+1);ray.setFromCamera(pointer,camera);const hit=ray.intersectObjects(meshes)[0];if(hit&&hit.instanceId!==undefined){const p=hit.object.userData.pieces[hit.instanceId] as Piece;if(latest.current.editMode&&latest.current.editMode!=="inspect"&&latest.current.onBrick){const n=hit.face?.normal??new THREE.Vector3(0,1,0);latest.current.onBrick({piece:p,point:{x:hit.point.x+centerX,y:hit.point.y/.4,z:hit.point.z+centerZ},normal:{x:n.x,y:n.y,z:n.z}});return;}const key=`${p.part}:${p.color}`;latest.current.onPick(latest.current.selected===key?null:key);}else latest.current.onPick(null);};
   renderer.domElement.addEventListener("pointerdown",down);renderer.domElement.addEventListener("pointerup",pick);
   const lost=(e:Event)=>{e.preventDefault();latest.current.onCanvas?.(null);setError(true);};renderer.domElement.addEventListener("webglcontextlost",lost);
   let inView=true;const visibility=new IntersectionObserver(entries=>{inView=entries[0]?.isIntersecting??true;});visibility.observe(node);
   let raf=0,lastTime=-1,lastCameraRevision=-1,lastFrame=performance.now();const axis=new THREE.Vector3(0,1,0);const animate=()=>{raf=requestAnimationFrame(animate);const now=performance.now(),delta=Math.min(.05,(now-lastFrame)/1000);lastFrame=now;if(inView&&node.clientWidth&&node.clientHeight&&!document.hidden&&!latest.current.suspended){if(latest.current.arrivals&&arrivalState.current.clock<=arrivalEnd){if(!latest.current.arrivals.paused)arrivalState.current.clock+=delta;update(latest.current,arrivalState.current.clock);}
+if(latest.current.regionMode)cameraMove=null;
 if(cameraMove&&advanceCameraMove(camera,controls.target,cameraMove,now,reducedMotion.matches))cameraMove=null;
-const time=latest.current.assembly?.time();if(time!==undefined&&(time!==lastTime||cameraRevision!==lastCameraRevision)){if(time<lastTime){captureTracks();previousAssemblyTime=undefined;}update(latest.current,time);if(sweeping()&&!userMoved&&cinematicCamera.lengthSq()>0){camera.position.copy(cinematicCamera).applyAxisAngle(axis,(Math.min(time/.88,1)-1)*.16).multiplyScalar(1-.035*Math.min(time/.88,1)).add(controls.target);camera.lookAt(controls.target);}lastTime=time;lastCameraRevision=cameraRevision;}controls.update();renderer.render(scene,camera);if(time!==undefined)latest.current.assembly?.onFrame?.(renderer.domElement,time);}};animate();
+const time=latest.current.assembly?.time();if(time!==undefined&&(time!==lastTime||cameraRevision!==lastCameraRevision)){if(time<lastTime){captureTracks();previousAssemblyTime=undefined;}update(latest.current,time);if(sweeping()&&!userMoved&&cinematicCamera.lengthSq()>0){camera.position.copy(cinematicCamera).applyAxisAngle(axis,(Math.min(time/.88,1)-1)*.16).multiplyScalar(1-.035*Math.min(time/.88,1)).add(controls.target);camera.lookAt(controls.target);}lastTime=time;lastCameraRevision=cameraRevision;}if(!latest.current.regionMode)controls.update();renderer.render(scene,camera);if(time!==undefined)latest.current.assembly?.onFrame?.(renderer.domElement,time);}};animate();
   return()=>{savedCamera.current={key:props.modelKey??"model",position:camera.position.clone(),target:controls.target.clone(),length:L,width:W,framing:framing!,move:cameraMove,userMoved};api.current=null;cancelAnimationFrame(raf);observer.disconnect();themeWatch.disconnect();visibility.disconnect();controls.dispose();renderer.domElement.removeEventListener("keydown",keyboard);renderer.domElement.removeEventListener("pointerdown",down);renderer.domElement.removeEventListener("pointerup",pick);renderer.domElement.removeEventListener("webglcontextlost",lost);const materials=new Set<THREE.Material>();scene.traverse(obj=>{if(obj instanceof THREE.Mesh){obj.geometry.dispose();if(Array.isArray(obj.material))obj.material.forEach(m=>materials.add(m));else materials.add(obj.material);}});materials.forEach(m=>m.dispose());sun.shadow.map?.dispose();renderer.renderLists.dispose();};
  },[props.pieces,props.length,props.width,props.height,props.modelKey,props.arrivals?.epoch,props.arrivals?.mode]);
- useEffect(()=>{api.current?.update(props);},[props.explode,props.stage,props.selected,props.rotate,props.highlightIds,props.heat,props.light,touchActive]);
+ useEffect(()=>{api.current?.update(props);},[props.explode,props.stage,props.selected,props.rotate,props.highlightIds,props.heat,props.light,props.regionMode,touchActive]);
  useEffect(()=>{const old=previousFraming.current;previousFraming.current={view:props.view,reset:props.reset,explode:props.explode};if(old.view!==props.view||old.reset!==props.reset||old.explode!==props.explode)api.current?.camera(props.view);},[props.view,props.reset,props.explode]);
- return <div className={"canvas-host "+(props.editMode&&props.editMode!=="inspect"?"is-editing":"")} ref={host}>{!presentationProp&&!error&&<>
+ return <div className={"canvas-host "+(props.editMode&&props.editMode!=="inspect"?"is-editing":"")} ref={host}>{!presentationProp&&!error&&!props.regionMode&&<>
   <div className="camera-navigation" role="group" aria-label="Move the camera">
    <span>Move view</span><div>
     <button type="button" title="Move view left" aria-label="Move view left" onClick={()=>api.current?.pan(-1,0)}><ArrowLeft size={18}/></button>
@@ -210,5 +239,5 @@ const time=latest.current.assembly?.time();if(time!==undefined&&(time!==lastTime
    </div><small>Right-drag to pan · Scroll to zoom</small>
   </div>
   <button type="button" className="touch-model-toggle" aria-pressed={touchActive} onClick={()=>setTouchActive(v=>!v)}>{touchActive?"Done · scroll page":"Touch to orbit · 2 fingers to move"}</button>
- </>}{error&&<div className="canvas-error"><strong>3D preview is unavailable in this browser.</strong><p>The parts audit and exports still work. Try opening the studio in Safari or Chrome with WebGL enabled.</p></div>}</div>;
+ </>}{props.regionMode&&!error&&<RegionMarker onSelect={polygon=>{if(!api.current)throw Error("Preview is not ready");props.onRegion?.(api.current.captureRegion(polygon));}} onCancel={()=>props.onCancelRegion?.()}/>} {error&&<div className="canvas-error"><strong>3D preview is unavailable in this browser.</strong><p>The parts audit and exports still work. Try opening the studio in Safari or Chrome with WebGL enabled.</p></div>}</div>;
 }
