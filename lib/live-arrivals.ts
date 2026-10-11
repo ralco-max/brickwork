@@ -1,6 +1,6 @@
 import type {Piece} from "./bridge";
 import {assemblyPose,assemblyTracks} from "./assembly";
-import type {AssemblyTrack} from "./assembly";
+import type {AssemblyTrack,AssemblyFraming} from "./assembly";
 import type {GeneratedScene} from "./generated-scene";
 import type {DesignBrief} from "./design-project";
 export function foundationScene(brief:DesignBrief):GeneratedScene{
@@ -11,15 +11,16 @@ export function foundationScene(brief:DesignBrief):GeneratedScene{
  return {name:"Display foundation",description:"A placeholder two-layer foundation. Resize or replace it so the base fits the design's own footprint; its size is not a requirement.",dimensions:{x:brief.maxWidth,y:brief.maxHeight,z:brief.maxDepth},shapes:[{id:"display-foundation",component:"Foundation",label:"Display foundation",kind:"box",operation:"add",color:"gray",position:{x:0,y:0,z:0},size:{x,y:2,z},end:{x:0,y:0,z:0},radius:1,repeat:{count:1,offset:{x:0,y:0,z:0}}}]};
 }
 export type Arrival={track:AssemblyTrack;at:number};
-export const brickIdentity=(p:Piece)=>`${p.part}:${p.color}:${p.x}:${p.y}:${p.z}:${p.w}:${p.h}:${p.d}:${p.rotated}`;
-export function reconcileArrivals(previous:Map<string,Arrival>,pieces:Piece[],now:number,length:number,width:number,height:number){
- const tracks=assemblyTracks(pieces,length,width,height),next=new Map<string,Arrival>();
+export const ARRIVAL_FLIGHT_SECONDS=1.6;
+export const brickIdentity=(p:Piece)=>`${p.part}:${p.color}:${p.x}:${p.y}:${p.z}:${p.w}:${p.h}:${p.d}:${p.rotated}:${p.face||""}`;
+export function reconcileArrivals(previous:Map<string,Arrival>,pieces:Piece[],now:number,length:number,width:number,height:number,frame?:AssemblyFraming){
+ const tracks=assemblyTracks(pieces,length,width,height,frame),next=new Map<string,Arrival>();
  const fresh=pieces.filter(p=>!previous.has(brickIdentity(p))).sort((a,b)=>a.y-b.y||a.z-b.z||a.x-b.x);
  const ranks=new Map(fresh.map((p,i)=>[brickIdentity(p),i]));
- for(const p of pieces){const key=brickIdentity(p);next.set(key,previous.get(key)||{track:{...tracks.get(p.id)!,start:0,distance:Math.max(5,Math.max(length,width)*.18),lift:Math.max(8,height*.16)},at:now+(ranks.get(key)||0)/Math.max(1,fresh.length-1)*1.1});}
+ for(const p of pieces){const key=brickIdentity(p);next.set(key,previous.get(key)||{track:{...tracks.get(p.id)!,start:0,duration:1},at:now+(ranks.get(key)||0)/Math.max(1,fresh.length-1)*.6});}
  return next;
 }
-export function arrivalPose(arrival:Arrival,now:number,reduced=false){return assemblyPose(arrival.track,reduced?1:Math.max(0,now-arrival.at)/1.35*.175);}
+export function arrivalPose(arrival:Arrival,now:number,reduced=false){return assemblyPose(arrival.track,reduced||now>=arrival.at+ARRIVAL_FLIGHT_SECONDS?1:Math.max(0,now-arrival.at)/ARRIVAL_FLIGHT_SECONDS);}
 
 // One compilation in flight and one pending snapshot. The trailing snapshot is
 // always published before final compilation, even if the stream ends quickly.
