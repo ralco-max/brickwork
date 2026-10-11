@@ -1,5 +1,5 @@
 "use client";
-import {useEffect,useRef,useState} from "react";
+import {useEffect,useMemo,useRef,useState} from "react";
 import {ArrowDown,ArrowLeft,ArrowRight,ArrowUp,Scan} from "lucide-react";
 import * as THREE from "three";
 import {OrbitControls} from "three/addons/controls/OrbitControls.js";
@@ -9,22 +9,37 @@ import {reconcileArrivals,arrivalPose,brickIdentity,arrivalOpacity,arrivalEndTim
 import type {Arrival,ArrivalMode} from "@/lib/live-arrivals";
 import {assemblyPose,assemblyTracks,inspectionReach,inspectionTracks,type AssemblyTrack} from "@/lib/assembly";
 import {cameraPanOffset,advanceCameraMove,settledPieceBounds,cameraFramingSnapshot,cameraAutoFit,type CameraMove,type CameraFramingSnapshot} from "@/lib/camera-navigation";
-import {hasExactPartGeometry,partGeometriesReady,preloadPartGeometries} from "@/lib/part-meshes";
+import {hasExactPartGeometry,partGeometriesReady} from "@/lib/part-meshes";
+import {PreviewGeometryBuffer,type PreviewGeometry} from "@/lib/preview-geometry";
 
 export type BrickHit={piece:Piece;point:{x:number;y:number;z:number};normal:{x:number;y:number;z:number}};
 type Props={arrivals?:{epoch:number;paused:boolean;mode?:ArrivalMode};suspended?:boolean;light?:number;pieces:Piece[];length:number;width?:number;height?:number;modelKey?:string;editMode?:string;onBrick?:(hit:BrickHit)=>void;highlightIds?:number[];heat?:Map<number,number>;explode:number;stage:number;selected:string|null;view:string;reset:number;rotate:boolean;onPick:(key:string|null)=>void;assembly?:{time:()=>number;onFrame?:(canvas:HTMLCanvasElement,time:number)=>void;sweep?:boolean};presentation?:boolean;onCanvas?:(canvas:HTMLCanvasElement|null)=>void};
 export default function Viewport(props:Props){
+ const buffer=useRef<PreviewGeometryBuffer|null>(null);if(!buffer.current)buffer.current=new PreviewGeometryBuffer();
+ const request=useMemo<PreviewGeometry>(()=>({pieces:props.pieces,length:props.length,width:props.width,height:props.height,modelKey:props.modelKey}),[props.pieces,props.length,props.width,props.height,props.modelKey]);
+ const [,refresh]=useState(0),[retry,setRetry]=useState(0),[failure,setFailure]=useState<{request:PreviewGeometry;error:unknown}|null>(null);
+ const [showPreparing,setShowPreparing]=useState(false);
+ const display=buffer.current.select(request),waiting=!partGeometriesReady(request.pieces),currentFailure=waiting&&failure?.request===request?failure:null;
+ useEffect(()=>{setFailure(null);return buffer.current!.prepare(request,()=>refresh(v=>v+1),error=>setFailure({request,error}));},[request,retry,waiting]);
+ const hasDisplay=Boolean(display);
+ useEffect(()=>{setShowPreparing(false);if(hasDisplay)return;const timer=setTimeout(()=>setShowPreparing(true),450);return()=>clearTimeout(timer);},[hasDisplay,props.modelKey]);
+ return <div className="preview-shell" aria-busy={waiting}>
+  {display?<ReadyViewport {...props} {...display} editMode={waiting?"inspect":props.editMode} onBrick={waiting?undefined:props.onBrick}/>:<div className="canvas-host">{showPreparing&&!currentFailure&&<div className="preview-preparing" role="status">Preparing preview…</div>}</div>}
+  {currentFailure&&<div className={hasDisplay?"preview-update-notice":"canvas-error"} role="alert"><p>{hasDisplay?"The preview couldn’t update. Your current view is kept.":"The preview couldn’t load. Please try again."}</p><button type="button" className="button secondary" onClick={()=>setRetry(v=>v+1)}>Retry preview</button></div>}
+ </div>;
+}
+
+// This component receives only complete geometry snapshots. Its scene, camera,
+// controls and animation stay alive while the wrapper loads the next update.
+function ReadyViewport(props:Props){
  const host=useRef<HTMLDivElement>(null),api=useRef<{update:(p:Props)=>void;camera:(view:string)=>void;pan:(horizontal:number,vertical:number)=>void}|null>(null),latest=useRef(props);latest.current=props;const savedCamera=useRef<{key:string;position:THREE.Vector3;target:THREE.Vector3;length:number;width:number;framing:CameraFramingSnapshot;move:CameraMove|null;userMoved:boolean}|null>(null);
  const rendererRef=useRef<THREE.WebGLRenderer|null>(null);
- const [geometryVersion,setGeometryVersion]=useState(0),[geometryRetry,setGeometryRetry]=useState(0),[geometryError,setGeometryError]=useState<string|null>(null);
- const geometryKey=[...new Set(props.pieces.map(p=>p.part))].sort().join(","),geometryReady=partGeometriesReady(props.pieces);
- useEffect(()=>{let cancelled=false;setGeometryError(null);if(!partGeometriesReady(latest.current.pieces))preloadPartGeometries(latest.current.pieces).then(()=>{if(!cancelled)setGeometryVersion(v=>v+1);}).catch(error=>{if(!cancelled)setGeometryError(error instanceof Error?error.message:"The exact part shapes could not be loaded.");});return()=>{cancelled=true;};},[geometryKey,geometryRetry]);
  const previousFraming=useRef({view:props.view,reset:props.reset,explode:props.explode});
  const arrivalState=useRef({epoch:-1,clock:0,entries:new Map<string,Arrival>()});
  const [error,setError]=useState(false),[touchActive,setTouchActive]=useState(false);const presentationProp=Boolean(props.presentation);const touchEnabled=useRef(touchActive);touchEnabled.current=touchActive;
  useEffect(()=>()=>{latest.current.onCanvas?.(null);const renderer=rendererRef.current;rendererRef.current=null;renderer?.dispose();renderer?.domElement.remove();},[]);
  useEffect(()=>{
-  if(!host.current||!partGeometriesReady(props.pieces))return;const node=host.current;let renderer:THREE.WebGLRenderer;
+  if(!host.current)return;const node=host.current;let renderer:THREE.WebGLRenderer;
   // The assembly plays inside the same interactive view: orbit stays enabled, and the
   // slow camera sweep (landing only) stops the moment the viewer takes the camera.
   // The slow camera sweep is read live so the stage can stop sweeping the moment the tools open.
@@ -181,10 +196,10 @@ export default function Viewport(props:Props){
 if(cameraMove&&advanceCameraMove(camera,controls.target,cameraMove,now,reducedMotion.matches))cameraMove=null;
 const time=latest.current.assembly?.time();if(time!==undefined&&(time!==lastTime||cameraRevision!==lastCameraRevision)){if(time<lastTime){captureTracks();previousAssemblyTime=undefined;}update(latest.current,time);if(sweeping()&&!userMoved&&cinematicCamera.lengthSq()>0){camera.position.copy(cinematicCamera).applyAxisAngle(axis,(Math.min(time/.88,1)-1)*.16).multiplyScalar(1-.035*Math.min(time/.88,1)).add(controls.target);camera.lookAt(controls.target);}lastTime=time;lastCameraRevision=cameraRevision;}controls.update();renderer.render(scene,camera);if(time!==undefined)latest.current.assembly?.onFrame?.(renderer.domElement,time);}};animate();
   return()=>{savedCamera.current={key:props.modelKey??"model",position:camera.position.clone(),target:controls.target.clone(),length:L,width:W,framing:framing!,move:cameraMove,userMoved};api.current=null;cancelAnimationFrame(raf);observer.disconnect();themeWatch.disconnect();visibility.disconnect();controls.dispose();renderer.domElement.removeEventListener("keydown",keyboard);renderer.domElement.removeEventListener("pointerdown",down);renderer.domElement.removeEventListener("pointerup",pick);renderer.domElement.removeEventListener("webglcontextlost",lost);const materials=new Set<THREE.Material>();scene.traverse(obj=>{if(obj instanceof THREE.Mesh){obj.geometry.dispose();if(Array.isArray(obj.material))obj.material.forEach(m=>materials.add(m));else materials.add(obj.material);}});materials.forEach(m=>m.dispose());sun.shadow.map?.dispose();renderer.renderLists.dispose();};
- },[props.pieces,props.length,props.width,props.height,props.modelKey,props.arrivals?.epoch,props.arrivals?.mode,geometryVersion]);
+ },[props.pieces,props.length,props.width,props.height,props.modelKey,props.arrivals?.epoch,props.arrivals?.mode]);
  useEffect(()=>{api.current?.update(props);},[props.explode,props.stage,props.selected,props.rotate,props.highlightIds,props.heat,props.light,touchActive]);
  useEffect(()=>{const old=previousFraming.current;previousFraming.current={view:props.view,reset:props.reset,explode:props.explode};if(old.view!==props.view||old.reset!==props.reset||old.explode!==props.explode)api.current?.camera(props.view);},[props.view,props.reset,props.explode]);
- return <div className={"canvas-host "+(props.editMode&&props.editMode!=="inspect"?"is-editing":"")} ref={host}>{!presentationProp&&!error&&geometryReady&&<>
+ return <div className={"canvas-host "+(props.editMode&&props.editMode!=="inspect"?"is-editing":"")} ref={host}>{!presentationProp&&!error&&<>
   <div className="camera-navigation" role="group" aria-label="Move the camera">
    <span>Move view</span><div>
     <button type="button" title="Move view left" aria-label="Move view left" onClick={()=>api.current?.pan(-1,0)}><ArrowLeft size={18}/></button>
@@ -195,5 +210,5 @@ const time=latest.current.assembly?.time();if(time!==undefined&&(time!==lastTime
    </div><small>Right-drag to pan · Scroll to zoom</small>
   </div>
   <button type="button" className="touch-model-toggle" aria-pressed={touchActive} onClick={()=>setTouchActive(v=>!v)}>{touchActive?"Done · scroll page":"Touch to orbit · 2 fingers to move"}</button>
- </>}{!geometryReady&&<div className="canvas-error" role="status"><strong>{geometryError?"Exact part shapes are unavailable.":"Loading exact part shapes…"}</strong>{geometryError&&<><p>{geometryError}</p><button type="button" className="button secondary" onClick={()=>setGeometryRetry(v=>v+1)}>Retry loading shapes</button></>}</div>}{error&&geometryReady&&<div className="canvas-error"><strong>3D preview is unavailable in this browser.</strong><p>The parts audit and exports still work. Try opening the studio in Safari or Chrome with WebGL enabled.</p></div>}</div>;
+ </>}{error&&<div className="canvas-error"><strong>3D preview is unavailable in this browser.</strong><p>The parts audit and exports still work. Try opening the studio in Safari or Chrome with WebGL enabled.</p></div>}</div>;
 }

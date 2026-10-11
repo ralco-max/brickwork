@@ -640,3 +640,10 @@ h1,.landing-film-caption h1,.project-heading h1,[data-slot=dialog-title]{text-wr
 .brand-logo{display:block;width:48px;height:48px;object-fit:contain;border-radius:10px;flex-shrink:0}
 @media(max-width:760px){.brand-logo{width:40px;height:40px;border-radius:8px}}
 @media(max-width:370px){.brand-logo{width:32px;height:32px;border-radius:7px}}
+
+/* Streamed geometry loads behind the current interactive model. */
+.preview-shell{position:absolute;inset:0;overflow:hidden}
+.preview-preparing{position:absolute;inset:0;display:grid;place-items:center;color:var(--ink-3);font-size:13px}
+.preview-update-notice{position:absolute;z-index:4;top:12px;left:12px;right:12px;display:flex;align-items:center;justify-content:space-between;gap:12px;padding:10px 12px;border:1px solid var(--line);border-radius:10px;background:var(--surface);box-shadow:0 4px 16px #0000000a}
+.preview-update-notice p{font-size:12px;line-height:1.4;color:var(--ink-2)}
+.preview-update-notice .button{height:34px;font-size:12px;padding:0 10px;flex-shrink:0}
