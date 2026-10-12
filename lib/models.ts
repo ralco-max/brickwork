@@ -179,7 +179,9 @@ export function validateProject(raw:unknown):BuildModel{
   const face=["px","nx","pz","nz"].includes(String(p.face))?p.face:undefined;
   const dimensions=partDimensions(p.part,p.rotated,face);
   if(p.x+dimensions.w>192||p.z+dimensions.d>192||p.y+dimensions.h>240)throw Error("The project exceeds the supported dimensions.");
-  return {id,part:p.part,color:p.color,x:p.x,y:p.y,z:p.z,...dimensions,stage:0,...(p.support===true?{support:true}:{})};
+  // A minifigure keeps its leg and skin colors; other pieces never carry them.
+  const figure=p.part==="minifig"?{...(Object.hasOwn(COLORS,String(p.legs))?{legs:p.legs}:{}),...(Object.hasOwn(COLORS,String(p.skin))?{skin:p.skin}:{})}:{};
+  return {id,part:p.part,color:p.color,x:p.x,y:p.y,z:p.z,...dimensions,stage:0,...figure,...(p.support===true?{support:true}:{})};
  });
  const occupied=new Set<string>();for(const p of pieces)forEachPieceCell(p,(x,y,z)=>{const k=voxelKey(x,y,z);if(occupied.has(k))throw Error("The project has overlapping pieces. Repair the file before importing.");occupied.add(k);if(occupied.size>350000)throw Error("The project is too complex. Import a smaller version.");});
  return finishModel(pieces,{name:typeof data.name==="string"?data.name.slice(0,80):"Imported project",description:typeof data.description==="string"?data.description.slice(0,500):"Your editable Bricks project",source:"custom",...readProjectMetadata(data,pieces)});

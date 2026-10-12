@@ -45,7 +45,7 @@ for(const [key,color] of Object.entries(COLORS)){
 }
 const catalog={},missing=[];
 for(const part of Object.keys(PARTS).sort()){
- if(Object.hasOwn(WHEELS,part))continue; // App wheels include a tire; catalog numbers identify the rim only.
+ if(Object.hasOwn(WHEELS,part)||part==="minifig")continue; // App wheels include a tire; catalog numbers identify the rim only.
  const sourcePart=aliases[part]||part;
  if(!parts.some(row=>row.part_num===sourcePart))throw Error(`Unknown source part ${sourcePart}.`);
  for(const [colorKey,color] of Object.entries(COLORS)){

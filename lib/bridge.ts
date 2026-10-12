@@ -1,17 +1,17 @@
 import {EXPANDED_PARTS,catalogPart} from "./part-catalog";
 import {forEachPieceCell,topConnectorOffsets,bottomConnectorOffsets} from "./part-spatial";
-export type ColorKey = "red" | "orange" | "blue" | "navy" | "black" | "gray" | "white" | "green" | "tan" | "yellow" | "brown" | "darkbrown" | "pink";
-export const COLORS: Record<ColorKey, {name:string;hex:string;ldraw:number;bricklink:number}> = {
- yellow:{name:"Yellow",hex:"#f2cd37",ldraw:14,bricklink:3},brown:{name:"Reddish brown",hex:"#582a12",ldraw:70,bricklink:88},darkbrown:{name:"Dark brown",hex:"#352100",ldraw:308,bricklink:120},pink:{name:"Bright pink",hex:"#e4adc8",ldraw:29,bricklink:104},
- red:{name:"Red",hex:"#c92820",ldraw:4,bricklink:5},orange:{name:"Orange",hex:"#ed7825",ldraw:25,bricklink:4},blue:{name:"Blue",hex:"#0055bf",ldraw:1,bricklink:7},navy:{name:"Dark blue",hex:"#183b54",ldraw:272,bricklink:63},black:{name:"Black",hex:"#292f34",ldraw:0,bricklink:11},gray:{name:"Light bluish gray",hex:"#a9b1b8",ldraw:71,bricklink:86},white:{name:"White",hex:"#f3f0e5",ldraw:15,bricklink:1},green:{name:"Green",hex:"#3f7750",ldraw:2,bricklink:6},tan:{name:"Tan",hex:"#c6ab78",ldraw:19,bricklink:2}
-};
+import {MINIFIG,MINIFIG_SPEC,isMinifig,minifigColors,minifigPlacements} from "./minifig";
+import {COLORS} from "./colors";
+import type {ColorKey} from "./colors";
+export {COLORS};
+export type {ColorKey};
 export const LEGACY_PARTS = {
  "3007":{name:"Brick 2 × 8",w:8,d:2,h:3,price:0.55},"3001":{name:"Brick 2 × 4",w:4,d:2,h:3,price:0.25},"3003":{name:"Brick 2 × 2",w:2,d:2,h:3,price:0.16},"3008":{name:"Brick 1 × 8",w:8,d:1,h:3,price:0.28},"3009":{name:"Brick 1 × 6",w:6,d:1,h:3,price:0.20},"3010":{name:"Brick 1 × 4",w:4,d:1,h:3,price:0.14},"3004":{name:"Brick 1 × 2",w:2,d:1,h:3,price:0.10},"3005":{name:"Brick 1 × 1",w:1,d:1,h:3,price:0.10},"3020":{name:"Plate 2 × 4",w:4,d:2,h:1,price:0.17},"3022":{name:"Plate 2 × 2",w:2,d:2,h:1,price:0.12},"3023":{name:"Plate 1 × 2",w:2,d:1,h:1,price:0.09},"3024":{name:"Plate 1 × 1",w:1,d:1,h:1,price:0.07},"3034":{name:"Plate 2 × 8",w:8,d:2,h:1,price:0.30},"3035":{name:"Plate 4 × 8",w:8,d:4,h:1,price:0.49},"3460":{name:"Plate 1 × 8",w:8,d:1,h:1,price:0.16},"3666":{name:"Plate 1 × 6",w:6,d:1,h:1,price:0.13},"3710":{name:"Plate 1 × 4",w:4,d:1,h:1,price:0.10},"3068b":{name:"Tile 2 × 2",w:2,d:2,h:1,price:0.13},"3069b":{name:"Tile 1 × 2",w:2,d:1,h:1,price:0.10},"3070b":{name:"Tile 1 × 1",w:1,d:1,h:1,price:0.07},"2431":{name:"Tile 1 × 4",w:4,d:1,h:1,price:0.10},"6636":{name:"Tile 1 × 6",w:6,d:1,h:1,price:0.14},"4162":{name:"Tile 1 × 8",w:8,d:1,h:1,price:0.18},"87079":{name:"Tile 2 × 4",w:4,d:2,h:1,price:0.25},
  "3040":{name:"Slope 45° 2 × 1",w:2,d:1,h:3,price:0.12},"3039":{name:"Slope 45° 2 × 2",w:2,d:2,h:3,price:0.18},"3665":{name:"Slope inverted 45° 2 × 1",w:2,d:1,h:3,price:0.16},"54200":{name:"Slope 30° 1 × 1 × ⅔",w:1,d:1,h:2,price:0.08},"85984":{name:"Slope 30° 1 × 2 × ⅔",w:2,d:1,h:2,price:0.10},"11477":{name:"Slope curved 2 × 1",w:1,d:2,h:2,price:0.10},"15068":{name:"Slope curved 2 × 2 × ⅔",w:2,d:2,h:2,price:0.16},"3298":{name:"Slope 33° 3 × 2",w:2,d:3,h:3,price:0.22},"4286":{name:"Slope 33° 3 × 1",w:1,d:3,h:3,price:0.14},
  "55982":{name:"Wheel 18 mm with tire",w:3,d:1,h:8,price:0.35},"56145":{name:"Wheel 30.4 mm with tire",w:4,d:2,h:10,price:0.55},"56908":{name:"Wheel 43.2 mm with tire",w:6,d:2,h:15,price:0.95}
 };
 export type PartSpec={name:string;w:number;d:number;h:number;price:number};
-export const PARTS:Record<string,PartSpec>={...EXPANDED_PARTS,...LEGACY_PARTS};
+export const PARTS:Record<string,PartSpec>={...EXPANDED_PARTS,...LEGACY_PARTS,[MINIFIG]:MINIFIG_SPEC};
 export type PartId = string;
 export const TILES=new Set<string>(["3068b","3069b","3070b","2431","6636","4162","87079"]);
 export const isTile=(part:string)=>TILES.has(part);
@@ -34,7 +34,8 @@ export const WHEELS:Record<string,{diameter:number;width:number}>={"55982":{diam
 export const isWheel=(part:string)=>Object.hasOwn(WHEELS,part);
 // True when nothing can be attached on top of this part: tiles and studless slopes.
 export const studless=(part:string)=>!Object.hasOwn(LEGACY_PARTS,part)?(catalogPart(part)?.topStuds.length??0)===0:isTile(part)||isWheel(part)||(isSlope(part)&&!SLOPES[part].studded);
-export interface Piece {id:number;part:PartId;color:ColorKey;x:number;y:number;z:number;w:number;d:number;h:number;rotated:boolean;stage:number;support?:boolean;face?:Face;}
+// A minifig piece is one assembled figure: color is its torso, legs its hips and legs, skin its head and hands.
+export interface Piece {id:number;part:PartId;color:ColorKey;x:number;y:number;z:number;w:number;d:number;h:number;rotated:boolean;stage:number;support?:boolean;face?:Face;legs?:ColorKey;skin?:ColorKey;}
 // The cells of a piece's top that carry studs, as offsets within its world footprint.
 // Bricks and plates are studded everywhere, tiles nowhere, and a studded slope only on
 // the flat rows behind its slope (an inverted slope is studded across its whole top).
@@ -113,8 +114,15 @@ export function partsCSV(rows:InventoryRow[],owned:Record<string,number>={},pric
  const csv=(value:string|number)=>/[",\r\n]/.test(String(value))?`"${String(value).replaceAll('"','""')}"`:String(value);
  return ["Design ID,Part,Color,Required,Owned,To buy,Estimated unit USD",...rows.map(r=>[r.part,PARTS[r.part].name,COLORS[r.color].name,r.quantity,Math.min(r.quantity,owned[r.key]||0),Math.max(0,r.quantity-(owned[r.key]||0)),prices[r.key]??PARTS[r.part].price].map(csv).join(","))].join("\n");
 }
-export function bricklinkXML(rows:InventoryRow[],owned:Record<string,number>={}){return `<INVENTORY>\n${rows.filter(r=>r.quantity>(owned[r.key]||0)).map(r=>` <ITEM><ITEMTYPE>P</ITEMTYPE><ITEMID>${r.part}</ITEMID><COLOR>${COLORS[r.color].bricklink}</COLOR><MINQTY>${Math.max(0,r.quantity-(owned[r.key]||0))}</MINQTY></ITEM>`).join("\n")}\n</INVENTORY>`;}
+// Minifigures are assemblies of several elements with no single BrickLink part number, so they are left out.
+export function bricklinkXML(rows:InventoryRow[],owned:Record<string,number>={}){return `<INVENTORY>\n${rows.filter(r=>!isMinifig(r.part)&&r.quantity>(owned[r.key]||0)).map(r=>` <ITEM><ITEMTYPE>P</ITEMTYPE><ITEMID>${r.part}</ITEMID><COLOR>${COLORS[r.color].bricklink}</COLOR><MINQTY>${Math.max(0,r.quantity-(owned[r.key]||0))}</MINQTY></ITEM>`).join("\n")}\n</INVENTORY>`;}
+// A minifigure is written as its real sub-parts, each in its region's color, standing on the footprint's studs.
+function minifigLDraw(p:Piece):string{
+ const colors=minifigColors(p),cx=(p.x+p.w/2)*20,cz=(p.z+p.d/2)*20,y=-p.y*8;
+ return minifigPlacements(p.face??(p.rotated?"px":"pz")).map(({element,matrix,position:[x,dy,z]})=>`1 ${COLORS[colors[element.region]].ldraw} ${cx+x} ${y+dy} ${cz+z} ${matrix.join(" ")} ${element.id}.dat`).join("\n");
+}
 function ldrawPlacement(p:Piece):string{
+ if(isMinifig(p.part))return minifigLDraw(p);
  const face=p.face??(p.rotated?"px":"pz"),matrix=face==="px"?"0 0 1 0 1 0 -1 0 0":face==="nx"?"0 0 -1 0 1 0 1 0 0":face==="nz"?"-1 0 0 0 1 0 0 0 -1":"1 0 0 0 1 0 0 0 1";
  const definition=Object.hasOwn(LEGACY_PARTS,p.part)?undefined:catalogPart(p.part);
  if(!definition){const legacyMatrix=p.face==="px"?"0 0 1 0 1 0 -1 0 0":p.face==="nx"?"0 0 -1 0 1 0 1 0 0":p.face==="nz"?"-1 0 0 0 1 0 0 0 -1":p.rotated?"0 0 1 0 1 0 -1 0 0":"1 0 0 0 1 0 0 0 1";return `1 ${COLORS[p.color].ldraw} ${(p.x+p.w/2)*20} ${-(p.y+p.h)*8} ${(p.z+p.d/2)*20} ${legacyMatrix} ${p.part}.dat`;}

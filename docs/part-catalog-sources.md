@@ -109,3 +109,22 @@ candidate manifest and do not count toward the supported-part total.
 
 The requested curved left 1 x 2 part is design `29120`; its right counterpart is
 `29119`. Both have exact certified LDraw geometry in the pinned library.
+
+## Minifigures
+
+The minifigure (`k minifig` in scenes, part `minifig` in projects) is assembled
+from unmodified LDraw parts at the same pinned mirror commit: head `3626c`,
+torso `973`, arms `3818`/`3819`, hands `3820`, hips `3815b` and legs
+`3816c`/`3817c` (the current LDraw files for BrickLink 970/971/972). Assembly
+offsets follow the LDraw shortcuts `973c01` (torso, arms, hands) and `3815c01`
+(hips at y=32, legs at y=44) with the head at y=-24. Regenerate with:
+
+```sh
+node scripts/compile-minifig.mjs            # fetches from the pinned mirror
+node scripts/compile-minifig.mjs --ldraw /path/to/ldraw
+```
+
+This writes one mesh per element to `public/parts/minifig/`, per-file
+provenance to `public/parts/minifig/attribution.json` and the assembly manifest
+to `lib/data/minifig.json`. The figure is plain: printed faces and torso
+decals are not included.
