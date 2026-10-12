@@ -14,16 +14,16 @@ export function reasoningSummary(output:unknown):string{return (Array.isArray(ou
 export type LayoutRelation={from:string;relation:"left_of"|"right_of"|"in_front_of"|"behind"|"above"|"below"|"inside";to:string};
 export type ReferenceImage={url:string;source:string;caption:string};
 export type ReferenceIdentity={status:"confirmed"|"ambiguous"|"unknown"|"generic";location:string;question:string};
-export type ReferenceSheet={identity?:ReferenceIdentity;contextAdequate?:boolean;images?:ReferenceImage[];included?:string[];excluded?:string[];relations?:LayoutRelation[];uncertainties?:string[];searchable:boolean;kind:SubjectKind;subject:string;summary:string;length_m:number|null;width_m:number|null;height_m:number|null;openness?:number|null;proportions:string;colors:string[];silhouette:string[];distinctive:string[];sources:string[];photoEvidence?:boolean;hero?:string;layout?:string;minFeature?:string|null;minFeature_m?:number|null;envelope?:Envelope;target?:{x:number;y:number;z:number;vertical:number};scaleConflict?:ScaleConflict;plan?:ShellPlan};
-export type Envelope={maxWidth:number;maxDepth:number;maxHeight:number};
-// The whole subject cannot give its smallest defining feature 2 studs inside the envelope. featureStuds is what
-// that feature gets if everything shrinks to fit; needStuds is the length the whole subject would need at a
-// faithful scale; shown is the share of its footprint a faithful section fits. The target is that section.
-export type ScaleConflict={feature:string;featureStuds:number;needStuds:number;shown:number;options:("section"|"cutaway"|"partial")[]};
+export type ReferenceSheet={identity?:ReferenceIdentity;contextAdequate?:boolean;images?:ReferenceImage[];included?:string[];excluded?:string[];relations?:LayoutRelation[];uncertainties?:string[];searchable:boolean;kind:SubjectKind;subject:string;summary:string;length_m:number|null;width_m:number|null;height_m:number|null;openness?:number|null;proportions:string;colors:string[];silhouette:string[];distinctive:string[];sources:string[];photoEvidence?:boolean;hero?:string;layout?:string;minFeature?:string|null;minFeature_m?:number|null;target?:{x:number;y:number;z:number;vertical:number};scaleConflict?:ScaleConflict;plan?:ShellPlan};
+// The whole subject cannot give its smallest defining feature 2 studs inside the brief. featureStuds is what
+// that feature gets if everything shrinks to fit; needStuds and needPlates are the footprint and height the
+// whole subject needs at a faithful scale; shown is the share of its volume a faithful view fits. fit says
+// what the target is: a faithful section, or the whole subject when even its height does not fit.
+export type ScaleConflict={feature:string;featureStuds:number;needStuds:number;needPlates:number;shown:number;fit:"section"|"whole";options:("section"|"cutaway"|"partial")[]};
 const identitySchema=z.object({status:z.enum(["confirmed","ambiguous","unknown","generic"]),location:z.string().max(300),question:z.string().max(300)});
 const relationSchema=z.object({from:z.string().min(1).max(80),relation:z.enum(["left_of","right_of","in_front_of","behind","above","below","inside"]),to:z.string().min(1).max(80)});
 const httpsUrl=z.string().url().max(2000).refine(s=>{try{const u=new URL(s);return u.protocol==="https:"&&!u.username&&!u.password;}catch{return false;}});
-export const referenceSheetSchema=z.object({identity:identitySchema.optional(),photoEvidence:z.boolean().optional(),contextAdequate:z.boolean().optional(),images:z.array(z.object({url:httpsUrl,source:httpsUrl,caption:z.string().max(200)})).max(2).optional(),included:z.array(z.string().max(80)).max(12).optional(),excluded:z.array(z.string().max(80)).max(12).optional(),relations:z.array(relationSchema).max(12).optional(),uncertainties:z.array(z.string().max(200)).max(8).optional(),searchable:z.boolean(),kind:z.enum(["building","monument","bridge","site","vehicle","aircraft","ship","animal","plant","character","object"]),subject:z.string().max(120),summary:z.string().max(300),length_m:z.number().positive().finite().nullable(),width_m:z.number().positive().finite().nullable(),height_m:z.number().positive().finite().nullable(),openness:z.number().min(0).max(1).nullable().optional(),proportions:z.string().max(300),colors:z.array(z.string().max(200)).max(6),silhouette:z.array(z.string().max(200)).max(8),distinctive:z.array(z.string().max(200)).max(8),sources:z.array(httpsUrl).max(4),hero:z.string().max(200).optional(),layout:z.string().max(400).optional(),minFeature:z.string().max(80).nullable().optional(),minFeature_m:z.number().positive().finite().nullable().optional(),envelope:z.object({maxWidth:z.number().int().min(16).max(80),maxDepth:z.number().int().min(16).max(80),maxHeight:z.number().int().min(16).max(160)}).optional(),scaleConflict:z.object({feature:z.string().max(80),featureStuds:z.number().min(0).max(1000),needStuds:z.number().int().min(0).max(100000),shown:z.number().min(0).max(1),options:z.array(z.enum(["section","cutaway","partial"])).max(3)}).optional(),target:z.object({x:z.number().int().min(1).max(80),y:z.number().int().min(1).max(160),z:z.number().int().min(1).max(80),vertical:z.number().min(1).max(3)}).optional(),plan:z.object({walls:z.number().int().min(0).max(4),estimate:z.number().int().min(0).max(100000),fits:z.boolean(),recommend:z.object({x:z.number().int().min(1).max(80),y:z.number().int().min(1).max(160),z:z.number().int().min(1).max(80)}).optional()}).optional()});
+export const referenceSheetSchema=z.object({identity:identitySchema.optional(),photoEvidence:z.boolean().optional(),contextAdequate:z.boolean().optional(),images:z.array(z.object({url:httpsUrl,source:httpsUrl,caption:z.string().max(200)})).max(2).optional(),included:z.array(z.string().max(80)).max(12).optional(),excluded:z.array(z.string().max(80)).max(12).optional(),relations:z.array(relationSchema).max(12).optional(),uncertainties:z.array(z.string().max(200)).max(8).optional(),searchable:z.boolean(),kind:z.enum(["building","monument","bridge","site","vehicle","aircraft","ship","animal","plant","character","object"]),subject:z.string().max(120),summary:z.string().max(300),length_m:z.number().positive().finite().nullable(),width_m:z.number().positive().finite().nullable(),height_m:z.number().positive().finite().nullable(),openness:z.number().min(0).max(1).nullable().optional(),proportions:z.string().max(300),colors:z.array(z.string().max(200)).max(6),silhouette:z.array(z.string().max(200)).max(8),distinctive:z.array(z.string().max(200)).max(8),sources:z.array(httpsUrl).max(4),hero:z.string().max(200).optional(),layout:z.string().max(400).optional(),minFeature:z.string().max(80).nullable().optional(),minFeature_m:z.number().positive().finite().nullable().optional(),scaleConflict:z.object({feature:z.string().max(80),featureStuds:z.number().min(0).max(1000),needStuds:z.number().int().min(0).max(100000),needPlates:z.number().int().min(0).max(100000),shown:z.number().min(0).max(1),fit:z.enum(["section","whole"]),options:z.array(z.enum(["section","cutaway","partial"])).max(3)}).optional(),target:z.object({x:z.number().int().min(1).max(80),y:z.number().int().min(1).max(160),z:z.number().int().min(1).max(80),vertical:z.number().min(1).max(3)}).optional(),plan:z.object({walls:z.number().int().min(0).max(4),estimate:z.number().int().min(0).max(100000),fits:z.boolean(),recommend:z.object({x:z.number().int().min(1).max(80),y:z.number().int().min(1).max(160),z:z.number().int().min(1).max(80)}).optional()}).optional()});
 // An architect settles scale before drawing. Piece counts were measured on the
 // packer: a boxy shell packs at about 21 cells per piece with 1-stud walls, 30
 // with 2-stud walls and 40 solid; a curved skin is all slivers, about 0.29 pieces
@@ -58,38 +58,33 @@ export function targetExtents(sheet:ReferenceSheet,envelope:{maxWidth:number;max
  const k=Math.min((envelope.maxWidth-2)/L,(envelope.maxDepth-2)/W,(envelope.maxHeight-2)/(H*2.5));
  return {x:Math.max(1,Math.round(L*k)),z:Math.max(1,Math.round(W*k)),y:Math.max(1,Math.round(H*k*2.5)),vertical:1};
 }
-// Scale is settled before drawing, from the subject's own shape (no piece estimator: shellPlan only ever
-// shrinks and the app no longer uses it).
-// 1. Envelope. A size class is a footprint area and a height, not a fixed square. A subject at least twice as
-//    long as it is deep trades depth for length at the same area (up to 80 studs), and one twice as tall and
-//    thin as the class gains height (up to 160 plates), so a 180 m station is not squeezed into 46 studs while
-//    most of the depth sits empty. Compact subjects keep the class envelope exactly.
+// Scale is settled before drawing, from the subject's own shape and inside the brief's limits, which the user
+// may have fine-tuned and designChecks holds every build to. (No piece estimator: shellPlan only ever shrinks
+// and the app no longer uses it.)
+// 1. One scale on every axis, leaving a 2-stud rim and the 2-plate base, as targetExtents does.
 // 2. A very long, low subject (over 6:1) declares a vertical exaggeration of up to 3x, as display models of
-//    bridges and terminals do; target.vertical records it so the proportion check expects it.
+//    bridges and terminals do, and is never under 2 studs deep; target.vertical records the exaggeration.
 // 3. Resolution floor. The smallest defining feature (minFeature_m) must span 2 studs. When the whole subject
-//    cannot manage that inside the envelope, the target becomes a faithful section at that scale and
-//    scaleConflict names the trade, so the designer builds a section, cutaway or partial length instead of
-//    shrinking everything. A long subject's overall depth never drops under 2 studs.
-// The caller adopts sheet.envelope as the brief's limits.
+//    cannot manage that, scaleConflict names the trade. If the faithful scale's height fits, the target is a
+//    faithful section of the footprint, so the designer builds a section, cutaway or partial length instead
+//    of shrinking everything. If even the height does not fit (a tower, a rocket), trimming the footprint
+//    cannot help and cutting off the top loses the silhouette, so the target stays the whole subject and the
+//    conflict says how little a faithful partial would show.
+export type Envelope={maxWidth:number;maxDepth:number;maxHeight:number};
 export function planTarget(sheet:ReferenceSheet,brief:Envelope):ReferenceSheet{
- const {plan:_plan,target:_target,envelope:_envelope,scaleConflict:_conflict,...facts}=sheet;
+ const {plan:_plan,target:_target,scaleConflict:_conflict,...facts}=sheet;
  const L=facts.length_m,W=facts.width_m,H=facts.height_m;if(!L||!W||!H)return facts;
+ const X=brief.maxWidth-2,Z=brief.maxDepth-2,Y=brief.maxHeight-2,long=Math.max(L,W)>=H,across=(n:number)=>Math.max(long?2:1,Math.round(n));
  // 1x up to 6:1, rising in half steps to 3x at 12:1 (the owner's display Golden Gate uses 3.5x).
- const exaggerate=(length:number)=>Math.min(3,Math.max(1,Math.round((1+(length/H-6)/3)*2)/2)),v=exaggerate(Math.max(L,W)),long=Math.max(L,W)>=H;
- const area=brief.maxWidth*brief.maxDepth,env:Envelope={maxWidth:brief.maxWidth,maxDepth:brief.maxDepth,maxHeight:brief.maxHeight},r=L/W*brief.maxDepth/brief.maxWidth;
- if(r>=2){env.maxWidth=Math.min(80,Math.floor(area/16),Math.max(brief.maxWidth,Math.round(Math.sqrt(area*r/2))));env.maxDepth=Math.max(16,Math.min(brief.maxDepth,Math.floor(area/env.maxWidth)));}
- else if(r<=.5){env.maxDepth=Math.min(80,Math.floor(area/16),Math.max(brief.maxDepth,Math.round(Math.sqrt(area/r/2))));env.maxWidth=Math.max(16,Math.min(brief.maxWidth,Math.floor(area/env.maxDepth)));}
- const t=H*2.5*v/Math.max(L,W)/(brief.maxHeight/Math.max(brief.maxWidth,brief.maxDepth));
- if(t>=2)env.maxHeight=Math.min(160,Math.max(brief.maxHeight,Math.round(brief.maxHeight*Math.sqrt(t/2))));
- const k=Math.min((env.maxWidth-2)/L,(env.maxDepth-2)/W,(env.maxHeight-2)/(H*2.5*v));
- const across=(n:number)=>Math.max(long?2:1,Math.round(n));
+ const v=Math.min(3,Math.max(1,Math.round((1+(Math.max(L,W)/H-6)/3)*2)/2)),k=Math.min(X/L,Z/W,Y/(H*2.5*v));
+ const whole={x:across(L*k),z:across(W*k),y:Math.max(1,Math.round(H*k*2.5*v)),vertical:v};
  const feature=facts.minFeature_m&&facts.minFeature_m>0?facts.minFeature_m:null;
- if(!feature||feature*k>=2)return {...facts,envelope:env,target:{x:across(L*k),z:across(W*k),y:Math.max(1,Math.round(H*k*2.5*v)),vertical:v}};
- const kf=2/feature,Ls=Math.min(L,(env.maxWidth-2)/kf),Ws=Math.min(W,(env.maxDepth-2)/kf);
- // The section is the faithful view, so it is never exaggerated: stretching it would distort the very
- // cross-section (a railcar, a deck) the floor exists to keep. A subject too tall even then is cut at the top.
- const scaleConflict:ScaleConflict={feature:(facts.minFeature||"smallest defining feature").slice(0,80),featureStuds:Math.round(feature*k*10)/10,needStuds:Math.round(Math.max(L,W)*kf),shown:Math.round(Ls*Ws/(L*W)*100)/100,options:["section","cutaway","partial"]};
- return {...facts,envelope:env,target:{x:across(Ls*kf),z:across(Ws*kf),y:Math.max(1,Math.min(env.maxHeight-2,Math.round(H*kf*2.5))),vertical:1},scaleConflict};
+ if(!feature||feature*k>=2)return {...facts,target:whole};
+ // The faithful view is never exaggerated: stretching it would distort the very cross-section (a railcar,
+ // a deck) the floor exists to keep.
+ const kf=2/feature,Ls=Math.min(L,X/kf),Ws=Math.min(W,Z/kf),Hs=Math.min(H,Y/(2.5*kf)),fit=Hs<H?"whole":"section";
+ const scaleConflict:ScaleConflict={feature:(facts.minFeature||"smallest defining feature").slice(0,80),featureStuds:Math.round(feature*k*10)/10,needStuds:Math.min(100000,Math.round(Math.max(L,W)*kf)),needPlates:Math.min(100000,Math.round(H*kf*2.5)),shown:Math.round(Ls*Ws*Hs/(L*W*H)*100)/100,fit,options:fit==="section"?["section","cutaway","partial"]:["partial","cutaway"]};
+ return {...facts,target:fit==="section"?{x:across(Ls*kf),z:across(Ws*kf),y:Math.max(1,Math.round(H*kf*2.5)),vertical:1}:whole,scaleConflict};
 }
 export type ResearchContext={scope?:"subject"|"site";composition?:string;features?:string[];reference?:string;photos?:string[];identityHint?:string;feedback?:string;previous?:ReferenceSheet};
 // Legacy real-place sheets are deliberately unverified until looked up again.
