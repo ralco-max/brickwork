@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import {registerHooks} from "node:module";
 
-test("renders Brickwork production metadata and its creation surface", async (t) => {
+test("renders Bricks production metadata and its creation surface", async (t) => {
   // The built Worker imports its environment binding even on a public page.
   // Supply an empty test environment; no provider or database calls are made.
   const hooks=registerHooks({resolve(specifier,context,nextResolve){
@@ -35,6 +35,6 @@ test("renders Brickwork production metadata and its creation surface", async (t)
     /^text\/html\b/i,
   );
   const html=await response.text();
-  assert.match(html,/<title>Brickwork by Ralc<\/title>/);
+  assert.match(html,/<title>Bricks by Ralc<\/title>/);
   assert.match(html,/Make it yours/);
 });

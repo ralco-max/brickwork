@@ -1,5 +1,6 @@
 import type {Piece} from "./bridge";
-import {isTile as tilePart,studCells} from "./bridge";
+import {isTile as tilePart} from "./bridge";
+import {pieceCellOffsets,topConnectorOffsets,bottomConnectorOffsets} from "./part-spatial";
 
 // A first-order clutch simulation. Weight flows down through stud contacts;
 // pieces with nothing grounded beneath them hang from the studs above; a
@@ -15,17 +16,17 @@ const key=(x:number,y:number,z:number)=>`${x},${y},${z}`;
 const isTile=(p:Piece)=>tilePart(p.part);
 
 export function simulateClutch(pieces:Piece[]):ClutchReport{
- const n=pieces.length,cells=new Map<string,number>();
- pieces.forEach((p,i)=>{for(let x=p.x;x<p.x+p.w;x++)for(let y=p.y;y<p.y+p.h;y++)for(let z=p.z;z<p.z+p.d;z++)cells.set(key(x,y,z),i);});
- const weight=pieces.map(p=>p.w*p.d*p.h*GRAM_PER_CELL*G/1000);
- // Contact cells between each piece and the pieces directly beneath and above it.
+ const n=pieces.length;
+ const grams=pieces.map(p=>pieceCellOffsets(p).length*GRAM_PER_CELL),weight=grams.map(g=>g*G/1000);
+ // A stud joint needs a matching top stud and bottom socket at the same interface.
+ // Recessed sockets and intermediate-height studs are not necessarily on the body bounds.
  const below=pieces.map(()=>new Map<number,number>()),above=pieces.map(()=>new Map<number,number>()),footing=pieces.map(()=>[] as [number,number][]);
- // A stud joint exists where a piece's bottom cell meets a studded cell of the piece beneath it.
- const studded=new Set<string>();pieces.forEach(p=>{for(const [a,c] of studCells(p))studded.add(key(p.x+a,p.y+p.h,p.z+c));});
- pieces.forEach((p,i)=>{for(let x=p.x;x<p.x+p.w;x++)for(let z=p.z;z<p.z+p.d;z++){const j=cells.get(key(x,p.y-1,z));if(j===undefined||j===i||!studded.has(key(x,p.y,z)))continue;below[i].set(j,(below[i].get(j)||0)+1);above[j].set(i,(above[j].get(i)||0)+1);footing[i].push([x,z]);}});
+ const studs=new Map<string,number[]>();
+ pieces.forEach((p,i)=>{for(const [x,y,z] of topConnectorOffsets(p)){const k=key(p.x+x,p.y+y,p.z+z),owners=studs.get(k)||[];owners.push(i);studs.set(k,owners);}});
+ pieces.forEach((p,i)=>{for(const [x,y,z] of bottomConnectorOffsets(p))for(const j of studs.get(key(p.x+x,p.y+y,p.z+z))||[]){if(j===i)continue;below[i].set(j,(below[i].get(j)||0)+1);above[j].set(i,(above[j].get(i)||0)+1);footing[i].push([p.x+x,p.z+z]);}});
  // Compression paths: a piece is grounded when it stands on the ground or on a grounded piece.
  const asc=pieces.map((_,i)=>i).sort((a,b)=>pieces[a].y-pieces[b].y),grounded=new Array<boolean>(n).fill(false);
- for(const i of asc)grounded[i]=pieces[i].y===0||[...below[i].keys()].some(j=>grounded[j]);
+ let grew=true;while(grew){grew=false;for(const i of asc)if(!grounded[i]&&(pieces[i].y===0||[...below[i].keys()].some(j=>grounded[j]))){grounded[i]=true;grew=true;}}
  const load=weight.slice(),momentX=pieces.map((p,i)=>weight[i]*(p.x+p.w/2)),momentZ=pieces.map((p,i)=>weight[i]*(p.z+p.d/2));
  const pass=(from:number,to:number,share:number)=>{const f=share/load[from];load[to]+=share;momentX[to]+=momentX[from]*f;momentZ[to]+=momentZ[from]*f;};
  const joints:ClutchJoint[]=[],floating:number[]=[],riding=new Set<number>();
@@ -65,5 +66,5 @@ export function simulateClutch(pieces:Piece[]):ClutchReport{
  }
  const ratios=new Map<number,number>();for(const j of joints)ratios.set(j.piece,Math.max(ratios.get(j.piece)??0,j.ratio));for(const i of floating)ratios.set(pieces[i].id,Infinity);
  const overloaded=[...ratios].filter(([,r])=>r>1).map(([i])=>i),tight=[...ratios].filter(([,r])=>r>.5&&r<=1).map(([i])=>i);
- return {ratios,joints,overloaded,tight,floating:floating.map(i=>pieces[i].id),maxRatio:Math.max(0,...ratios.values()),grams:pieces.reduce((s,p)=>s+p.w*p.d*p.h*GRAM_PER_CELL,0)};
+ return {ratios,joints,overloaded,tight,floating:floating.map(i=>pieces[i].id),maxRatio:Math.max(0,...ratios.values()),grams:grams.reduce((s,g)=>s+g,0)};
 }

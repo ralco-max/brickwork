@@ -6,7 +6,7 @@ import type {BuildModel} from "./models";
 
 // Designs and in-progress drafts are kept in this browser so backing out of the
 // studio or the creation dialog never loses work. Nothing is sent to a server.
-export type SavedDesign={id:string;name:string;description:string;pieceCount:number;status:"draft"|"design";updatedAt:string;project:string};
+export type SavedDesign={id:string;name:string;description:string;pieceCount:number;status:"draft"|"design";updatedAt:string;project:string;featured?:boolean};
 const DB="brickwork",STORE="designs",KEEP=12;
 export const newDesignId=()=>typeof crypto!=="undefined"&&"randomUUID" in crypto?crypto.randomUUID():`design-${Date.now()}-${Math.random().toString(36).slice(2,8)}`;
 
@@ -44,17 +44,41 @@ async function run<T>(mode:IDBTransactionMode,work:(store:IDBObjectStore)=>IDBRe
  const db=await open();
  return new Promise((resolve,reject)=>{
   const transaction=db.transaction(STORE,mode),request=work(transaction.objectStore(STORE));
-  request.onsuccess=()=>resolve(request.result);request.onerror=()=>reject(request.error);
-  transaction.oncomplete=()=>db.close();transaction.onerror=()=>{db.close();reject(transaction.error);};
+  transaction.oncomplete=()=>{db.close();resolve(request.result);};
+  transaction.onerror=transaction.onabort=()=>{db.close();reject(transaction.error||request.error||Error("Design storage could not be updated."));};
  });
 }
 export async function listDesigns():Promise<SavedDesign[]>{
  try{const all=await run("readonly",store=>store.getAll() as IDBRequest<SavedDesign[]>);return all.filter(d=>d&&typeof d.project==="string").sort((a,b)=>b.updatedAt.localeCompare(a.updatedAt));}
  catch{return [];}
 }
-export async function saveDesign(design:SavedDesign):Promise<void>{
- try{await run("readwrite",store=>store.put(design));const all=await listDesigns();for(const old of all.slice(KEEP))await deleteDesign(old.id);}
- catch{/* Storage may be blocked in private windows; the session keeps working. */}
+// Read, update and trim in one transaction so a queued autosave cannot overwrite
+// a feature toggle, and another tab cannot feature a design halfway through pruning.
+async function updateDesign(id:string,change:(previous:SavedDesign|undefined)=>SavedDesign|undefined):Promise<boolean>{
+ try{
+  const db=await open();
+  return await new Promise<boolean>((resolve,reject)=>{
+   const transaction=db.transaction(STORE,"readwrite"),store=transaction.objectStore(STORE),request=store.get(id);
+   let saved=false;
+   transaction.oncomplete=()=>{db.close();resolve(saved);};
+   transaction.onerror=transaction.onabort=()=>{db.close();reject(transaction.error||Error("Design storage could not be updated."));};
+   request.onsuccess=()=>{
+    const next=change(request.result as SavedDesign|undefined);if(!next)return;
+    store.put(next);saved=true;
+    const all=store.getAll() as IDBRequest<SavedDesign[]>;
+    all.onsuccess=()=>{
+     const recent=all.result.filter(d=>d&&typeof d.project==="string"&&!d.featured).sort((a,b)=>b.updatedAt.localeCompare(a.updatedAt));
+     for(const old of recent.slice(KEEP))store.delete(old.id);
+    };
+   };
+  });
+ }catch{return false;/* Blocked/private storage must not prevent using the studio. */}
+}
+export async function saveDesign(design:SavedDesign,options:{featured?:boolean}={}):Promise<boolean>{
+ return updateDesign(design.id,previous=>({...design,featured:options.featured??(previous?previous.featured===true:design.featured===true)}));
+}
+export async function setDesignFeatured(id:string,featured:boolean):Promise<boolean>{
+ return updateDesign(id,previous=>previous?{...previous,featured,updatedAt:new Date().toISOString()}:undefined);
 }
 export async function deleteDesign(id:string):Promise<void>{
  try{await run("readwrite",store=>store.delete(id));}catch{/* nothing to remove */}

@@ -3,18 +3,26 @@ import {aiSettings,requireBudgetDb} from "@/lib/ai-settings";
 import {budgetedProvider} from "@/lib/ai-budget";
 import type {BudgetSnapshot,RequestUsage} from "@/lib/ai-budget";
 import {generationFailure} from "@/lib/generation-errors";
-import {researchSubject,referencePhotoSchema} from "@/lib/design-research";
+import {researchSubject,researchWithContext} from "@/lib/design-research";
+import {collectReferencePhotos,referencePhotoSchema,referencePhotosSchema,MAX_REFERENCE_PHOTOS} from "@/lib/reference-photos";
 
-const schema=z.object({idea:z.string().trim().min(3).max(2000),scope:z.enum(["subject","site"]).optional(),composition:z.string().max(600).optional(),features:z.array(z.string().max(160)).max(12).optional(),reference:referencePhotoSchema.optional()}).strict();
+const schema=z.object({idea:z.string().trim().min(3).max(2000),scope:z.enum(["subject","site"]).optional(),composition:z.string().max(600).optional(),features:z.array(z.string().max(160)).max(12).optional(),reference:referencePhotoSchema.optional(),photos:referencePhotosSchema.optional(),identityHint:z.string().max(300).optional(),feedback:z.string().max(2000).optional()}).strict().refine(input=>collectReferencePhotos(input.reference,input.photos).length<=MAX_REFERENCE_PHOTOS);
 export async function POST(request:Request){
- const origin=request.headers.get("origin");if(origin&&origin!==new URL(request.url).origin)return Response.json({error:"Open Brickwork in its own tab."},{status:403});
+ const origin=request.headers.get("origin");if(origin&&origin!==new URL(request.url).origin)return Response.json({error:"Open Bricks in its own tab."},{status:403});
  let config;try{config=aiSettings(request);}catch(error){const failure=generationFailure(error);return Response.json({error:failure.message,code:failure.code},{status:400});}const {key,model}=config;
  if(!key)return Response.json({error:"Connect AI to look up a subject.",code:"AI_NOT_CONNECTED"},{status:503});
- let input;try{input=schema.parse(await request.json());}catch{return Response.json({error:"Describe the idea in 3–2,000 characters."},{status:400});}
- let budget:BudgetSnapshot|null=null,usage:RequestUsage|undefined;
+ let input;
  try{
-  const provider=budgetedProvider(requireBudgetDb(config.db),key,b=>{budget=b;},fetch,u=>{usage=u;});
-  const {thinking,searches,...sheet}=await researchSubject(input.idea,key,model,request.signal,provider.fetch,provider.recordUsage,input);
-  return Response.json({sheet,thinking,searches,budget,usage},{headers:{"Cache-Control":"no-store"}});
- }catch(error){const failure=generationFailure(error);console.error(JSON.stringify({event:"brickwork_request_failed",route:"/api/research",code:failure.code,upstreamStatus:failure.upstreamStatus}));return Response.json({error:failure.message,code:failure.code,budget,usage},{status:503,headers:{"Cache-Control":"no-store"}});}
+  const reader=request.body?.getReader();if(!reader)throw Error();let text="",bytes=0;const decoder=new TextDecoder();
+  while(true){const {done,value}=await reader.read();if(done)break;bytes+=value.byteLength;if(bytes>6500000){await reader.cancel();throw Error();}text+=decoder.decode(value,{stream:true});}
+  text+=decoder.decode();input=schema.parse(JSON.parse(text));
+ }catch{return Response.json({error:"Describe the idea in 3–2,000 characters and attach up to 4 JPEG reference photos under 1.5 MB each."},{status:400});}
+ let budget:BudgetSnapshot|null=null;const usages:RequestUsage[]=[];
+ try{
+  const result=await researchWithContext(input,async context=>{
+   const provider=budgetedProvider(requireBudgetDb(config.db),key,b=>{budget=b;},fetch,u=>{console.info(JSON.stringify({event:"bricks_ai_usage",stage:"research",...u}));usages.push(u);},config.period);
+   return researchSubject(input.idea,key,model,request.signal,provider.fetch,provider.recordUsage,context);
+  },request.signal);
+  return Response.json({...result,budget,usages,usage:usages.at(-1)},{headers:{"Cache-Control":"no-store"}});
+ }catch(error){const failure=generationFailure(error);console.error(JSON.stringify({event:"brickwork_request_failed",route:"/api/research",code:failure.code,upstreamStatus:failure.upstreamStatus}));return Response.json({error:failure.message,code:failure.code,budget,usages,usage:usages.at(-1)},{status:503,headers:{"Cache-Control":"no-store"}});}
 }

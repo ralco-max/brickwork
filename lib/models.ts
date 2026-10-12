@@ -1,7 +1,9 @@
 import type {GeneratedScene} from "./generated-scene";
 import {readProjectMetadata} from "./design-project";
 import type {DesignContext,ShoppingState} from "./design-project";
-import {COLORS,PARTS,STAGES,auditModel,isTile,isSlope,studless} from "./bridge";
+import {COLORS,PARTS,STAGES,auditModel,LEGACY_PARTS} from "./bridge";
+import {EXPANDED_PARTS} from "./part-catalog";
+import {partDimensions,piecesIntersect,forEachPieceCell,topConnectorOffsets,bottomConnectorOffsets} from "./part-spatial";
 import type {ColorKey,Piece,InventoryRow,PartId,Config,Face} from "./bridge";
 import {goldenGate,neuschwanstein,capeHatteras,saturnV} from "./landmarks";
 
@@ -39,16 +41,34 @@ export function finishModel(pieces:Piece[],meta:Pick<BuildModel,"name"|"descript
 }
 export type VoxelMap = Map<string,ColorKey>;
 export const voxelKey=(x:number,y:number,z:number)=>`${x},${y},${z}`;
-export function packVoxels(voxels:VoxelMap):Piece[]{
+type PackingOption={part:PartId;rotated:boolean;w:number;d:number;h:number;colors?:readonly ColorKey[]};
+let expandedPackingOptions:PackingOption[]|undefined;
+function catalogPackingOptions():PackingOption[]{
+ if(expandedPackingOptions)return expandedPackingOptions;
+ // Voxel filling only admits ordinary complete rectangular bricks/plates. Shaped
+ // catalog elements are placed explicitly, using their verified spatial masks.
+ const options:PackingOption[]=[];
+ for(const [part,p] of Object.entries(EXPANDED_PARTS)){
+  if(Object.hasOwn(LEGACY_PARTS,part)||!/^brick$|^plate$/i.test(p.family)||p.w>8||p.d>8||![1,3].includes(p.h)||!p.colors.length)continue;
+  const full=(cells:readonly (readonly number[])[],height:number)=>cells.length===p.w*p.d&&new Set(cells.map(([x,y,z])=>`${x},${y},${z}`)).size===p.w*p.d&&cells.every(([x,y,z])=>Number.isInteger(x)&&Number.isInteger(z)&&x>=0&&x<p.w&&z>=0&&z<p.d&&y===height);
+  if(p.occupancy.length!==p.w*p.d*p.h||new Set(p.occupancy.map(c=>c.join(","))).size!==p.w*p.d*p.h||!p.occupancy.every(([x,y,z])=>[x,y,z].every(Number.isInteger)&&x>=0&&x<p.w&&y>=0&&y<p.h&&z>=0&&z<p.d)||!full(p.topStuds,p.h)||!full(p.bottomSockets,0))continue;
+  for(const rotated of p.w===p.d?[false]:[false,true])options.push({part,rotated,w:rotated?p.d:p.w,d:rotated?p.w:p.d,h:p.h,colors:p.colors});
+  // Bound the additional search work even as the source library grows.
+  if(options.length>=64)break;
+ }
+ return expandedPackingOptions=options;
+}
+export function packVoxels(voxels:VoxelMap,settings:{expanded?:boolean}={}):Piece[]{
  const remaining=new Map(voxels),pieces:Piece[]=[],owners=new Map<string,number>();
  const ids:PartId[]=["3007","3001","3008","3009","3010","3003","3004","3035","3034","3020","3460","3666","3710","3022","3005","3023","3024"];
- type Option={part:PartId;rotated:boolean;w:number;d:number;h:number};
+ type Option=PackingOption;
  const options:Option[]=ids.flatMap(part=>[false,true].map(rotated=>{const p=PARTS[part];return {part,rotated,w:rotated?p.d:p.w,d:rotated?p.w:p.d,h:p.h};}));
+ if(settings.expanded)options.push(...catalogPackingOptions());
  const positions=[...voxels.keys()].map(k=>k.split(",").map(Number)).sort((a,b)=>a[1]-b[1]||a[2]-b[2]||a[0]-b[0]);
  const tieLayers=new Set<number>();for(const [x,y,z] of positions)if(y>1&&!voxels.has(voxelKey(x,y-1,z))){tieLayers.add(y);tieLayers.add(y+1);}
  // Score option p with its minimum corner at (x,y,z), or null when it cannot go there.
  const evaluate=(p:Option,x:number,y:number,z:number,color:ColorKey)=>{
-  if(x<0||z<0)return null;
+  if(x<0||z<0||p.colors&&!p.colors.includes(color))return null;
   // Continuous plate courses let a roof or overhang overlap its supporting walls.
   // Tall wall bricks must end before these courses rather than cutting through them.
   if(p.h>1&&[y,y+1,y+2].some(layer=>tieLayers.has(layer)))return null;
@@ -57,7 +77,7 @@ export function packVoxels(voxels:VoxelMap):Piece[]{
   const supports=new Set<number>();let overhang=0;for(let a=0;a<p.w;a++)for(let c=0;c<p.d;c++){const below=owners.get(voxelKey(x+a,y-1,z+c));if(below!==undefined)supports.add(below);else if(y>0&&!voxels.has(voxelKey(x+a,y-1,z+c)))overhang++;}
   return {score:p.w*p.d*p.h*(1+Math.min(3,Math.max(0,supports.size-1))*.16)+(p.rotated===!!(Math.floor(y/3)%2)?.01:0),supports:supports.size,overhang};
  };
- const place=(p:Option,color:ColorKey,x:number,y:number,z:number)=>{const id=pieces.length;pieces.push({id,part:p.part,color,x,y,z,w:p.w,d:p.d,h:p.h,rotated:p.rotated,stage:0});for(let a=0;a<p.w;a++)for(let b=0;b<p.h;b++)for(let c=0;c<p.d;c++){const key=voxelKey(x+a,y+b,z+c);remaining.delete(key);owners.set(key,id);}};
+ const place=(p:Option,color:ColorKey,x:number,y:number,z:number)=>{const id=pieces.length;pieces.push({id,part:p.part,color,x,y,z,w:p.w,d:p.d,h:p.h,rotated:p.rotated,stage:0,...(!Object.hasOwn(LEGACY_PARTS,p.part)?{face:p.rotated?"px" as const:"pz" as const}:{})});for(let a=0;a<p.w;a++)for(let b=0;b<p.h;b++)for(let c=0;c<p.d;c++){const key=voxelKey(x+a,y+b,z+c);remaining.delete(key);owners.set(key,id);}};
  for(let i=0;i<positions.length;){
   const y=positions[i][1];let j=i;while(j<positions.length&&positions[j][1]===y)j++;const layer=positions.slice(i,j);i=j;
   // Overhanging cells go first. Each one takes the piece that reaches back over a
@@ -133,35 +153,52 @@ export function mosaicFromPixels(data:ArrayLike<number>,width:number,height:numb
  const voxels:VoxelMap=new Map();for(let z=0;z<height;z++)for(let x=0;x<width;x++){const i=(z*width+x)*4,alpha=data[i+3]/255,c=nearestColor(data[i]*alpha+255*(1-alpha),data[i+1]*alpha+255*(1-alpha),data[i+2]*alpha+255*(1-alpha));voxels.set(voxelKey(x,0,z),"gray");voxels.set(voxelKey(x,1,z),"gray");voxels.set(voxelKey(x,2,z),c);}
  return finishModel(packVoxels(voxels),{name,description:`${width} × ${height} stud mosaic · 13-color brick palette`,source:"mosaic"});
 }
-export function intersects(a:Piece,b:Piece){return a.x<b.x+b.w&&a.x+a.w>b.x&&a.y<b.y+b.h&&a.y+a.h>b.y&&a.z<b.z+b.d&&a.z+a.d>b.z;}
+export const intersects=piecesIntersect;
 export function addPiece(pieces:Piece[],part:PartId,color:ColorKey,x:number,y:number,z:number,rotated=false,face?:Face):Piece[]{
- const s=PARTS[part],p:Piece={id:pieces.length,part,color,x,y,z,w:rotated?s.d:s.w,d:rotated?s.w:s.d,h:s.h,rotated,stage:5,...(isSlope(part)?{face:face||(rotated?"px":"pz")}:{})};
+ const p:Piece={id:pieces.length,part,color,x,y,z,...partDimensions(part,rotated,face),stage:5};
  if(![x,y,z].every(Number.isInteger)||Math.min(x,y,z)<0||x+p.w>192||z+p.d>192||y+p.h>240)throw Error("Place bricks within 192 × 192 studs and 240 plate layers.");
  if(pieces.length>=16000)throw Error("This design has reached the 16,000 piece limit.");
  if(pieces.some(other=>intersects(p,other)))throw Error("That space is occupied. Choose another stud or height.");
- if(pieces.some(other=>studless(other.part)&&other.y+other.h===y&&x<other.x+other.w&&x+p.w>other.x&&z<other.z+other.d&&z+p.d>other.z))throw Error("This surface is a smooth tile. Replace it with a studded plate before building on it.");
+ // Preserve the editor's smooth-surface guard, but only beneath actual sockets.
+ // An arch's empty opening must not be mistaken for a bottom connection.
+ const sockets=bottomConnectorOffsets(p);
+ if(pieces.some(other=>{
+  if(!sockets.some(([a,b,c])=>x+a>=other.x&&x+a<other.x+other.w&&z+c>=other.z&&z+c<other.z+other.d&&y+b-1>=other.y&&y+b-1<other.y+other.h))return false;
+  const tops=topConnectorOffsets(other),occupied=new Set<string>();
+  forEachPieceCell(other,(a,b,c)=>occupied.add(voxelKey(a,b,c)));
+  return sockets.some(([a,b,c])=>occupied.has(voxelKey(x+a,y+b-1,z+c))&&!tops.some(([tx,ty,tz])=>other.x+tx===x+a&&other.y+ty===y+b&&other.z+tz===z+c));
+ }))throw Error("This surface is smooth or has no matching studs. Choose a studded connection before building on it.");
  return [...pieces,p];
 }
 export function validateProject(raw:unknown):BuildModel{
- if(!raw||typeof raw!=="object")throw Error("Choose a Brickwork project JSON file.");const data=raw as Record<string,unknown>;
+ if(!raw||typeof raw!=="object")throw Error("Choose a Bricks project JSON file.");const data=raw as Record<string,unknown>;
  if(!Array.isArray(data.pieces)||data.pieces.length<1||data.pieces.length>16000)throw Error("The project must contain between 1 and 16,000 pieces.");
- const pieces:Piece[]=data.pieces.map((v:unknown,id:number)=>{if(!v||typeof v!=="object")throw Error("Invalid piece.");const p=v as Piece,s=Object.hasOwn(PARTS,p.part)?PARTS[p.part]:null;if(!s||!Object.hasOwn(COLORS,p.color)||![p.x,p.y,p.z].every(n=>Number.isInteger(n)&&n>=0)||typeof p.rotated!=="boolean")throw Error("The project contains an unsupported part or invalid coordinates.");const w=p.rotated?s.d:s.w,d=p.rotated?s.w:s.d;if(p.x+w>192||p.z+d>192||p.y+s.h>240)throw Error("The project exceeds the supported dimensions.");const face=isSlope(p.part)?(["px","nx","pz","nz"].includes(String(p.face))?p.face:p.rotated?"px":"pz"):undefined;return {id,part:p.part,color:p.color,x:p.x,y:p.y,z:p.z,w,d,h:s.h,rotated:p.rotated,stage:0,...(p.support===true?{support:true}:{}),...(face?{face}:{})};});
- const occupied=new Set<string>();for(const p of pieces)for(let x=p.x;x<p.x+p.w;x++)for(let y=p.y;y<p.y+p.h;y++)for(let z=p.z;z<p.z+p.d;z++){const k=voxelKey(x,y,z);if(occupied.has(k))throw Error("The project has overlapping pieces. Repair the file before importing.");occupied.add(k);if(occupied.size>350000)throw Error("The project is too complex. Import a smaller version.");}
- return finishModel(pieces,{name:typeof data.name==="string"?data.name.slice(0,80):"Imported project",description:typeof data.description==="string"?data.description.slice(0,500):"Your editable Brickwork project",source:"custom",...readProjectMetadata(data,pieces)});
+ const pieces:Piece[]=data.pieces.map((v:unknown,id:number)=>{
+  if(!v||typeof v!=="object")throw Error("Invalid piece.");
+  const p=v as Piece;if(!Object.hasOwn(PARTS,p.part)||!Object.hasOwn(COLORS,p.color)||![p.x,p.y,p.z].every(n=>Number.isInteger(n)&&n>=0)||typeof p.rotated!=="boolean")throw Error("The project contains an unsupported part or invalid coordinates.");
+  const face=["px","nx","pz","nz"].includes(String(p.face))?p.face:undefined;
+  const dimensions=partDimensions(p.part,p.rotated,face);
+  if(p.x+dimensions.w>192||p.z+dimensions.d>192||p.y+dimensions.h>240)throw Error("The project exceeds the supported dimensions.");
+  return {id,part:p.part,color:p.color,x:p.x,y:p.y,z:p.z,...dimensions,stage:0,...(p.support===true?{support:true}:{})};
+ });
+ const occupied=new Set<string>();for(const p of pieces)forEachPieceCell(p,(x,y,z)=>{const k=voxelKey(x,y,z);if(occupied.has(k))throw Error("The project has overlapping pieces. Repair the file before importing.");occupied.add(k);if(occupied.size>350000)throw Error("The project is too complex. Import a smaller version.");});
+ return finishModel(pieces,{name:typeof data.name==="string"?data.name.slice(0,80):"Imported project",description:typeof data.description==="string"?data.description.slice(0,500):"Your editable Bricks project",source:"custom",...readProjectMetadata(data,pieces)});
 }
 export function supportLoosePieces(input:Piece[]):{pieces:Piece[];added:number}{
  let pieces=input.map((p,id)=>({...p,id})),added=0;
  for(let pass=0;pass<80;pass++){
   const audit=auditModel(pieces);if(!audit.disconnected.length)break;
-  const occupied=new Map<string,Piece>();for(const p of pieces)for(let x=p.x;x<p.x+p.w;x++)for(let z=p.z;z<p.z+p.d;z++)for(let y=p.y;y<p.y+p.h;y++)occupied.set(voxelKey(x,y,z),p);
+  const occupied=new Map<string,Piece>(),studs=new Set<string>();
+  for(const p of pieces){forEachPieceCell(p,(x,y,z)=>occupied.set(voxelKey(x,y,z),p));for(const [x,y,z] of topConnectorOffsets(p))studs.add(voxelKey(p.x+x,p.y+y,p.z+z));}
   let changed=false;
   for(const id of [...audit.disconnected].sort((a,b)=>pieces[a].y-pieces[b].y)){
    const p=pieces[id];if(p.y===0)continue;
-   outer:for(let x=p.x;x<p.x+p.w;x++)for(let z=p.z;z<p.z+p.d;z++){
-    if(occupied.has(voxelKey(x,p.y-1,z)))continue;let y=p.y-1;
-    while(y>=0&&!occupied.has(voxelKey(x,y,z)))y--;
-    if(y>=0&&studless(occupied.get(voxelKey(x,y,z))!.part))continue;
-    y++;while(y<p.y){if(pieces.length>=16000)return {pieces,added};const part:PartId=p.y-y>=3?"3005":"3024",s=PARTS[part];pieces.push({id:pieces.length,part,color:"gray",x,y,z,w:1,d:1,h:s.h,rotated:false,stage:0,support:true});y+=s.h;added++;}changed=true;break outer;
+   for(const [a,b,c] of bottomConnectorOffsets(p)){
+    const x=p.x+a,z=p.z+c,bottomY=p.y+b;
+    if(![x,bottomY,z].every(Number.isInteger)||bottomY<=0||occupied.has(voxelKey(x,bottomY-1,z)))continue;
+    let y=bottomY-1;while(y>=0&&!occupied.has(voxelKey(x,y,z)))y--;
+    if(y>=0&&!studs.has(voxelKey(x,y+1,z)))continue;
+    y++;while(y<bottomY){if(pieces.length>=16000)return {pieces,added};const part:PartId=bottomY-y>=3?"3005":"3024",s=PARTS[part];pieces.push({id:pieces.length,part,color:"gray",x,y,z,w:1,d:1,h:s.h,rotated:false,stage:0,support:true});y+=s.h;added++;}changed=true;break;
    }
    if(changed)break;
   }
@@ -182,10 +219,11 @@ export function removeSupports(model:BuildModel):{model:BuildModel;removed:numbe
 // exposed (nothing rests on it, and it is above the base) becomes the tile of
 // the same size, so large flat areas read as smooth instead of stud-heavy.
 const PLATE_TO_TILE:Partial<Record<PartId,PartId>>={"3024":"3070b","3023":"3069b","3022":"3068b","3710":"2431","3666":"6636","3460":"4162","3020":"87079"};
-export function smoothTops(pieces:Piece[]):Piece[]{
- const occupied=new Set<string>();for(const p of pieces)for(let x=p.x;x<p.x+p.w;x++)for(let y=p.y;y<p.y+p.h;y++)for(let z=p.z;z<p.z+p.d;z++)occupied.add(voxelKey(x,y,z));
+export function smoothTops(pieces:Piece[],preserve?:ReadonlySet<Piece>):Piece[]{
+ const occupied=new Set<string>();for(const p of pieces)forEachPieceCell(p,(x,y,z)=>occupied.add(voxelKey(x,y,z)));
  const out:Piece[]=[];
  for(const p of pieces){
+  if(preserve?.has(p)){out.push(p);continue;}
   const exposed=p.h===1&&p.y>=2&&!p.support&&[...Array(p.w).keys()].every(a=>[...Array(p.d).keys()].every(c=>!occupied.has(voxelKey(p.x+a,p.y+1,p.z+c))));
   const tile=PLATE_TO_TILE[p.part];
   if(exposed&&tile){out.push({...p,part:tile});continue;}

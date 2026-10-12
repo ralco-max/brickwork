@@ -1,4 +1,4 @@
-# Brickwork by Ralc
+# Bricks by Ralc
 
 A custom brick design studio using React, Three.js and Vinext.
 
@@ -48,11 +48,11 @@ Add vertical supports tags every column it adds; Remove added supports strips ex
 
 ## Assembly and instructions
 
-The assembly is an intro that plays inside the interactive 3D view whenever a design opens in the studio, with a Skip control in its pill. A design already seen assembling in this session plays at double speed on every return. The Play button in the view controls plays it, pauses it mid-way, resumes, and replays once it has finished; the viewer can orbit and zoom throughout. The landing film also allows orbiting, and its slow camera sweep stops as soon as the viewer takes the camera. The download control in the view controls records the replay to a video. The live creation stage replays its brick arrivals. There is no separate film dialog or playback mode.
+The assembly is an intro that plays inside the interactive 3D view whenever a design opens in the studio, with a Skip control in its pill. Each replay starts at the same 1× speed; the viewer can choose 2×. The Play button in the view controls plays it, pauses it mid-way, resumes, and replays once it has finished; the viewer can orbit and zoom throughout. The landing film also allows orbiting, and its slow camera sweep stops as soon as the viewer takes the camera. The download control in the view controls records the replay to a video. The live creation stage replays its brick arrivals. There is no separate film dialog or playback mode.
 
 The intro is a settle. The model is there from the first frame, but loosened: every brick waits a short way from its spot, nudged sideways and up and turned a little, like the finished model shaken apart. Then it tightens bottom-up, each brick sliding the last short distance and seating with a small overshoot, so the silhouette reads from second one and the last bricks feel like a finish rather than a trickle. Explode is the intro run backwards: the slider scrubs the whole assembly timeline from the finished model to its first frame, so the last bricks to land are the first to lift off, each flying back out along its own path to where it waited in the air, and the camera pulls back to keep the cloud in frame.
 
-The landing plays the same intro as the studio: the bricks fly in and assemble over 18 seconds, then the finished model stays in place for orbiting. The control beside the title pauses and resumes the intro and, once it has landed, plays it again. Inline pause and expand controls remain available. It advances only while visible and pauses behind dialogs. Reduced-motion preference shows the finished model unless the viewer explicitly resumes. Playback offers replay, pause, seek and 0.5×/1×/2× speed and does not need AI.
+The landing plays the same intro as the studio: the bricks fly in and assemble over 5.6 seconds, then the finished model stays in place for orbiting. The control beside the title pauses and resumes the intro and, once it has landed, plays it again. Inline pause and expand controls remain available. It advances only while visible and pauses behind dialogs. Reduced-motion preference shows the finished model unless the viewer explicitly resumes. Playback offers replay, pause, seek and 0.5×/1×/2× speed and does not need AI.
 
 The landing, live creation and expanded film use a white stage with soft contact shadows and dark controls. Exported video uses the same white background and readable dark captions.
 
@@ -122,7 +122,7 @@ The Designer choice still selects Terra, Sol or Astra for geometry, with Terra f
 
 ## Deploying to Cloudflare
 
-Brickwork runs as a Cloudflare Worker with static assets, using the D1 database in `wrangler.jsonc` for the spending ledger. Production lives at https://brickwork.ryan-c-alcorn.workers.dev.
+Bricks runs as a Cloudflare Worker with static assets, using the D1 database in `wrangler.jsonc` for the spending ledger. Production lives at https://brickwork.ryan-c-alcorn.workers.dev.
 
 1. `npx wrangler login` once, then `npx wrangler d1 migrations apply brickwork-db --remote` whenever `drizzle/` gains a migration.
 2. `npx wrangler secret put OPENAI_API_KEY` to set or rotate the shared studio key. The $10 budget is tracked per key fingerprint, so every visitor who uses the studio key shares one $10 pool; rotating the key starts a fresh pool. Also set a matching hard limit on the OpenAI project itself as a backstop.
@@ -176,7 +176,7 @@ Opening the tools does not change pages. The tools panel slides in on the right,
 
 ## Personal AI budget
 
-A fixed $10 USD budget applies to Brickwork token usage per API key from this version onward. It includes generation, visual reviews, every manual revision and retry. It does not reset on refresh, closing the dialog or disconnecting/reconnecting the same key. It does not include earlier calls, usage outside this Site, taxes or custom account pricing. The key remains in tab memory. D1 stores only a SHA-256 fingerprint, timestamps and monetary ledger entries, never the raw key, prompt or images.
+A fixed $10 USD budget applies to Bricks token usage per API key from this version onward. It includes generation, visual reviews, every manual revision and retry. It does not reset on refresh, closing the dialog or disconnecting/reconnecting the same key. It does not include earlier calls, usage outside this Site, taxes or custom account pricing. The key remains in tab memory. D1 stores only a SHA-256 fingerprint, timestamps and monetary ledger entries, never the raw key, prompt or images.
 
 Before a Responses request, count text and image input using OpenAI's input-token endpoint, add the output schema's byte length plus a 4,096-token formatting margin, and atomically reserve the uncached input cost plus the maximum allowed output cost. Prices are GPT-5.6 Terra standard rates checked 2026-09-08: $2/M input, $0.20/M cached input and $12/M output. Inputs above 272K use 2× input and 1.5× output rates. Explicit standard service prevents priority routing costs. Recheck published pricing before changing the model or rates.
 
@@ -192,3 +192,10 @@ An atomic conditional SQLite insert prevents parallel requests spending the same
 `node --test tests/reference-workflow.test.mjs tests/design-workflow.test.mjs tests/design-library.test.mjs tests/generation-resilience.test.mjs tests/ai-budget.test.mjs tests/slopes.test.mjs` exercises ordered call counts, over-budget drafts without automatic trimming, failed lookup/cancellation, source provenance, source-image forwarding, composition rejection, saved references and actual component-count parity. These are authored fixtures and mocked provider responses.
 
 Use `tests/accuracy-benchmarks.json` and `docs/accuracy-evaluation.md` for live comparisons against baseline commit `10079cb908663ddb601065f03ef6b874954baf27`. Live image-search compatibility, image URL availability, generated visual fidelity and real cost distributions require a connected API key; the automated tests do not establish those outcomes.
+
+## October 11 model and budget update
+Sol 6.1 Low is the default designer, with Medium available for complex designs and repairs. Existing designer choices and saved briefs remain supported. Research and review use Sol 6.1 Low. Standard Sol rates include cache reads and writes.
+
+STUDIO_BUDGET_PERIOD in wrangler.jsonc starts a fresh $10 pool for the configured studio key on deployment. This owner-requested reset is fixed at reset-2026-10-11; subsequent deployments do not reset it again. Old ledger rows are retained, and personal-key budgets retain their original period. This does not add OpenAI credits.
+
+Assembly uses a 5.6-second shared timeline with compact radial offsets, overlapping bottom-up layer waves, restrained rotations and a brief final hold. Replays begin at 1× consistently; the optional 2× speed and skip controls remain available. Reduced motion shows the completed model immediately.

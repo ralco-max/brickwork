@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import {build} from 'esbuild';
-const bundle=await build({stdin:{contents:'export * from "./lib/design-workflow";export * from "./lib/design-research";export * from "./lib/design-review";export * from "./lib/design-project";export * from "./lib/design-library";export * from "./lib/generated-scene";export {validateProject} from "./lib/models";',resolveDir:process.cwd(),loader:'ts'},bundle:true,platform:'node',format:'esm',write:false});
+const bundle=await build({stdin:{contents:'export * from "./lib/reference-photos";export * from "./lib/design-workflow";export * from "./lib/design-research";export * from "./lib/design-review";export * from "./lib/design-project";export * from "./lib/design-library";export * from "./lib/generated-scene";export {validateProject} from "./lib/models";',resolveDir:process.cwd(),loader:'ts'},bundle:true,platform:'node',format:'esm',write:false});
 const m=await import('data:text/javascript;base64,'+Buffer.from(bundle.outputFiles[0].text).toString('base64'));
 const signal=()=>new AbortController().signal;
 const photo='data:image/jpeg;base64,YQ==';
@@ -45,6 +45,16 @@ test('project export, browser save and repacking all preserve the reference shee
  json.pieces=json.pieces.slice(1);const repacked=m.unpackDesign({...saved,project:JSON.stringify(json)});assert.deepEqual(repacked.design.reference,reference);assert.equal(repacked.design.reviewStale,true);
  delete json.design.reference;assert.ok(m.unpackDesign({...saved,project:JSON.stringify(json)}).generation);
 });
+test('additional feedback photos and a place hint survive export, reopen and repacking',()=>{
+ const extra=['data:image/jpeg;base64,Yg==','data:image/jpeg;base64,Yw==','data:image/jpeg;base64,ZA=='];
+ const pack={...reference,photos:extra,identityHint:'Chantilly, Virginia; original terminal'},model={...m.compileScene(scene,{smooth:true}),generation:scene,libraryId:'photos-fixture',design:{brief,reference:pack,manual:m.emptyManual(),locked:[],revisions:[]}};
+ const json=JSON.parse(m.projectJSON(model,m.emptyShopping()));assert.deepEqual(m.validateProject(json).design.reference,pack);
+ const saved=m.packDesign(model,'draft');assert.deepEqual(m.unpackDesign(saved).design.reference,pack);
+ json.pieces=json.pieces.slice(1);assert.deepEqual(m.unpackDesign({...saved,project:JSON.stringify(json)}).design.reference,pack);
+ assert.deepEqual(m.collectReferencePhotos(photo,[photo,...extra]),[photo,...extra]);
+ assert.equal(m.contextSchema.safeParse({...model.design,reference:{...pack,photos:[...extra,'data:image/jpeg;base64,ZQ==']}}).success,false);
+ assert.equal(m.contextSchema.safeParse({...model.design,reference:{...pack,photos:['https://example.com/private.jpg']}}).success,false);
+});
 test('component counts use final smooth/hollow/manual pieces and add up to the displayed total',()=>{
  for(const options of [{smooth:true},{hollow:true,smooth:true},{manual:{erase:[],bricks:[{id:900,part:'3001',color:'blue',x:0,y:2,z:12,w:4,h:3,d:2,rotated:false,stage:0}]},smooth:true}]){
   const model=m.compileScene(scene,options),by=m.componentBudget(scene,model);assert.equal(by.reduce((n,c)=>n+c.pieces,0),model.pieces.length);
@@ -61,6 +71,17 @@ test('review distinguishes generated views, source photo and retrieved reference
  const content=sent.input[0].content;assert.deepEqual(JSON.parse(content[0].text).referenceSheet,sheet);assert.equal(content.filter(c=>c.type==='input_image').length,7);assert.equal(content.at(-1).image_url,photo);assert.ok(content.some(c=>c.text?.includes('overhead')));assert.equal(result.recognizable,false);
  delete review.composition;await assert.rejects(()=>m.reviewDesign(brief,[], 'key','model',signal(),fetcher,'',undefined,reference),/reference composition/);
 });
+test('review includes every feedback photo once and never confuses them with generated views',async()=>{
+ const second='data:image/jpeg;base64,Yw==',third='data:image/jpeg;base64,ZA==';let sent;
+ const review={composition:{status:'matches',evidence:'The tower now matches the additional angle.'},summary:'Revised tower',recognizable:true,features:[],improvements:[],revision:{status:'visible',evidence:'Additional tower angle applied.'}};
+ const fetcher=async(_url,request)=>{sent=JSON.parse(request.body);return Response.json({status:'completed',output:[{content:[{type:'output_text',text:JSON.stringify(review)}]}]});};
+ await m.reviewDesign(brief,Array(5).fill('data:image/jpeg;base64,Yg=='),'key','model',signal(),fetcher,'Match the tower in these photos',undefined,{...reference,photos:[second,photo,third]});
+ const content=sent.input[0].content,sourceLabels=content.filter(c=>c.text?.startsWith('USER REFERENCE PHOTO'));
+ assert.equal(sourceLabels.length,3);assert.match(sourceLabels[0].text,/original/);assert.match(sourceLabels[1].text,/additional evidence/);
+ assert.deepEqual(content.filter(c=>c.type==='input_image').slice(-3).map(c=>c.image_url),[photo,second,third]);
+ assert.equal(JSON.parse(content[0].text).generatedViewCount,5);assert.equal(JSON.parse(content[0].text).sourcePhotoCount,3);
+ assert.match(sent.instructions,/never use any reference photo as evidence/);
+});
 test('research uses real search provenance, retains selected image results and rejects invented sources or dangling relations',async()=>{
  let sent;let raw={...sheet,image_urls:['https://example.com/source.jpg','https://invented.test/image.jpg']};
  let search={type:'web_search_call',action:{type:'search',query:'terminal',sources:[{url:sheet.sources[0]}]},results:[{type:'image_result',image_url:'https://example.com/source.jpg',source_website_url:'https://example.com/page',caption:'Fixture image'}]};
@@ -70,4 +91,47 @@ test('research uses real search provenance, retains selected image results and r
  raw={...raw,relations:[{from:'Runway',relation:'left_of',to:'Missing'}]};await assert.rejects(()=>m.researchSubject(brief.idea,'key','model',signal(),fetcher),/inconsistent component names/);
  raw={...raw,relations:[],image_urls:[]};search={type:'web_search_call',action:{type:'search'}};await assert.rejects(()=>m.researchSubject(brief.idea,'key','model',signal(),fetcher),/No usable source/);
  raw={};await assert.rejects(()=>m.researchSubject(brief.idea,'key','model',signal(),fetcher),/reference plan is incomplete/);
+});
+
+// These are provider fixtures: they verify the instructions, forwarded evidence,
+// and workflow gates without making a paid model request or forcing an identity
+// with a client-side Washington Monument special case.
+const monumentPlan=(location,status='confirmed',question='')=>({...sheet,kind:'monument',subject:`Washington Monument, ${location}`,summary:`The Washington Monument in ${location}.`,identity:{status,location,question},contextAdequate:status==='confirmed',included:['Monument'],excluded:[],relations:[],uncertainties:[],images:[],image_urls:[],sources:['https://official.example.test/monument'],proportions:'Tall narrow monument',silhouette:['Tall monument on a base'],layout:'The main approach faces +z.'});
+function monumentProvider(plans,requests){return async(_url,request)=>{requests.push(JSON.parse(request.body));const plan=plans[Math.min(requests.length-1,plans.length-1)];return Response.json({status:'completed',output:[{type:'web_search_call',action:{type:'search',query:plan.subject,sources:plan.sources.map(url=>({url}))}},{content:[{type:'output_text',text:JSON.stringify(plan)}]}]});};}
+
+test('an unqualified landmark uses a source-verified dominant interpretation and proceeds after one lookup',async()=>{
+ const requests=[],fetcher=monumentProvider([monumentPlan('Washington, DC')],requests),calls=[];
+ const result=await m.runDesignWorkflow({signal:signal(),lookup:async()=>{
+  const researched=await m.researchWithContext({},context=>m.researchSubject('the Washington Monument','key','model',signal(),fetcher,undefined,context),signal());
+  assert.equal(researched.passes,1);assert.equal(researched.needsClarification,false);assert.equal(researched.question,'');calls.push('research');return {sheet:researched.sheet};
+ },design:async ref=>{assert.equal(ref.sheet.identity.location,'Washington, DC');calls.push('design');return scene;},compile:async()=>({pieces:[]}),review:async()=>{calls.push('review');return {recognizable:true};}});
+ assert.deepEqual(calls,['research','design','review']);assert.equal(result.review.recognizable,true);assert.equal(requests.length,1);
+ const sent=requests[0],input=JSON.parse(sent.input[0].content[0].text);assert.equal(input.idea,'the Washington Monument');assert.equal(input.identityHint,'');assert.equal(sent.max_tool_calls,2);
+ assert.match(sent.instructions,/first search to verify the dominant conventional interpretation/);assert.match(sent.instructions,/A shared name alone is not genuine ambiguity/);assert.match(sent.instructions,/Washington Monument.*Washington, DC/);assert.match(sent.instructions,/Never identify a named place from memory alone/);
+ assert.doesNotMatch(sent.instructions,/Shared names, conflicting images, or multiple plausible sites mean ambiguous/);
+});
+
+test('explicit Baltimore wording, location hints, correction feedback and photos reach research unchanged',async()=>{
+ const secondPhoto='data:image/jpeg;base64,Yg==';
+ for(const {idea,context} of [
+  {idea:'the Washington Monument in Baltimore',context:{}},
+  {idea:'the Washington Monument',context:{identityHint:'Mount Vernon, Baltimore',reference:photo,photos:[secondPhoto]}},
+  {idea:'the Washington Monument',context:{feedback:'I mean the one in Baltimore, not the DC obelisk.',reference:photo}},
+ ]){
+  const requests=[],fetcher=monumentProvider([monumentPlan('Baltimore')],requests);
+  const result=await m.researchWithContext(context,c=>m.researchSubject(idea,'key','model',signal(),fetcher,undefined,c),signal());
+  assert.equal(requests.length,1);assert.equal(result.needsClarification,false);assert.equal(result.sheet.identity.location,'Baltimore');
+  const sent=requests[0],input=JSON.parse(sent.input[0].content[0].text);assert.equal(input.idea,idea);assert.equal(input.identityHint,context.identityHint||'');assert.equal(input.feedback,context.feedback||'');
+  assert.deepEqual(sent.input[0].content.filter(c=>c.type==='input_image').map(c=>c.image_url),m.collectReferencePhotos(context.reference,context.photos));
+  assert.match(sent.instructions,/Explicit location, a supplied source, identifiable photo details, or a correction take precedence/);
+ }
+});
+
+test('genuine conflicting landmark evidence still asks after bounded research and never reaches design',async()=>{
+ const requests=[],ambiguous=monumentPlan('','ambiguous','Your photos show two different monuments. Which one should this build follow?'),fetcher=monumentProvider([ambiguous,ambiguous],requests);let designed=false;
+ await assert.rejects(()=>m.runDesignWorkflow({signal:signal(),lookup:async()=>{
+  const result=await m.researchWithContext({reference:photo,feedback:'Match this photo'},c=>m.researchSubject('the Washington Monument','key','model',signal(),fetcher,undefined,c),signal());
+  assert.equal(result.passes,2);assert.equal(result.needsClarification,true);assert.match(result.question,/two different monuments/);throw Error(result.question);
+ },design:async()=>{designed=true;return scene;},compile:async()=>({pieces:[]}),review:async()=>({})}),/two different monuments/);
+ assert.equal(designed,false);assert.equal(requests.length,2);assert.match(requests[1].instructions,/earlier unnecessary namesake question does not require a user answer/);
 });
