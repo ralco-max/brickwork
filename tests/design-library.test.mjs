@@ -146,27 +146,32 @@ test('share links are remembered by content across reloads, keep their owner tok
  await m.forgetSharedLink('AbCdEfGh23');assert.deepEqual(await m.listSharedLinks(),[]);
 });
 
-test('opening shared links never evicts the visitor’s own designs, and a share is saved once, after its first edit',async t=>{
+test('opening shared links never evicts the visitor’s own designs, and a share is saved from its first edit on',async t=>{
  useMemoryStorage(t);
  for(let i=1;i<=3;i++)await m.saveDesign(savedFixture(`own-${i}`,`2001-01-0${i}T00:00:00.000Z`));
- // What the studio does on a link visit: open it, then autosave unless it is still the shared original.
- const autosave=async(model,pristine)=>{const saved=m.packDesign(model,'design');return m.unchangedShare(saved,pristine)?false:m.saveDesign(saved);};
+ // What the studio does on a link visit: open it, keep the original in a ref, and autosave through saveUnlessPristine.
+ const autosave=(model,ref)=>m.saveUnlessPristine(m.packDesign(model,'design'),ref);
  const share=recipe=>m.validateProject(JSON.parse(m.projectJSON(m.generateRecipe(recipe,'small'),m.emptyShopping())));
  const shares={AAAAAAAAAA:share('castle'),BBBBBBBBBB:share('rocket')};
  for(let visit=0;visit<20;visit++){
-  const id=visit%2?'AAAAAAAAAA':'BBBBBBBBBB',{model,pristine}=await m.openSharedDesign(id,shares[id]);
-  assert.equal(model.libraryId,`share-${id}`);assert.equal(await autosave(model,pristine),false);
+  const id=visit%2?'AAAAAAAAAA':'BBBBBBBBBB',{model,pristine}=await m.openSharedDesign(id,shares[id]),ref={current:pristine};
+  assert.equal(model.libraryId,`share-${id}`);assert.equal(await autosave(model,ref),null,'an untouched share is not saved');assert.equal(ref.current,pristine);
  }
  assert.deepEqual((await m.listDesigns()).map(d=>d.id).sort(),['own-1','own-2','own-3']);
- const {model,pristine}=await m.openSharedDesign('AAAAAAAAAA',shares.AAAAAAAAAA);
- assert.equal(await autosave({...model,name:'My castle remix'},pristine),true);
- assert.equal(await autosave({...model,name:'My castle remix, again'},pristine),true);
+ const {model,pristine}=await m.openSharedDesign('AAAAAAAAAA',shares.AAAAAAAAAA),ref={current:pristine};
+ assert.equal(await autosave({...model,name:'My castle remix'},ref),true);assert.equal(ref.current,null);
+ assert.equal(await autosave({...model,name:'My castle remix, again'},ref),true);
  let all=await m.listDesigns();assert.equal(all.filter(d=>d.id.startsWith('share-')).length,1);assert.equal(all.find(d=>d.id==='share-AAAAAAAAAA').name,'My castle remix, again');
- // The link reopens on the original; the remix already kept is never overwritten by it.
+ // An undo back to the shared original after the copy was kept is saved too, not left at the abandoned edit.
+ assert.equal(await autosave(model,ref),true);
+ all=await m.listDesigns();assert.equal(all.find(d=>d.id==='share-AAAAAAAAAA').name,shares.AAAAAAAAAA.name);
+ // The link reopens on the original; the copy already kept is never overwritten by it.
  const again=await m.openSharedDesign('AAAAAAAAAA',shares.AAAAAAAAAA);
- assert.notEqual(again.model.libraryId,'share-AAAAAAAAAA');assert.equal(again.model.name,shares.AAAAAAAAAA.name);assert.equal(await autosave(again.model,again.pristine),false);
+ assert.notEqual(again.model.libraryId,'share-AAAAAAAAAA');assert.equal(again.model.name,shares.AAAAAAAAAA.name);assert.equal(await autosave(again.model,{current:again.pristine}),null);
  all=await m.listDesigns();assert.equal(all.length,4);for(const id of ['own-1','own-2','own-3','share-AAAAAAAAAA'])assert.ok(all.some(d=>d.id===id),id);
  assert.equal(m.unpackDesign(all.find(d=>d.id==='share-AAAAAAAAAA')).pieces.length,shares.AAAAAAAAAA.pieces.length);
+ // Other designs autosave as before, whatever share was opened last.
+ assert.equal(await autosave({...m.generateRecipe('lighthouse','small'),libraryId:'own-4'},{current:again.pristine}),true);
 });
 
 test('recently viewed shares are a separate small list that tolerates broken storage',t=>{

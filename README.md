@@ -128,7 +128,7 @@ Bricks runs as a Cloudflare Worker with static assets, using the D1 database in 
 2. `npx wrangler secret put OPENAI_API_KEY` to set or rotate the shared studio key. The $10 budget is tracked per key fingerprint, so every visitor who uses the studio key shares one $10 pool; rotating the key starts a fresh pool. Also set a matching hard limit on the OpenAI project itself as a backstop.
 3. `npm run deploy` type-checks, builds with vinext and deploys with Wrangler. A type error stops the deploy.
 
-Shared links (`/s/:id`) can be taken down. Creating a link returns an owner token once; the creator's browser keeps it, and `DELETE /api/share/:id` with `Authorization: Bearer <token>` removes the link. To remove any link yourself, set `npx wrangler secret put GALLERY_ADMIN_TOKEN` and send that value as the bearer token instead. Previews and shared projects are cached for at most an hour.
+A shared link carries the model, its name and description, its size and build settings, and the reference plan without its pinned location. Photos, location hints, every typed word of the brief (the name stands in for the idea), change requests and their summaries, the review and shopping stay on the device (`sanitizeSharedProject` in `lib/share.ts`). Shared links (`/s/:id`) can be taken down. Creating a link returns an owner token once; the creator's browser keeps it, and `DELETE /api/share/:id` with `Authorization: Bearer <token>` removes the link. To remove any link yourself, set `npx wrangler secret put GALLERY_ADMIN_TOKEN` and send that value as the bearer token instead. Previews and shared projects are cached for at most an hour.
 
 ## Verification
 

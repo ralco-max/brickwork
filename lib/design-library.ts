@@ -93,7 +93,16 @@ export async function openSharedDesign(shareId:string,shared:BuildModel){
  const stable=`share-${shareId}`,id=(await listDesigns()).some(d=>d.id===stable)?newDesignId():stable,model={...shared,libraryId:id};
  return {model,pristine:{id,project:projectJSON(model,model.shopping||emptyShopping())} as PristineShare};
 }
-export const unchangedShare=(saved:SavedDesign,pristine:PristineShare|null)=>pristine?.id===saved.id&&pristine.project===saved.project;
+/**
+ * The studio's autosave: skipped (null) while an opened share is still the shared original.
+ * The first change ends that, so every later state is recorded, an undo back to the original
+ * included. It ends before the write, so a quick undo cannot race the first save.
+ */
+export async function saveUnlessPristine(saved:SavedDesign,pristine:{current:PristineShare|null}):Promise<boolean|null>{
+ const share=pristine.current;
+ if(share?.id===saved.id){if(share.project===saved.project)return null;pristine.current=null;}
+ return saveDesign(saved);
+}
 
 // Links this browser created, keyed by the shared content, so re-sharing an unchanged
 // creation reuses its link after a reload. The owner token, sent once, can delete the link.

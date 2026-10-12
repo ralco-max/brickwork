@@ -19,7 +19,7 @@ import {LANDING_INTRO} from "@/lib/assembly";
 import {useAssemblyRecorder} from "@/lib/assembly-recorder";
 import {ThemeToggle} from "./theme";
 import ShareDialog,{useShareLink} from "./share-dialog";
-import {listDesigns,saveDesign,setDesignFeatured,deleteDesign,packDesign,unpackDesign,newDesignId,openSharedDesign,unchangedShare,rememberViewedShare} from "@/lib/design-library";
+import {listDesigns,saveDesign,setDesignFeatured,deleteDesign,packDesign,unpackDesign,newDesignId,openSharedDesign,saveUnlessPristine,rememberViewedShare} from "@/lib/design-library";
 import type {PristineShare} from "@/lib/design-library";
 import type {SavedDesign} from "@/lib/design-library";
 import {editModel,projectJSON,emptyShopping} from "@/lib/design-project";
@@ -98,7 +98,7 @@ export default function Studio({sharedId,sharedSummary}:{sharedId?:string;shared
   if(model.source==="recipe"&&!model.generation&&!currentSaved)return;
   const id=libraryId.current,snapshot={...model,shopping:{owned,elementIds,priceOverrides,quotes},libraryId:id};
   // An opened share joins the visitor's designs only once they change it.
-  const timer=setTimeout(()=>{const saved=packDesign(snapshot,"design");if(unchangedShare(saved,pristineShare.current))return;void saveDesign(saved).then(refreshDesigns);},700);
+  const timer=setTimeout(()=>{void saveUnlessPristine(packDesign(snapshot,"design"),pristineShare).then(saved=>{if(saved!==null)void refreshDesigns();});},700);
   return()=>clearTimeout(timer);
  },[model,owned,elementIds,priceOverrides,quotes,refreshDesigns,currentSaved]);
  // The stage is one place. Tools open beside it and the designs drawer folds away to make room; both can be reopened at any time.

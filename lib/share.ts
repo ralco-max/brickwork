@@ -1,5 +1,5 @@
 import {validateProject} from "./models";
-import {referenceKey} from "./design-project";
+import {defaultBrief,referenceKey} from "./design-project";
 import type {DesignBrief} from "./design-project";
 
 // Unlisted public links: anyone with the URL can view and remix, nothing is indexed.
@@ -21,26 +21,29 @@ export function newShareId(){
 type Loose=Record<string,unknown>;
 const isObject=(v:unknown):v is Loose=>Boolean(v)&&typeof v==="object"&&!Array.isArray(v);
 const pick=(source:Loose,keys:readonly string[])=>{const out:Loose={};for(const k of keys)if(source[k]!==undefined)out[k]=source[k];return out;};
-const clipWords=(text:string,max:number)=>{if(text.length<=max)return text;const cut=text.lastIndexOf(" ",max-1);return text.slice(0,cut>max/2?cut:max-1).trimEnd()+"…";};
+const BRIEF_SETTINGS=["size","detail","maxPieces","maxWidth","maxDepth","maxHeight","scope","hollow","finish","quality"] as const;
 
 /**
- * Keep the creation, drop anything personal: reference photos, marked areas, identity
- * hints, shopping, and every word the creator typed (the idea, feedback and revision
- * requests; the model's name stands in for the idea). Fields are allowlisted, so ones
- * added later stay private until chosen here. The result must still pass the same
- * validation as an imported project file.
+ * Keep the creation, drop anything personal: reference photos, marked areas, location
+ * hints, shopping, and every word the creator typed. The brief keeps only its size, build
+ * and quality settings (the model's name stands in for the idea); change requests, their
+ * summaries and the review go too, since they restate the brief. Fields are allowlisted,
+ * so ones added later stay private until chosen here. The result must still pass the same
+ * validation as an imported project file. The share dialog's privacy note describes this.
  */
 export function sanitizeSharedProject(raw:unknown){
  if(!isObject(raw)||raw.format!=="brickwork")throw Error("Share a Bricks project.");
  const data=structuredClone(pick(raw,["format","version","name","description","pieces","generation","design"]));
  if(isObject(data.design)){
-  const design=pick(data.design,["unfinished","reference","brief","manual","locked","revisions","review","reviewStale"]),name=typeof data.name==="string"?data.name.trim().slice(0,80):"";
-  if(isObject(design.brief))design.brief={...design.brief,idea:name.length>=3?name:"Shared creation"};
-  // The research sheet stays so a remix can reuse it; its key is rebuilt from the shared brief.
-  if(isObject(design.reference)){const brief=design.brief as DesignBrief|undefined;design.reference={...pick(design.reference,["sheet"]),briefKey:brief&&typeof brief.idea==="string"&&Array.isArray(brief.features)?referenceKey(brief):""};}
-  if(Array.isArray(design.revisions))design.revisions=design.revisions.slice(-20).map(r=>isObject(r)?{request:"",summary:clipWords(String(r.summary??""),280),at:r.at}:r);
-  if(isObject(design.review))design.review=pick(design.review,["composition","summary","recognizable","features","improvements"]);
-  data.design=design;
+  const design=pick(data.design,["unfinished","reference","brief","manual","locked"]),name=typeof data.name==="string"?data.name.trim().slice(0,80):"";
+  // Composition, details, style and sign wording are typed as well; lettering the model shows stays in its bricks.
+  if(isObject(design.brief))design.brief={...pick(design.brief,BRIEF_SETTINGS),idea:name.length>=3?name:"Shared creation",features:[],style:defaultBrief().style,composition:""};
+  // The research sheet stays so a remix can reuse it, minus the place it was pinned to; its key is rebuilt from the shared brief.
+  if(isObject(design.reference)){
+   const brief=design.brief as DesignBrief|undefined,sheet=design.reference.sheet;
+   design.reference={...(isObject(sheet)?{sheet:isObject(sheet.identity)?{...sheet,identity:{...sheet.identity,location:"",question:""}}:sheet}:{}),briefKey:brief&&typeof brief.idea==="string"&&Array.isArray(brief.features)?referenceKey(brief):""};
+  }
+  data.design={...design,revisions:[]};
  }
  const model=validateProject(data);
  const project=JSON.stringify(data);

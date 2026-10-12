@@ -46,7 +46,7 @@ export default function ShareDialog({open,onOpenChange,name,state}:Props){
  const nativeShare=typeof navigator!=="undefined"&&typeof navigator.share==="function";
  const copied=state.status==="ready"&&copiedUrl===state.url;
  return <Dialog open={open} onOpenChange={next=>{if(!next)setCopiedUrl("");onOpenChange(next);}}><DialogContent className="share-dialog">
-  <DialogHeader><DialogTitle>Share “{name}”</DialogTitle><DialogDescription>Anyone with the link can view and remix this creation. Your reference photos, the words you typed and your shopping list are not included.</DialogDescription></DialogHeader>
+  <DialogHeader><DialogTitle>Share “{name}”</DialogTitle><DialogDescription>Anyone with the link can view and remix the model with its name, description and reference plan. Your photos, location hint, brief wording, change requests, review and shopping list are not included.</DialogDescription></DialogHeader>
   {state.status==="working"&&<p className="share-status" role="status"><LoaderCircle className="spin" size={16}/>{state.step}</p>}
   {state.status==="error"&&<p className="share-error" role="alert">{state.message}</p>}
   {state.status==="ready"&&<div className="share-ready">

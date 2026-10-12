@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import {existsSync} from 'node:fs';
+import {existsSync,readFileSync} from 'node:fs';
 import {createHash} from 'node:crypto';
 import {registerHooks} from 'node:module';
 import {build} from 'esbuild';
@@ -19,12 +19,12 @@ function jpeg(width=1200,height=630,frame=0xc0){
 const dataUrl=bytes=>'data:image/jpeg;base64,'+Buffer.from(bytes).toString('base64');
 const jpegBytes=jpeg(),image=dataUrl(jpegBytes);
 const photo='data:image/jpeg;base64,YQ==';
-function project(name='Harbor house'){
+function project(name='Harbor house',hollow=false){
  const box=(id,position,size,color)=>({id,component:id,label:id,kind:'box',operation:'add',color,position,size,end:{x:0,y:0,z:0},radius:1,repeat:{count:1,offset:{x:0,y:0,z:0}}});
  const scene={name,description:'A small house by the water.',dimensions:{x:12,y:12,z:10},shapes:[box('Base',{x:0,y:0,z:0},{x:12,y:2,z:10},'gray'),box('House',{x:2,y:2,z:2},{x:8,y:9,z:6},'red')]};
- const model={...m.compileScene(scene),generation:scene};
+ const model={...m.compileScene(scene,{hollow,smooth:true}),generation:scene};
  const data=JSON.parse(m.projectJSON(model,{...m.emptyShopping(),owned:{'brick-2x4:red':3}}));
- const brief=m.defaultBrief('A small house');
+ const brief={...m.defaultBrief('A small house'),hollow};
  data.design={brief,reference:{photo,photos:[photo],identityHint:'My street',briefKey:m.referenceKey(brief)},reviewRegion:{image:photo,polygon:[{x:.1,y:.1},{x:.9,y:.1},{x:.5,y:.9}],components:['Roof']},manual:m.emptyManual(),locked:[],revisions:[]};
  return data;
 }
@@ -51,20 +51,30 @@ test('shared projects keep the creation and drop photos, marked areas, hints and
 });
 
 test('shared projects never carry the words the creator typed, and still open as projects',()=>{
+ // The share dialog promises this list; it must name only what the sanitizer really removes.
+ const note=readFileSync('app/share-dialog.tsx','utf8').match(/<DialogDescription>([^<]*)<\/DialogDescription>/)?.[1]||'';
+ assert.match(note,/Your photos, location hint, brief wording, change requests, review and shopping list are not included\./);
  const data=project(),idea='PRIVATE-IDEA Recreate my apartment at 12 Example St',feedback='PRIVATE-FEEDBACK make my daughter Emma in the window',request='PRIVATE-REQUEST add my name JOHN SMITH on the sign';
- data.design.brief={...data.design.brief,idea};data.design.reference.briefKey=m.referenceKey(data.design.brief);data.design.reviewRequest=feedback;
- data.design.revisions=Array.from({length:25},(_,i)=>({request:`${request} ${i}`,summary:`Raised the roof and added dormers. ${'Detail '.repeat(80)}`,at:`2026-10-${String(1+i%28).padStart(2,'0')}T00:00:00.000Z`}));
- data.design.review={summary:'Recognizable house.',recognizable:true,features:[],improvements:['Add a chimney.'],thinking:'PRIVATE-THINKING the user asked for JOHN SMITH',revision:{status:'visible',evidence:'PRIVATE-EVIDENCE JOHN SMITH is visible'}};
+ data.design.brief={...data.design.brief,idea,size:'large',maxPieces:900,quality:'best',composition:'PRIVATE-COMPOSITION my parents house at 42 Elm St',features:['PRIVATE-FEATURE grandma Ruth in the window','Red door'],style:'PRIVATE-STYLE like the Hendersons porch',signText:'JOHN SMITH'};
+ const sheet={identity:{status:'confirmed',location:'PRIVATE-LOCATION 42 Elm St, Springfield',question:'PRIVATE-QUESTION is this Ruth\'s house?'},contextAdequate:true,searchable:true,kind:'building',subject:'Harbor house',summary:'A two-story house with dormers.',length_m:null,width_m:null,height_m:null,proportions:'Boxy',colors:['red'],silhouette:['Gable roof'],distinctive:['Dormers'],sources:['https://example.com/house']};
+ data.design.reference={...data.design.reference,sheet,briefKey:m.referenceKey(data.design.brief)};data.design.reviewRequest=feedback;
+ data.design.revisions=Array.from({length:25},(_,i)=>({request:`${request} ${i}`,summary:`Added JOHN SMITH to the sign as requested, and Emma ${i}.`,at:`2026-10-${String(1+i%28).padStart(2,'0')}T00:00:00.000Z`}));
+ data.design.review={summary:'PRIVATE-REVIEW the 42 Elm St house reads clearly.',recognizable:true,composition:{status:'matches',evidence:'PRIVATE-EVIDENCE parents house'},features:[{feature:'PRIVATE-FEATURE grandma Ruth in the window',status:'visible',evidence:'Ruth is at the window.'}],improvements:['Add a chimney.'],thinking:'PRIVATE-THINKING the user asked for JOHN SMITH',revision:{status:'visible',evidence:'PRIVATE-EVIDENCE JOHN SMITH is visible'}};
  data.design.privateNotes='PRIVATE-NOTES';data.libraryId='PRIVATE-LIBRARY';
+ assert.ok(m.validateProject({...data,shopping:undefined}).design.review.features.length,'the planted brief and review are valid ones');
  const shared=m.sanitizeSharedProject(data),out=JSON.parse(shared.project);
- for(const secret of ['PRIVATE-','Example St','Emma','JOHN SMITH','My street'])assert.ok(!shared.project.includes(secret),`the shared project must not contain ${secret}`);
- assert.equal(out.design.brief.idea,'Harbor house');assert.equal(out.design.reviewRequest,undefined);assert.equal(out.design.privateNotes,undefined);assert.equal(out.libraryId,undefined);
- assert.equal(out.design.reference.briefKey,m.referenceKey(out.design.brief),'the research sheet key follows the shared brief, so a remix can reuse it');
- assert.equal(out.design.revisions.length,20);
- for(const r of out.design.revisions){assert.equal(r.request,'');assert.ok(r.summary.startsWith('Raised the roof'));assert.ok(r.summary.length<=281&&r.summary.endsWith('…'),r.summary);}
- assert.deepEqual(Object.keys(out.design.review).sort(),['features','improvements','recognizable','summary']);
+ for(const secret of ['PRIVATE-','Example St','Elm St','Emma','Ruth','JOHN','Hendersons','My street','Red door'])assert.ok(!shared.project.includes(secret),`the shared project must not contain ${secret}`);
+ const brief=out.design.brief;
+ assert.equal(brief.idea,'Harbor house');assert.deepEqual(brief.features,[]);assert.equal(brief.composition,'');assert.equal(brief.style,m.defaultBrief().style);assert.equal(brief.signText,undefined);
+ assert.equal(brief.size,'large');assert.equal(brief.maxPieces,900);assert.equal(brief.quality,'best');assert.equal(brief.hollow,false,'size and build settings are not words and stay; hollow and finish also rebuild the bricks');
+ assert.equal(out.design.reviewRequest,undefined);assert.equal(out.design.review,undefined);assert.equal(out.design.reviewStale,undefined);assert.deepEqual(out.design.revisions,[]);
+ assert.equal(out.design.privateNotes,undefined);assert.equal(out.libraryId,undefined);
+ assert.equal(out.design.reference.sheet.subject,'Harbor house');assert.equal(out.design.reference.sheet.identity.status,'confirmed');assert.equal(out.design.reference.sheet.identity.location,'');
+ assert.equal(out.design.reference.briefKey,m.referenceKey(brief),'the research sheet key follows the shared brief, so a remix can reuse it');
  const reopened=m.validateProject(out);assert.equal(reopened.pieces.length,shared.pieceCount);assert.equal(reopened.design.brief.idea,'Harbor house');
  const tiny=project('Ox');tiny.design.brief.idea=idea;assert.equal(JSON.parse(m.sanitizeSharedProject(tiny).project).design.brief.idea,'Shared creation','a name too short for a brief idea gets a neutral stand-in');
+ const hollow=project('Harbor house',true);assert.notEqual(hollow.pieces.length,data.pieces.length,'the hollow fixture really has different bricks');
+ assert.equal(JSON.parse(m.sanitizeSharedProject(hollow).project).design.brief.hollow,true,'settings that rebuild the bricks stay, or the share would not validate');
 });
 
 test('preview images must be real 1200×630 JPEGs',()=>{
