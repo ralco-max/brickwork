@@ -16,12 +16,12 @@ test("every supported part/color gets an exact catalog match or an explicit unre
  let matched=0,missing=0,assemblies=0,coreMatched=0,coreMissing=0;const seen=new Map();
  for(const part of Object.keys(PARTS))for(const color of Object.keys(COLORS)){
   const result=resolveLegoElement(part,color);
-  if(Object.hasOwn(WHEELS,part)){assert.equal(result.status,"assembly");assert.equal(result.elementId,undefined);assemblies++;continue;}
+  if(Object.hasOwn(WHEELS,part)||part==="minifig"){assert.equal(result.status,"assembly");assert.equal(result.elementId,undefined);assemblies++;continue;}
   if(result.status==="missing"){assert.ok(catalog.missing.includes(`${part}:${color}`));missing++;if(Object.hasOwn(LEGACY_PARTS,part))coreMissing++;continue;}
   assert.equal(result.status,"matched");matched++;if(Object.hasOwn(LEGACY_PARTS,part))coreMatched++;
   for(const id of [result.elementId,...result.alternatives]){assert.match(id,/^\d{6,8}$/);assert.ok(!seen.has(id)||seen.get(id)===`${part}:${color}`,"one element ID cannot stand for two different catalog rows");seen.set(id,`${part}:${color}`);}
  }
- assert.equal(coreMatched,421);assert.equal(coreMissing,8);assert.equal(assemblies,39);
+ assert.equal(coreMatched,421);assert.equal(coreMissing,8);assert.equal(assemblies,52);
  assert.equal(matched,Object.keys(catalog.elements).length);assert.equal(missing,catalog.missing.length);
  assert.equal(matched+missing+assemblies,Object.keys(PARTS).length*Object.keys(COLORS).length);
  assert.equal(resolveLegoElement("3007","darkbrown").status,"missing","never substitute brown for dark brown");

@@ -1,6 +1,7 @@
 import {catalogPart} from "./part-catalog";
 import {LEGACY_PARTS,PARTS,SLOPES,TILES,WHEELS} from "./bridge";
 import type {Face,Piece} from "./bridge";
+import {isMinifig} from "./minifig";
 
 export type PartCell=readonly [number,number,number];
 type Shape=Pick<Piece,"part"|"w"|"d">&Partial<Pick<Piece,"h"|"face"|"rotated">>;
@@ -30,7 +31,14 @@ function spatial(p:Shape):Spatial{
  const face=legacy(p.part)?p.face??"pz":faceFor(p),id=`${p.part}:${p.w}:${p.d}:${h}:${face}`;
  const existing=cache.get(id);if(existing)return existing;
  let cells:readonly PartCell[],top:readonly PartCell[],bottom:readonly PartCell[];
- if(!legacy(p.part)){
+ if(isMinifig(p.part)){
+  // A minifigure fills its footprint to the top of its head and clutches with the two anti-stud
+  // holes under its feet. Its head stud sits on the figure's centreline, between grid studs, so
+  // it is drawn but offers no grid connection.
+  const occupied:PartCell[]=[],sockets:PartCell[]=[];
+  for(let x=0;x<p.w;x++)for(let z=0;z<p.d;z++){sockets.push([x,0,z]);for(let y=0;y<h;y++)occupied.push([x,y,z]);}
+  cells=unique(occupied);top=unique([]);bottom=unique(sockets);
+ }else if(!legacy(p.part)){
   const definition=catalogPart(p.part);if(!definition)throw Error(`Part ${p.part} has no verified spatial definition.`);
   const turn=faces.indexOf(face),orient=(items:readonly (readonly number[])[])=>unique(items.map(c=>rotateCell(c as PartCell,definition.w,definition.d,turn)));
   // Missing connectors are never replaced by bounding-box assumptions.

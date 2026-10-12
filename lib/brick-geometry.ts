@@ -8,7 +8,7 @@ import {exactPartGeometry,hasExactPartGeometry} from "./part-meshes";
 // a wedge for slopes, already turned to face the way the piece's slope descends.
 // Sizes are world units: one stud across, 0.4 per plate of height.
 export const PLATE=.4;
-export function pieceGeometry(p:Pick<Piece,"part"|"w"|"d"|"h"|"face"|"rotated">):THREE.BufferGeometry{
+export function pieceGeometry(p:Pick<Piece,"part"|"w"|"d"|"h"|"face"|"rotated">&Partial<Pick<Piece,"color"|"legs"|"skin">>):THREE.BufferGeometry{
  if(hasExactPartGeometry(p.part))return exactPartGeometry(p);
  const wheel=WHEELS[p.part];
  if(wheel){

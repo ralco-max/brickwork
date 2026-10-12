@@ -68,7 +68,7 @@ export const DESIGN_EXAMPLES:DesignExample[]=[
   box("summit","Shaft","Summit room","darkbrown",[12,96,12],[4,4,4]),
   {i:"mast",c:"Shaft",l:"Mast",k:"beam",o:"add",a:null,col:"gray",p:[14,100,14],s:[1,1,1],e:[14,108,14],r:.5,rep:null},
  ]}},
- {id:"animal",about:"A standing dog 20 studs long: a body as an ellipsoid, four legs as boxes that reach the base, a head with muzzle, ears, eyes as single accents and a tail as a lean, in two analogous colours with one accent.",tags:["animal","dog","cat","horse","dinosaur","creature","character","figure"],scene:{n:"Dog",d:"A standing brown dog with a white chest, floppy ears, a raised tail and black eyes and nose.",f:["four legs planted on the base","raised tail","floppy ears and a muzzle"],dim:[24,30,14],rm:[],sh:[
+ {id:"animal",about:"A standing dog 20 studs long: a body as an ellipsoid, four legs as boxes that reach the base, a head with muzzle, ears, eyes as single accents and a tail as a lean, in two analogous colours with one accent.",tags:["animal","dog","cat","horse","dinosaur","creature"],scene:{n:"Dog",d:"A standing brown dog with a white chest, floppy ears, a raised tail and black eyes and nose.",f:["four legs planted on the base","raised tail","floppy ears and a muzzle"],dim:[24,30,14],rm:[],sh:[
   box("base","Base","Display base","green",[0,0,0],[24,2,14]),
   box("legs","Legs","Legs","brown",[6,2,3],[3,8,3],{rep:[2,9,0,0]}),
   box("legs-b","Legs","Far legs","brown",[6,2,8],[3,8,3],{rep:[2,9,0,0]}),
@@ -81,6 +81,17 @@ export const DESIGN_EXAMPLES:DesignExample[]=[
   box("ear-l","Head","Floppy ear, rooted in the head","brown",[6,17,2],[2,6,2]),
   box("ear-r","Head","Floppy ear, rooted in the head","brown",[6,17,10],[2,6,2]),
   {i:"tail",c:"Tail",l:"Raised tail",k:"lean",o:"add",a:null,col:"brown",p:[19,14,7],s:[1,3,0],e:[22,24,7],r:null,rep:null},
+ ]}},
+{id:"minifigs",about:"A corner shop at minifig scale: two real minifigures standing on the base studs (a shopkeeper at the door facing out, a customer turned toward her), a door 3 studs wide and 15 plates high, windows, a roof that overhangs as an awning, and a lamp post. The whole scene is sized around the 12-plate figures instead of building people from boxes.",tags:["person","people","figure","minifig","crew","character","worker","passenger","shop","street","town"],scene:{n:"Corner shop",d:"A tan corner shop with a red awning roof, a shopkeeper in the doorway, a customer and a street lamp.",f:["two minifigures on the street","door and windows sized for the figures","overhanging awning roof"],dim:[20,24,12],rm:[],sh:[
+  box("base","Base","Display base","gray",[0,0,0],[20,2,12]),
+  box("walls","Shop","Shop walls","tan",[1,2,1],[18,18,4]),
+  box("door","Shop","Door, 3 studs wide and 15 plates high","brown",[7,2,4],[3,15,1]),
+  box("windows","Shop","Shop windows","navy",[2,7,4],[4,6,1],{rep:[2,11,0,0]}),
+  box("awning","Shop","Roof overhanging the street as an awning","red",[1,20,1],[18,1,6]),
+  box("lamp-post","Street","Lamp post","black",[17,2,9],[1,18,1]),
+  box("lamp","Street","Lamp","yellow",[17,20,9],[1,2,1]),
+  {i:"shopkeeper",c:"People",l:"Shopkeeper at the door, facing the street",k:"minifig",o:"add",a:null,col:"white",p:[7,2,6],s:[2,12,1],e:null,r:null,rep:null,face:"pz",bg:"navy",pid:null},
+  {i:"customer",c:"People",l:"Customer turned toward the shopkeeper",k:"minifig",o:"add",a:null,col:"red",p:[12,2,6],s:[1,12,2],e:null,r:null,rep:null,face:"nx",bg:"blue",pid:"tan"},
  ]}},
 ];
 // Two examples nearest the brief: by the reference sheet's kind and the words in the idea.
