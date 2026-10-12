@@ -1,7 +1,7 @@
 import {z} from "zod";
 import {revisionRegionSchema,MAX_REVISION_REGION_IMAGE_LENGTH} from "@/lib/revision-region";
 import {aiSettings,requireBudgetDb} from "@/lib/ai-settings";
-import {budgetedProvider,QUALITY_MODELS} from "@/lib/ai-budget";
+import {budgetedProvider,longDesignRun,QUALITY_MODELS} from "@/lib/ai-budget";
 import {generationFailure} from "@/lib/generation-errors";
 import {generateScene} from "@/lib/generation-provider";
 import {validateScene} from "@/lib/generated-scene";
@@ -24,11 +24,11 @@ export async function POST(request:Request){
   text+=decoder.decode();const parsed=inputSchema.parse(JSON.parse(text));input={...parsed,previous:parsed.previous?validateScene(parsed.previous):undefined};
  }catch{return Response.json({error:"Use a description of 3–2,000 characters, up to four JPEG references under 1.5 MB each, an optional marked JPEG/PNG area under 1.5 MB, and a valid previous design."},{status:400});}
  if(input.region&&!input.previous)return Response.json({error:"Draw the edit area on an existing draft before requesting a local change.",code:"INVALID_REVISION_REGION"},{status:400});
- const reference=input.research;if(reference?.searchable&&(reference.identity!==undefined||reference.contextAdequate!==undefined)&&!referenceReady(reference))return Response.json({error:referenceClarification(reference),code:"REFERENCE_UNCLEAR"},{status:400});
+ const reference=input.research;if(reference?.searchable&&(reference.identity!==undefined||reference.contextAdequate!==undefined)&&!referenceReady(reference,collectReferencePhotos(input.reference,input.photos).length))return Response.json({error:referenceClarification(reference),code:"REFERENCE_UNCLEAR"},{status:400});
  return eventResponse(request,async(signal,send)=>{
   send({type:"status",message:"Connecting to your builder…"});
   const provider=budgetedProvider(requireBudgetDb(config.db),key,budget=>send({type:"budget",budget}),fetch,usage=>{console.info(JSON.stringify({event:"bricks_ai_usage",stage:"design",...usage}));send({type:"usage",usage});},config.period);
   const chosen=input.brief?.quality?QUALITY_MODELS[input.brief.quality]:model;
   for await(const event of generateScene(input,key,chosen,signal,provider.fetch,provider.recordUsage))send(event);
- },{timeoutMs:input.brief?.quality&&input.brief.quality!=="standard"?420000:240000});
+ },{timeoutMs:longDesignRun(input.brief?.quality)?420000:240000});
 }

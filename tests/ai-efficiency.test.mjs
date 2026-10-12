@@ -18,8 +18,8 @@ test('scene context drops only null object values, preserving geometry and posit
 });
 
 test('cache boundaries preserve stable prefixes and all instructions, data and photos',()=>{
- const stable={partCatalog:{parts:[{id:'1',colors:['blue']}]},examples:[{about:'tower'}],referenceSheet:{subject:'Skymark',sources:['https://example.org']}};
- const data={...stable,idea:'Make the roof darker',previous:{sh:[{i:'roof',p:[0,0,0]}]},lockedComponents:['Wall']};
+ const stable={referenceSheet:{subject:'Skymark',sources:['https://example.org']}};
+ const data={...stable,partCatalog:{parts:[{id:'1',colors:['blue']}]},examples:[{about:'tower'}],idea:'Make the roof darker',previous:{sh:[{i:'roof',p:[0,0,0]}]},lockedComponents:['Wall']};
  const request={model:'gpt-6.1-sol',instructions:'Rules '.repeat(1500),input:[{role:'user',content:[{type:'input_text',text:JSON.stringify(data)},{type:'input_image',image_url:'photo',detail:'high'}]}],max_output_tokens:32000,reasoning:{effort:'low'},text:{format:{strict:true}},store:false};
  const before=JSON.stringify(request),cached=cacheStableContext(request);
  assert.equal(cached.instructions,undefined);assert.equal(cached.input[0].role,'developer');assert.equal(cached.input[0].content[0].text,request.instructions);
@@ -27,7 +27,7 @@ test('cache boundaries preserve stable prefixes and all instructions, data and p
  assert.deepEqual({...JSON.parse(cached.input[1].content[0].text),...JSON.parse(cached.input[2].content[0].text)},data);
  assert.deepEqual(cached.input[2].content[1],request.input[0].content[1]);assert.equal(cached.input[2].content[0].prompt_cache_breakpoint,undefined);
  assert.equal(cached.max_output_tokens,32000);assert.deepEqual(cached.reasoning,request.reasoning);assert.deepEqual(cached.text,request.text);assert.equal(JSON.stringify(request),before);
- const revision=structuredClone(request);revision.input[0].content[0].text=JSON.stringify({...data,idea:'Make the roof taller'});
+ const revision=structuredClone(request);revision.input[0].content[0].text=JSON.stringify({...data,idea:'Make the roof taller',partCatalog:{parts:[{id:'2',colors:['red']}]},examples:[{about:'roof'}]});
  assert.deepEqual(cacheStableContext(revision).input.slice(0,2),cached.input.slice(0,2));
  assert.deepEqual(cacheStableContext({...request,model:'unknown'}),{...request,model:'unknown'});
 });
