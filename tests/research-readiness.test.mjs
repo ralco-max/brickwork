@@ -51,8 +51,16 @@ test('generic/photo-only unnamed subjects bypass identity searches and legacy kn
 
 test('a claimed confident identity without consulted sources remains unresolved; invented links are never retained',async t=>{
  const ungrounded=fixture({sources:['https://invented.example.org/unsupported'],image_urls:['https://invented.example.org/image.jpg']});
- setup(t,[ungrounded,ungrounded],{sources:[]});const data=await (await m.POST(request({reference:photo}))).json();
+ setup(t,[ungrounded,ungrounded],{sources:[]});const data=await (await m.POST(request())).json();
  assert.equal(data.needsClarification,true);assert.equal(data.sheet.identity.status,'unknown');assert.deepEqual(data.sheet.sources,[]);assert.deepEqual(data.sheet.images,[]);assert.equal(data.passes,2);
+});
+
+test('the user\'s own photos can ground a confirmed subject when web search finds no source',async t=>{
+ const ungrounded=fixture({sources:['https://invented.example.org/unsupported'],image_urls:['https://invented.example.org/image.jpg']});
+ setup(t,[ungrounded,ungrounded],{sources:[]});const data=await (await m.POST(request({reference:photo}))).json();
+ assert.equal(data.needsClarification,false);assert.equal(data.sheet.identity.status,'confirmed');assert.equal(data.sheet.photoEvidence,true);assert.deepEqual(data.sheet.sources,[]);assert.deepEqual(data.sheet.images,[]);
+ assert.equal(m.referenceReady(data.sheet),true);assert.equal(m.referenceReady(data.sheet,1),true);assert.equal(m.referenceReady(data.sheet,0),false);
+ assert.equal(m.referenceReady({...data.sheet,contextAdequate:false},1),false);assert.equal(m.referenceReady({...data.sheet,identity:{status:'ambiguous',location:'',question:'Which one?'}},1),false);
 });
 
 test('research rejects more than four combined photos before starting a provider call',async t=>{

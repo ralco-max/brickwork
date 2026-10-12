@@ -10,6 +10,7 @@ import type {Arrival,ArrivalMode} from "@/lib/live-arrivals";
 import {assemblyPose,assemblyTracks,inspectionReach,inspectionTracks,type AssemblyTrack} from "@/lib/assembly";
 import {cameraPanOffset,advanceCameraMove,settledPieceBounds,cameraFramingSnapshot,cameraAutoFit,type CameraMove,type CameraFramingSnapshot} from "@/lib/camera-navigation";
 import {hasExactPartGeometry,partGeometriesReady} from "@/lib/part-meshes";
+import {isMinifig} from "@/lib/minifig";
 import RegionMarker from "./region-marker";
 import {regionSamplePoints,regionBoundsForPieces} from "@/lib/region-selection";
 import type {RevisionRegion} from "@/lib/revision-region";
@@ -148,13 +149,13 @@ function ReadyViewport(props:Props){
   for(const p of props.pieces){
    const entry=arrivalState.current.entries.get(brickIdentity(p));
    const arrival=props.arrivals?.mode==="revise"&&entry?.mode==="revise"&&arrivalState.current.clock<arrivalEndTime(entry)&&!reducedMotion.matches?entry:undefined;
-   const k=`${p.part}:${p.color}:${p.rotated}:${p.face||""}:${arrival?arrival.at:"solid"}`;
+   const k=`${p.part}:${p.color}:${p.legs||""}:${p.skin||""}:${p.rotated}:${p.face||""}:${arrival?arrival.at:"solid"}`;
    const group=groups.get(k)||{pieces:[],arrival};group.pieces.push(p);groups.set(k,group);
   }
   const batches:{body:THREE.InstancedMesh;studs:THREE.InstancedMesh|null;hubs:THREE.InstancedMesh|null;pieces:Piece[];studded:[number,number][];arrival?:Arrival;materials:THREE.MeshStandardMaterial[]}[]=[],meshes:THREE.InstancedMesh[]=[];
   for(const {pieces:list,arrival} of groups.values()){
    const reveal={opacity:arrival?arrivalOpacity(arrival,arrivalState.current.clock,reducedMotion.matches):1,alphaToCoverage:Boolean(arrival)&&coverage,alphaHash:Boolean(arrival)&&!coverage};
-   const p=list[0],material=new THREE.MeshStandardMaterial({color:0xffffff,roughness:.3,metalness:0,...reveal}),materials=[material],studded=hasExactPartGeometry(p.part)?[]:studCells(p);
+   const p=list[0],material=new THREE.MeshStandardMaterial({color:0xffffff,roughness:.3,metalness:0,vertexColors:isMinifig(p.part),...reveal}),materials=[material],studded=hasExactPartGeometry(p.part)?[]:studCells(p);
    const body=new THREE.InstancedMesh(pieceGeometry(p),material,list.length);body.castShadow=true;body.receiveShadow=true;body.userData.pieces=list;meshes.push(body);scene.add(body);
    let studs:THREE.InstancedMesh|null=null;if(studded.length){studs=new THREE.InstancedMesh(new THREE.CylinderGeometry(.30,.30,.18,12),material,list.length*studded.length);studs.castShadow=true;studs.receiveShadow=true;scene.add(studs);}
    const hubShape=hubGeometry(p);let hubs:THREE.InstancedMesh|null=null;if(hubShape){const hubMaterial=new THREE.MeshStandardMaterial({color:0xa9b1b8,roughness:.5,metalness:.1,...reveal});materials.push(hubMaterial);hubs=new THREE.InstancedMesh(hubShape,hubMaterial,list.length);scene.add(hubs);}
@@ -181,7 +182,7 @@ function ReadyViewport(props:Props){
     const px=p.x+p.w/2-L/2,py=y+p.h*.2,pz=p.z+p.d/2-centerZ;
     const pose=state.regionMode?null:entry?arrivalPose(entry,arrivalState.current.clock,reducedMotion.matches):e>0?assemblyPose(explodedTracks.get(p.id)!,1-e):cinematic?assemblyPose(track,assemblyTime):null;
     temp.position.set(px+(pose?.x??0),py+(pose?.y??0),pz+(pose?.z??0));temp.rotation.set(pose?.rx??0,pose?.ry??0,pose?.rz??0);temp.scale.setScalar(visible?(pose?.scale??1):0);temp.updateMatrix();batch.body.setMatrixAt(i,temp.matrix);
-    if(!animationOnly){baseColor.set(COLORS[p.color].hex);if(state.heat){const r=state.heat.get(p.id);if(r===undefined)baseColor.lerp(dimColor,.8);else baseColor.set(r>1?"#e5484d":r>.5?"#f2b134":"#3f9d5a");}else if(highlighted.size){if(highlighted.has(p.id))baseColor.set("#fb541e");else baseColor.lerp(dimColor,.85);}else if(!selected)baseColor.lerp(dimColor,.85);batch.body.setColorAt(i,baseColor);}
+    if(!animationOnly){baseColor.set(isMinifig(p.part)?"#ffffff":COLORS[p.color].hex);if(state.heat){const r=state.heat.get(p.id);if(r===undefined)baseColor.lerp(dimColor,.8);else baseColor.set(r>1?"#e5484d":r>.5?"#f2b134":"#3f9d5a");}else if(highlighted.size){if(highlighted.has(p.id))baseColor.set("#fb541e");else baseColor.lerp(dimColor,.85);}else if(!selected)baseColor.lerp(dimColor,.85);batch.body.setColorAt(i,baseColor);}
     if(batch.hubs){batch.hubs.setMatrixAt(i,temp.matrix);}
     if(batch.studs)for(const [x,z] of batch.studded){studLocal.makeTranslation(x+.5-p.w/2,p.h*.2+.07,z+.5-p.d/2);studWorld.multiplyMatrices(temp.matrix,studLocal);batch.studs.setMatrixAt(studIndex,studWorld);if(!animationOnly)batch.studs.setColorAt(studIndex,baseColor);studIndex++;}
    });batch.body.instanceMatrix.needsUpdate=matrixChanged;if(batch.hubs)batch.hubs.instanceMatrix.needsUpdate=matrixChanged;if(!animationOnly){if(batch.body.instanceColor)batch.body.instanceColor.needsUpdate=true;if(!presentation)batch.body.computeBoundingSphere();}if(batch.studs){batch.studs.instanceMatrix.needsUpdate=matrixChanged;if(!animationOnly){if(batch.studs.instanceColor)batch.studs.instanceColor.needsUpdate=true;if(!presentation)batch.studs.computeBoundingSphere();}}}

@@ -43,8 +43,14 @@ test("ordinary text, links and copied HTML remain native paste without reading o
  assert.equal(received,0);
 });
 
-test("mixed image and text paste attaches the local image and consumes a bubbling event only once",()=>{
- const png=file("clipboard.png"),action=paste({items:[{kind:"string",type:"text/plain"},item(png)],files:[png]}),received=[];
+test("copied text with a rendered picture beside it (Office, spreadsheets) pastes as text",()=>{
+ const png=file("cells.png"),action=paste({items:[{kind:"string",type:"text/plain"},{kind:"string",type:"text/html"},item(png)],files:[png]}),received=[];
+ assert.equal(consumeImagePaste(action.event,files=>received.push(files)),false);
+ assert.equal(action.prevented(),0);assert.equal(received.length,0);
+});
+
+test("a copied browser image with HTML markup attaches the local image and consumes a bubbling event only once",()=>{
+ const png=file("clipboard.png"),action=paste({items:[{kind:"string",type:"text/html"},item(png)],files:[png]}),received=[];
  assert.equal(consumeImagePaste(action.event,files=>received.push(files)),true);
  assert.equal(action.prevented(),1);assert.deepEqual(received,[[png]]);
  // A second composer/listener receives the exact same native event. The mock

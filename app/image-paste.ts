@@ -13,9 +13,14 @@ export function clipboardImageFiles(data:ClipboardImages|null):File[]{
 
 const handledPastes=new WeakSet<ClipboardEvent>();
 
+/** Office apps and spreadsheets put a rendered picture next to copied text; the text wins. */
+export function clipboardHasPlainText(data:Pick<DataTransfer,"items">|null):boolean{
+ return Array.from(data?.items||[]).some(item=>item.kind==="string"&&item.type==="text/plain");
+}
+
 /** Claim only image pastes, once, even when attachment and composer scopes overlap. */
 export function consumeImagePaste(event:ClipboardEvent,onFiles:(files:File[])=>void,disabled=false):boolean{
- if(disabled||event.defaultPrevented||handledPastes.has(event))return false;
+ if(disabled||event.defaultPrevented||handledPastes.has(event)||clipboardHasPlainText(event.clipboardData))return false;
  const files=clipboardImageFiles(event.clipboardData);
  if(!files.length)return false;
  handledPastes.add(event);event.preventDefault();onFiles(files);return true;

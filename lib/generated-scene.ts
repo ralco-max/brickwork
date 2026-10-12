@@ -7,6 +7,7 @@ import {GenerationError} from "./generation-errors";
 import {finishModel,packVoxels,voxelKey,smoothTops} from "./models";
 import {carveSlopes} from "./slopes";
 import {WHEELS} from "./bridge";
+import {MINIFIG} from "./minifig";
 import type {Piece} from "./bridge";
 import type {ColorKey} from "./bridge";
 import type {BuildModel,VoxelMap} from "./models";
@@ -18,9 +19,9 @@ const vector=z.object({x:z.number().finite().min(0).max(80),y:z.number().finite(
 const repeatSchema=z.object({count:z.number().int().min(1).max(32),offset:vector}).strict();
 export const shapeSchema=z.object({
  id:z.string().min(1).max(80).optional(),component:z.string().min(1).max(80).optional(),repeat:repeatSchema.optional(),
- label:z.string().min(1).max(80),kind:z.enum(["box","ellipsoid","cylinder","cone","beam","lean","wheel","text","part"]),operation:z.enum(["add","subtract"]),axis:z.enum(["x","y","z"]).optional(),
+ label:z.string().min(1).max(80),kind:z.enum(["box","ellipsoid","cylinder","cone","beam","lean","wheel","text","part","minifig"]),operation:z.enum(["add","subtract"]),axis:z.enum(["x","y","z"]).optional(),
  color:z.enum(colors),position:vector,size:vector,end:vector,radius:z.number().finite().min(.5).max(12),
- part:z.string().min(1).max(32).nullable().optional(),text:z.string().min(1).max(12).nullable().optional(),face:z.enum(SIGN_FACES).nullable().optional(),background:z.enum(colors).nullable().optional(),
+ part:z.string().min(1).max(32).nullable().optional(),text:z.string().min(1).max(12).nullable().optional(),face:z.enum(SIGN_FACES).nullable().optional(),background:z.enum(colors).nullable().optional(),skin:z.enum(colors).nullable().optional(),
 }).strict();
 export const sceneSchema=z.object({
  catalogVersion:z.literal(1).optional(),name:z.string().min(1).max(80),description:z.string().max(500),signature:z.array(z.string().min(1).max(80)).max(4).optional(),
@@ -35,7 +36,7 @@ const shortText={type:"string",minLength:1,maxLength:80};
 const dimensionJSON={type:"object",properties:{x:{type:"integer",minimum:8,maximum:80},y:{type:"integer",minimum:8,maximum:160},z:{type:"integer",minimum:8,maximum:80}},required:["x","y","z"],additionalProperties:false};
 export const sceneJSONSchema={type:"object",properties:{
  catalogVersion:{type:"integer",enum:[1]},name:shortText,description:{type:"string",maxLength:500},dimensions:dimensionJSON,
- shapes:{type:"array",minItems:1,maxItems:240,items:{type:"object",properties:{id:shortText,component:shortText,label:shortText,kind:{type:"string",enum:["box","ellipsoid","cylinder","cone","beam","lean","wheel","text","part"]},operation:{type:"string",enum:["add","subtract"]},axis:{type:"string",enum:["x","y","z"]},color:{type:"string",enum:colors},part:{type:["string","null"],maxLength:32},text:{type:["string","null"],maxLength:12},face:{type:["string","null"],enum:[...SIGN_FACES,null]},background:{type:["string","null"],enum:[...colors,null]},position:vecJSON,size:vecJSON,end:vecJSON,radius:{type:"number",minimum:.5,maximum:12},repeat:{type:"object",properties:{count:{type:"integer",minimum:1,maximum:32},offset:vecJSON},required:["count","offset"],additionalProperties:false}},required:["id","component","label","kind","operation","axis","color","position","size","end","radius","repeat","text","face","background","part"],additionalProperties:false}},
+ shapes:{type:"array",minItems:1,maxItems:240,items:{type:"object",properties:{id:shortText,component:shortText,label:shortText,kind:{type:"string",enum:["box","ellipsoid","cylinder","cone","beam","lean","wheel","text","part","minifig"]},operation:{type:"string",enum:["add","subtract"]},axis:{type:"string",enum:["x","y","z"]},color:{type:"string",enum:colors},part:{type:["string","null"],maxLength:32},text:{type:["string","null"],maxLength:12},face:{type:["string","null"],enum:[...SIGN_FACES,null]},background:{type:["string","null"],enum:[...colors,null]},skin:{type:["string","null"],enum:[...colors,null]},position:vecJSON,size:vecJSON,end:vecJSON,radius:{type:"number",minimum:.5,maximum:12},repeat:{type:"object",properties:{count:{type:"integer",minimum:1,maximum:32},offset:vecJSON},required:["count","offset"],additionalProperties:false}},required:["id","component","label","kind","operation","axis","color","position","size","end","radius","repeat","text","face","background","part"],additionalProperties:false}},
 },required:["catalogVersion","name","description","dimensions","shapes"],additionalProperties:false};
 
 // A leaning member: stepped brick courses from p (bottom centre) to e (top centre), each course a box
@@ -70,8 +71,20 @@ export function catalogPiece(s:Shape):Piece{
  const face=s.face||"pz",dims=partDimensions(s.part,face==="px"||face==="nx",face);
  return {id:0,part:s.part as Piece["part"],color:s.color,x:s.position.x,y:s.position.y,z:s.position.z,...dims,face,stage:0};
 }
+// A minifig shape places one assembled minifigure standing on its two foot studs: color is the
+// torso and arms, background the hips and legs, skin the head and hands (classic yellow by default).
+// It cannot be scaled; face is the way the figure looks.
+export function minifigPiece(s:Shape):Piece{
+ if(s.operation!=="add")throw new GenerationError("Remove a minifigure by its shape ID; it cannot subtract volume.","INVALID_GEOMETRY");
+ if(!Object.values(s.position).every(Number.isInteger))throw new GenerationError("Stand minifigures on whole studs and plate layers.","INVALID_GEOMETRY");
+ const face=s.face||"pz",dims=partDimensions(MINIFIG,face==="px"||face==="nx",face);
+ return {id:0,part:MINIFIG,color:s.color,legs:s.background||s.color,skin:s.skin||"yellow",x:s.position.x,y:s.position.y,z:s.position.z,...dims,face,stage:0};
+}
+// Explicit real elements: catalog parts and minifigures keep their exact cells and connectors.
+export const isExplicit=(s:Pick<Shape,"kind">)=>s.kind==="part"||s.kind==="minifig";
+export const explicitPiece=(s:Shape)=>s.kind==="minifig"?minifigPiece(s):catalogPiece(s);
 function bounds(s:Shape,d:GeneratedScene["dimensions"]){
- if(s.kind==="part"){const p=catalogPiece(s);if(p.x+p.w>d.x||p.y+p.h>d.y||p.z+p.d>d.z)throw new GenerationError("A catalog part extends outside the build area. Move it inward or choose a smaller part.","INVALID_GEOMETRY");return {x0:p.x,y0:p.y,z0:p.z,x1:p.x+p.w,y1:p.y+p.h,z1:p.z+p.d};}
+ if(isExplicit(s)){const p=explicitPiece(s);if(p.x+p.w>d.x||p.y+p.h>d.y||p.z+p.d>d.z)throw new GenerationError(s.kind==="minifig"?"A minifigure extends outside the build area. Move it inward or make the scene taller.":"A catalog part extends outside the build area. Move it inward or choose a smaller part.","INVALID_GEOMETRY");return {x0:p.x,y0:p.y,z0:p.z,x1:p.x+p.w,y1:p.y+p.h,z1:p.z+p.d};}
  if(s.kind==="text"){
   if(!s.text||!s.face||!s.background)throw new LetteringError("A sign needs exact text, an outward-facing side and a background color.");
   if(s.operation!=="add")throw new LetteringError("Remove a sign by its shape ID; lettering panels cannot subtract volume.");
@@ -93,14 +106,14 @@ function bounds(s:Shape,d:GeneratedScene["dimensions"]){
 }
 export function validateScene(raw:unknown):GeneratedScene{
  const parsed=sceneSchema.safeParse(raw);if(!parsed.success)throw Error("The generator returned an incomplete design. Try again; your current build is safe.");
- const scene=parsed.data;scene.shapes=scene.shapes.map(s=>{if(s.kind!=="part")return s;const p=catalogPiece(s);return {...s,size:{x:p.w,y:p.h,z:p.d},face:p.face||"pz"};});let evaluations=0;
+ const scene=parsed.data;scene.shapes=scene.shapes.map(s=>{if(!isExplicit(s))return s;const p=explicitPiece(s);return {...s,size:{x:p.w,y:p.h,z:p.d},face:p.face||"pz"};});let evaluations=0;
  const ids=scene.shapes.filter(s=>s.id).map(s=>s.id);if(new Set(ids).size!==ids.length)throw Error("The design has duplicate shape IDs.");
  const expanded=expandShapes(scene.shapes),reserved=new Set<string>(),wheels=expanded.filter(s=>s.kind==="wheel"&&s.operation==="add").map(wheelPiece);
  for(const s of expanded){
   const b=bounds(s,scene.dimensions);evaluations+=(b.x1-b.x0)*(b.y1-b.y0)*(b.z1-b.z0);if(evaluations>4000000)throw Error("This design is too complex. Reduce repeated details or large overlapping shapes.");
-  if(s.kind==="part"){
-   const p=catalogPiece(s);if(wheels.some(w=>piecesIntersect(p,w)))throw new GenerationError("A catalog part overlaps a wheel. Leave clearance for both real elements.","INVALID_GEOMETRY");
-   for(const [x,y,z] of pieceCells(p)){const key=voxelKey(x,y,z);if(reserved.has(key))throw new GenerationError("Two catalog parts overlap. Move or remove one of the explicit parts.","INVALID_GEOMETRY");reserved.add(key);}
+  if(isExplicit(s)){
+   const p=explicitPiece(s);if(wheels.some(w=>piecesIntersect(p,w)))throw new GenerationError(s.kind==="minifig"?"A minifigure overlaps a wheel. Leave clearance for both real elements.":"A catalog part overlaps a wheel. Leave clearance for both real elements.","INVALID_GEOMETRY");
+   for(const [x,y,z] of pieceCells(p)){const key=voxelKey(x,y,z);if(reserved.has(key))throw new GenerationError(s.kind==="minifig"?"A minifigure overlaps another explicit part or minifigure. Give each figure its own 2 × 1 studs.":"Two catalog parts overlap. Move or remove one of the explicit parts.","INVALID_GEOMETRY");reserved.add(key);}
   }
  }
  return scene;
@@ -113,9 +126,9 @@ export function sceneVoxels(raw:unknown,protect?:Set<string>,wheels?:Piece[],own
  // Signs are applied after structural shapes so a later roof or wall cannot
  // erase individual letters. Revisions remove/replace the sign by its stable ID.
  const expanded=expandShapes(scene.shapes);
- for(const s of [...expanded.filter(s=>s.kind!=="text"&&s.kind!=="part"),...expanded.filter(s=>s.kind==="text"),...expanded.filter(s=>s.kind==="part")]){const b=bounds(s,scene.dimensions);
-  if(s.kind==="part"){
-   const p=catalogPiece(s);parts?.push(p);
+ for(const s of [...expanded.filter(s=>s.kind!=="text"&&!isExplicit(s)),...expanded.filter(s=>s.kind==="text"),...expanded.filter(isExplicit)]){const b=bounds(s,scene.dimensions);
+  if(isExplicit(s)){
+   const p=explicitPiece(s);parts?.push(p);
    for(const [x,y,z] of pieceCells(p)){const key=voxelKey(x,y,z);voxels.set(key,p.color);protect?.add(key);owners?.set(key,s.component||s.label);}
    if(voxels.size>200000)throw Error("This design needs too many bricks. Try hollow structures or a smaller size.");
    continue;
@@ -221,7 +234,7 @@ export function compileScene(raw:unknown,options:{manual?:ManualEdits;hollow?:bo
 const vec3=z.tuple([z.number().finite(),z.number().finite(),z.number().finite()]);
 export const compactShapeSchema=z.object({
  i:z.string().min(1).max(80),c:z.string().min(1).max(80),l:z.string().min(1).max(80),
- k:z.enum(["box","ellipsoid","cylinder","cone","beam","lean","wheel","text","part"]),o:z.enum(["add","subtract"]),a:z.enum(["x","y","z"]).nullable().optional(),col:z.enum(colors),
+ k:z.enum(["box","ellipsoid","cylinder","cone","beam","lean","wheel","text","part","minifig"]),o:z.enum(["add","subtract"]),a:z.enum(["x","y","z"]).nullable().optional(),col:z.enum(colors),
  txt:z.string().min(1).max(12).nullable().optional(),face:z.enum(SIGN_FACES).nullable().optional(),bg:z.enum(colors).nullable().optional(),pid:z.string().min(1).max(32).nullable().optional(),
  p:vec3,s:vec3,e:vec3.nullable().optional(),r:z.number().finite().nullable().optional(),rep:z.tuple([z.number(),z.number(),z.number(),z.number()]).nullable().optional(),
 }).strict();
@@ -232,7 +245,7 @@ const nullable=(schema:Record<string,unknown>)=>({anyOf:[schema,{type:"null"}]})
 export const compactJSONSchema={type:"object",additionalProperties:false,properties:{
  n:shortText,d:{type:"string",maxLength:500},f:{type:"array",items:shortText,maxItems:4},dim:vec3JSON,rm:{type:"array",items:{type:"string"}},
  sh:{type:"array",maxItems:240,items:{type:"object",additionalProperties:false,properties:{
-  i:shortText,c:shortText,l:shortText,k:{type:"string",enum:["box","ellipsoid","cylinder","cone","beam","lean","wheel","text","part"]},o:{type:"string",enum:["add","subtract"]},a:nullable({type:"string",enum:["x","y","z"]}),col:{type:"string",enum:colors},
+  i:shortText,c:shortText,l:shortText,k:{type:"string",enum:["box","ellipsoid","cylinder","cone","beam","lean","wheel","text","part","minifig"]},o:{type:"string",enum:["add","subtract"]},a:nullable({type:"string",enum:["x","y","z"]}),col:{type:"string",enum:colors},
   txt:nullable({type:"string",minLength:1,maxLength:12}),face:nullable({type:"string",enum:SIGN_FACES}),bg:nullable({type:"string",enum:colors}),pid:nullable({type:"string",minLength:1,maxLength:32}),
   p:vec3JSON,s:vec3JSON,e:nullable(vec3JSON),r:nullable({type:"number",minimum:.5,maximum:12}),rep:nullable({type:"array",items:{type:"number"},minItems:4,maxItems:4}),
  },required:["i","c","l","k","o","a","col","p","s","e","r","rep","txt","face","bg","pid"]}},
@@ -245,11 +258,11 @@ export function expandCompactShape(c:CompactShape):Shape{
  // writes r: 0 for a box, or an axis for an ellipsoid, has not drawn anything wrong.
  const radius=beam?Math.min(12,Math.max(.5,Number(c.r)||1)):1;
  const rep=c.rep&&c.rep[0]>1?{count:Math.min(32,Math.max(1,Math.round(c.rep[0]))),offset:{x:Math.max(0,c.rep[1]),y:Math.max(0,c.rep[2]),z:Math.max(0,c.rep[3])}}:{count:1,offset:{x:0,y:0,z:0}};
- return shapeSchema.parse({id:c.i,component:c.c,label:c.l,kind:c.k,operation:c.o,...(c.k==="text"?{text:c.txt??undefined,face:c.face??undefined,background:c.bg??undefined}:c.k==="part"?{part:c.pid??undefined,face:c.face||"pz"}:{}),...(round&&c.a?{axis:c.a}:{}),color:c.col,position:toVec(c.p),size:beam?{x:1,y:1,z:1}:lean?{x:Math.min(8,Math.max(1,Math.round(Number(c.s?.[0])||1))),y:Number(c.s?.[1])>=3?3:1,z:1}:c.k==="wheel"?{x:Math.min(8,Math.max(1,Number(c.s?.[0])||4)),y:1,z:1}:toVec(c.s),end:(beam||lean)&&c.e?toVec(c.e):{x:0,y:0,z:0},radius,repeat:rep});
+ return shapeSchema.parse({id:c.i,component:c.c,label:c.l,kind:c.k,operation:c.o,...(c.k==="text"?{text:c.txt??undefined,face:c.face??undefined,background:c.bg??undefined}:c.k==="part"?{part:c.pid??undefined,face:c.face||"pz"}:c.k==="minifig"?{face:c.face||"pz",background:c.bg??undefined,skin:c.pid&&Object.hasOwn(COLORS,c.pid)?c.pid as ColorKey:undefined}:{}),...(round&&c.a?{axis:c.a}:{}),color:c.col,position:toVec(c.p),size:beam?{x:1,y:1,z:1}:lean?{x:Math.min(8,Math.max(1,Math.round(Number(c.s?.[0])||1))),y:Number(c.s?.[1])>=3?3:1,z:1}:c.k==="wheel"?{x:Math.min(8,Math.max(1,Number(c.s?.[0])||4)),y:1,z:1}:toVec(c.s),end:(beam||lean)&&c.e?toVec(c.e):{x:0,y:0,z:0},radius,repeat:rep});
 }
 export function compactShape(s:Shape):CompactShape{
  const beam=s.kind==="beam",lean=s.kind==="lean",rep=s.repeat&&s.repeat.count>1?s.repeat:null;
- return {i:s.id||s.label,c:s.component||s.label,l:s.label,k:s.kind,o:s.operation,a:s.axis&&s.axis!=="y"?s.axis:null,col:s.color,p:[s.position.x,s.position.y,s.position.z],s:[s.size.x,s.size.y,s.size.z],e:beam||lean?[s.end.x,s.end.y,s.end.z]:null,r:beam?s.radius:null,rep:rep?[rep.count,rep.offset.x,rep.offset.y,rep.offset.z]:null,txt:s.kind==="text"?s.text??null:null,face:s.kind==="text"||s.kind==="part"?s.face??"pz":null,bg:s.kind==="text"?s.background??null:null,pid:s.kind==="part"?s.part??null:null};
+ return {i:s.id||s.label,c:s.component||s.label,l:s.label,k:s.kind,o:s.operation,a:s.axis&&s.axis!=="y"?s.axis:null,col:s.color,p:[s.position.x,s.position.y,s.position.z],s:[s.size.x,s.size.y,s.size.z],e:beam||lean?[s.end.x,s.end.y,s.end.z]:null,r:beam?s.radius:null,rep:rep?[rep.count,rep.offset.x,rep.offset.y,rep.offset.z]:null,txt:s.kind==="text"?s.text??null:null,face:s.kind==="text"||isExplicit(s)?s.face??"pz":null,bg:s.kind==="text"||s.kind==="minifig"?s.background??null:null,pid:s.kind==="part"?s.part??null:s.kind==="minifig"?s.skin??null:null};
 }
 export function compactScene(scene:GeneratedScene):CompactScene{return {n:scene.name,d:scene.description,f:scene.signature||[],dim:[scene.dimensions.x,scene.dimensions.y,scene.dimensions.z],rm:[],sh:scene.shapes.map(compactShape)};}
 export function expandCompactHeader(raw:{n?:unknown;d?:unknown;f?:unknown;dim?:unknown}):SceneHeader{
@@ -298,7 +311,7 @@ export function normalizeScene(scene:GeneratedScene):GeneratedScene{const taken=
 // this when it has to cut, so it must reflect real pieces, not cell counts: a dense base packs
 // into a few big plates while a thin skin is all slivers.
 const placementKey=(p:Piece)=>`${p.part}:${p.x}:${p.y}:${p.z}:${p.face||(p.rotated?"px":"pz")}`;
-function explicitOwners(scene:GeneratedScene){return new Map(expandShapes(scene.shapes).filter(s=>s.kind==="part").map(s=>[placementKey(catalogPiece(s)),s.component||s.label]));}
+function explicitOwners(scene:GeneratedScene){return new Map(expandShapes(scene.shapes).filter(isExplicit).map(s=>[placementKey(explicitPiece(s)),s.component||s.label]));}
 export function componentBudget(scene:GeneratedScene,model:Pick<BuildModel,"pieces">):{component:string;pieces:number}[]{
  const owners=new Map<string,string>(),wheelShapes=scene.shapes.filter(s=>s.kind==="wheel");sceneVoxels(scene,undefined,undefined,owners);
  const count=new Map<string,number>(),parts=explicitOwners(scene);

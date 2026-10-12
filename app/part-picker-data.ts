@@ -5,7 +5,7 @@ import {catalogPart} from "@/lib/part-catalog";
 export type PartOption={id:PartId;name:string;family:string;w:number;d:number;h:number;colors?:ColorKey[];handedness?:string;counterpart?:PartId};
 export const PART_PICKER_PAGE_SIZE=24;
 export function familyLabel(family:string){return family.replace(/[-_]/g," ").replace(/\b\w/g,letter=>letter.toUpperCase());}
-const legacyFamily=(name:string)=>/wheel/i.test(name)?"wheels":/slope/i.test(name)?"slopes":/tile/i.test(name)?"tiles":/plate/i.test(name)?"plates":"bricks";
+const legacyFamily=(name:string)=>/minifig/i.test(name)?"minifigures":/wheel/i.test(name)?"wheels":/slope/i.test(name)?"slopes":/tile/i.test(name)?"tiles":/plate/i.test(name)?"plates":"bricks";
 export function catalogOptions():PartOption[]{
  return Object.entries(PARTS).map(([id,part])=>{
   const catalog=catalogPart(id);

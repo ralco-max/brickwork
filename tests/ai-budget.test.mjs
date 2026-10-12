@@ -7,7 +7,7 @@ import {build} from 'esbuild';
 import {budgetDb} from './helpers/budget-db.mjs';
 
 const bundle=await build({stdin:{contents:'export {compactScene} from "./lib/generated-scene";export * from "./lib/ai-budget";export * from "./lib/generation-stream";export * from "./lib/generation-provider";export {defaultBrief} from "./lib/design-project";export {foundationScene} from "./lib/live-arrivals";export {env as testEnv} from "cloudflare:workers";export {POST as generatePOST} from "./app/api/generate/route";export {POST as reviewPOST} from "./app/api/review/route";export {GET as budgetGET} from "./app/api/budget/route";',resolveDir:process.cwd(),loader:'ts'},bundle:true,platform:'node',format:'esm',write:false,plugins:[{name:'fixture-env',setup(b){b.onResolve({filter:/^cloudflare:workers$/},()=>({path:'env',namespace:'fixture'}));b.onLoad({filter:/.*/,namespace:'fixture'},()=>({contents:'export const env={};',loader:'js'}));}}]});
-const {BUDGET_NANOS,BUDGET_MODEL,keyFingerprint,budgetSnapshot,reserveBudget,tokenCost,budgetedProvider,readEvents,generateScene,defaultBrief,foundationScene,testEnv,generatePOST,reviewPOST,budgetGET,compactScene}=await import('data:text/javascript;base64,'+Buffer.from(bundle.outputFiles[0].text).toString('base64'));
+const {BUDGET_NANOS,BUDGET_MODEL,longDesignRun,keyFingerprint,budgetSnapshot,reserveBudget,tokenCost,budgetedProvider,readEvents,generateScene,defaultBrief,foundationScene,testEnv,generatePOST,reviewPOST,budgetGET,compactScene}=await import('data:text/javascript;base64,'+Buffer.from(bundle.outputFiles[0].text).toString('base64'));
 const url='https://api.openai.com/v1/responses',key='fixture-personal-api-key-123',signal=()=>new AbortController().signal;
 const payload=(extra={})=>({method:'POST',signal:signal(),headers:{Authorization:`Bearer ${key}`},body:JSON.stringify({model:BUDGET_MODEL,input:'A castle',max_output_tokens:32000,...extra})});
 const collect=async response=>{const result=[];for await(const event of readEvents(response.body))result.push(event);return result;};
@@ -35,6 +35,12 @@ test('count before generation, enforce standard service, then release unused and
  await provider.recordUsage({input_tokens:1000,output_tokens:2000});assert.equal((await budgetSnapshot(db,await keyFingerprint(key))).spent,.02124);
  assert.equal(usageEvents.length,1);assert.equal(usageEvents[0].cost,.02124);assert.equal(usageEvents[0].inputTokens,1000);
  assert.equal(tokenCost(272001,1000),272001*4000+1000*15000);
+ // Cache writes reported outside input_tokens are charged on top instead of failing settlement.
+ assert.equal(tokenCost(1000,0,600,undefined,700),400*2000+700*2500+600*100);
+ assert.equal(tokenCost(1000,0,600,undefined,300),100*2000+300*2500+600*100);
+ assert.throws(()=>tokenCost(1000,0,1200));
+ assert.equal(longDesignRun('sol_low'),false);assert.equal(longDesignRun('standard'),false);assert.equal(longDesignRun(undefined),false);
+ for(const q of ['sol_medium','better','best'])assert.equal(longDesignRun(q),true,q);
 });
 
 test('budget exhaustion, missing storage and unknown prices never start a paid request',async t=>{

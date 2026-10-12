@@ -11,6 +11,8 @@ export const BUDGET_MODEL="gpt-6.1-sol";
 export const PRICED_MODELS:Record<string,{input:number;cached:number;output:number;write?:number}>={"gpt-6.1-sol":{input:2000,cached:100,write:2500,output:10000},"gpt-5.6-terra":{input:2000,cached:200,output:12000},"gpt-5.6-sol":{input:4000,cached:400,output:20000},"gpt-6-astra":{input:10000,cached:1000,output:50000}};
 export const QUALITY_MODELS={sol_low:"gpt-6.1-sol",sol_medium:"gpt-6.1-sol",standard:"gpt-5.6-terra",better:"gpt-5.6-sol",best:"gpt-6-astra"} as const;
 export const BEST_MODEL=QUALITY_MODELS.best;
+// Higher-effort runs get the longer stream timeout; low-effort defaults do not.
+export const longDesignRun=(quality?:string)=>quality==="better"||quality==="best"||quality==="sol_medium";
 const INPUT=2000,CACHED_INPUT=100,OUTPUT=10000;
 // The built-in web search tool: $10 per 1,000 calls, and its page content is billed as input tokens.
 const SEARCH_CALL_NANOS=10_000_000,SEARCH_CONTENT_TOKENS=30000;
@@ -33,10 +35,14 @@ export async function budgetSnapshot(db:BudgetDatabase,keyHash:string):Promise<B
   return {limit:10,spent:row.spent/1e9,held:row.held/1e9,remaining:Math.max(0,(BUDGET_NANOS-row.spent-row.held)/1e9)};
  }catch{throw unavailable();}
 }
+// Cache writes are normally a subset of input_tokens. If a provider reports
+// them separately (cached+written exceeds input), charge them on top rather
+// than failing settlement and leaving the whole reservation held forever.
+export function billedInputTokens(input:number,cached=0,written=0){return cached+written>input?input+written:input;}
 export function tokenCost(input:number,output:number,cached=0,rates:{input:number;cached:number;output:number;write?:number}={input:INPUT,cached:CACHED_INPUT,output:OUTPUT,write:2500},written=0){
- if(![input,output,cached,written].every(n=>Number.isSafeInteger(n)&&n>=0)||cached+written>input)throw unavailable();
- const long=input>272000;
- return ((input-cached-written)*rates.input+written*(rates.write??rates.input))*(long?2:1)+cached*rates.cached*(long?2:1)+output*rates.output*(long?1.5:1);
+ if(![input,output,cached,written].every(n=>Number.isSafeInteger(n)&&n>=0)||cached>input)throw unavailable();
+ const total=billedInputTokens(input,cached,written),long=total>272000;
+ return ((total-cached-written)*rates.input+written*(rates.write??rates.input))*(long?2:1)+cached*rates.cached*(long?2:1)+output*rates.output*(long?1.5:1);
 }
 export async function reserveBudget(db:BudgetDatabase,keyHash:string,amount:number){
  if(!Number.isSafeInteger(amount)||amount<=0)throw unavailable();
@@ -100,10 +106,11 @@ export function budgetedProvider(db:BudgetDatabase,key:string,notify:(budget:Bud
   if(recorded||!reservation||!value||typeof value!=="object")return;
   const usage=value as Usage,cached=usage.input_tokens_details?.cached_tokens??0,written=usage.input_tokens_details?.cache_write_tokens??0,calls=Math.max(0,Math.floor(extra.searchCalls||0));
   let amount:number;
-  try{amount=tokenCost(usage.input_tokens,usage.output_tokens,cached,reservation.rates,written)+calls*SEARCH_CALL_NANOS;}catch{return;}
+  try{amount=tokenCost(usage.input_tokens,usage.output_tokens,cached,reservation.rates,written)+calls*SEARCH_CALL_NANOS;}
+  catch{console.error(JSON.stringify({event:"bricks_budget_unsettled",reason:"unreadable_usage"}));return;}
   // Unexpected provider accounting keeps a full budget hold and stops later
   // requests. Never silently undercount usage outside the reserved bounds.
-  if(usage.input_tokens>reservation.input||usage.output_tokens>reservation.maxOutput||calls>reservation.searchCalls){
+  if(billedInputTokens(usage.input_tokens,cached,written)>reservation.input||usage.output_tokens>reservation.maxOutput||calls>reservation.searchCalls){
    await settle(db,reservation.id,Math.max(BUDGET_NANOS,amount));await report();
    throw new GenerationError("AI usage exceeded the expected request bounds. Further spending is paused; your draft is kept.","BUDGET_ACCOUNTING");
   }

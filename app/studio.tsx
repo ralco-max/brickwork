@@ -1,7 +1,7 @@
 "use client";
 import {useMemo,useState,useRef,useCallback,useEffect} from "react";
 import type React from "react";
-import {Box,Layers3,ClipboardList,ShoppingBag,Download,ArrowUpRight,RotateCcw,Maximize2,Minus,Check,MapPin,Move3d,MousePointer2,ChevronLeft,ChevronRight,PackageCheck,Info,CheckCheck,X,SlidersHorizontal,Play,Pause,Braces,Plus,Paintbrush,Eraser,Undo2,Redo2,Wrench,AlertTriangle,ArrowRight,Pencil,Save,MousePointer,SkipForward,PanelLeft,Sun,Star} from "lucide-react";
+import {Box,Share2,Layers3,ClipboardList,ShoppingBag,Download,ArrowUpRight,RotateCcw,Maximize2,Minus,Check,MapPin,Move3d,MousePointer2,ChevronLeft,ChevronRight,PackageCheck,Info,CheckCheck,X,SlidersHorizontal,Play,Pause,Braces,Plus,Paintbrush,Eraser,Undo2,Redo2,Wrench,AlertTriangle,ArrowRight,Pencil,Save,MousePointer,SkipForward,PanelLeft,Sun,Star} from "lucide-react";
 import {Tabs,TabsList,TabsTrigger,TabsContent} from "@/components/ui/tabs";
 import {Select,SelectTrigger,SelectValue,SelectContent,SelectItem} from "@/components/ui/select";
 import {Slider} from "@/components/ui/slider";
@@ -18,6 +18,7 @@ import Generator from "./generator";
 import {LANDING_INTRO} from "@/lib/assembly";
 import {useAssemblyRecorder} from "@/lib/assembly-recorder";
 import {ThemeToggle} from "./theme";
+import ShareDialog,{useShareLink} from "./share-dialog";
 import {listDesigns,saveDesign,setDesignFeatured,deleteDesign,packDesign,unpackDesign,newDesignId} from "@/lib/design-library";
 import type {SavedDesign} from "@/lib/design-library";
 import {editModel,projectJSON,emptyShopping} from "@/lib/design-project";
@@ -28,7 +29,7 @@ import CreateBuild,{IdeaBar} from "./create-build";
 import type {Creation} from "./create-build";
 import {ideaForGeneration} from "@/lib/idea-draft";
 import type {IdeaDraft} from "@/lib/idea-draft";
-import {generateRecipe,finishModel,addPiece,supportLoosePieces,removeSupports} from "@/lib/models";
+import {generateRecipe,finishModel,addPiece,supportLoosePieces,removeSupports,validateProject} from "@/lib/models";
 import {simulateClutch} from "@/lib/clutch";
 import type {BuildModel,Detail} from "@/lib/models";
 import type {ColorKey,PartId,Piece,Face} from "@/lib/bridge";
@@ -41,7 +42,7 @@ import {auditModel,partsCSV,ldrawFile,Config,COLORS,PARTS,InventoryRow} from "@/
 
 const money=(v:number)=>new Intl.NumberFormat("en-US",{style:"currency",currency:"USD"}).format(v);
 function download(text:string,name:string,type="text/plain") {const url=URL.createObjectURL(new Blob([text],{type}));const a=document.createElement("a");a.href=url;a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(url),1500);toast.success(`${name} downloaded`);}
-export default function Studio(){
+export default function Studio({sharedId}:{sharedId?:string}={}){
  const compactLayout=useCompactLayout();
  const [workspaceOpen,setWorkspaceOpen]=useState(false),[drawerOpen,setDrawerOpen]=useState(false),[settingsOpen,setSettingsOpen]=useState(false);
  // The assembly is an intro that plays inside the interactive viewport; it replays on demand.
@@ -115,6 +116,23 @@ export default function Studio(){
  const undo=()=>{const prev=history.current.pop();if(!prev)return;future.current.push(currentProject());setModel(prev);syncControls(prev);setSelected(null);setHistoryState({past:history.current.length,future:future.current.length});};
  const redo=()=>{const next=future.current.pop();if(!next)return;history.current.push(currentProject());setModel(next);syncControls(next);setSelected(null);setHistoryState({past:history.current.length,future:future.current.length});};
  const create=(creation:Creation,quiet=false)=>{setDrawerOpen(false);setSettingsOpen(false);if(!quiet)openTools();playIntro();libraryId.current=creation.model.libraryId||newDesignId();record(creation.model);setDetail(creation.detail);setPrimaryColor(creation.color);setAccentColor(creation.accent);setEditColor(creation.color);if(creation.bridgeConfig)setConfig(creation.bridgeConfig);else if(creation.model.recipe==="bridge")setConfig({size:creation.detail==="small"?"compact":"display",color:"red",water:"blue",landscape:true});setApplied(creation.applied||[]);setSelected(null);setTab("model");setExplode(0);setStage(creation.model.stages.length-1);setView(creation.model.source==="mosaic"?"top":"perspective");setReset(v=>v+1);setEditMode("inspect");setShowLoose(false);setEditorOpen(creation.model.recipe==="blank");setShop(Boolean(creation.shop));const shopping=creation.model.shopping||emptyShopping();setOwned(shopping.owned);setElementIds(shopping.elementIds);setPriceOverrides(shopping.priceOverrides);setQuotes(shopping.quotes);if(!quiet)toast.success(`${creation.model.name} is ready to edit`);};
+ const [shareOpen,setShareOpen]=useState(false),[sharedName,setSharedName]=useState(""),shareLink=useShareLink();
+ // A shared link opens that creation as an ordinary, editable model on this device.
+ useEffect(()=>{
+  if(!sharedId)return;let cancelled=false;
+  void (async()=>{
+   try{
+    const response=await fetch(`/api/share/${encodeURIComponent(sharedId)}`);
+    if(response.status===404)throw Error("This shared creation was not found. The link may be mistyped.");
+    if(!response.ok)throw Error("This shared creation could not be loaded. Try again in a moment.");
+    const shared=validateProject((await response.json()).project);if(cancelled)return;
+    create({model:shared,detail:shared.detail||"large",color:shared.primary||shared.inventory.find(r=>r.color!=="gray")?.color||"white",accent:shared.accent||"white"},true);
+    setSharedName(shared.name);
+   }catch(error){if(!cancelled)toast.error(error instanceof Error&&error.message?error.message:"This shared creation could not be opened.");}
+  })();
+  return()=>{cancelled=true;};
+  /* eslint-disable-next-line react-hooks/exhaustive-deps */
+ },[sharedId]);
  const regenerate=(newDetail:Detail,color:ColorKey,accent:ColorKey)=>{if(!model.recipe)return;const next=generateRecipe(model.recipe,newDetail,color,accent);record(next);setDetail(newDetail);setPrimaryColor(color);setAccentColor(accent);setSelected(null);};
  const changedPieces=(pieces:Piece[])=>{try{record(editModel(currentProject(),pieces));setSelected(null);}catch(e){toast.error(e instanceof Error?e.message:"Could not apply this edit.");}};
  const place=(x:number,y:number,z:number)=>{if(!partColorAllowed(editPart,editColor)){toast.info("Choose one of this part’s catalog colors before placing it.");return;}try{changedPieces(addPiece(model.pieces,editPart,editColor,x,y,z,editRotation,editFace));setCoords({x,y,z});}catch(e){toast.error(e instanceof Error?e.message:"Couldn't place this brick.");}};
@@ -144,7 +162,9 @@ export default function Studio(){
  const exportLDraw=()=>download(ldrawFile(model.pieces,model.name,modelStages),`${filename}.ldr`);
  const inspect=(row:InventoryRow)=>{setShowLoose(false);setEditMode("inspect");setSelected(row.key);setStage(model.stages.length-1);setTab("model");};
   return <div className={`studio stage-shell ${workspaceOpen?"studio-focused":"studio-explore"} ${drawerOpen?"drawer-open":"drawer-closed"}`}><Toaster position="bottom-center" richColors/>
-  <header className="topbar"><a href="/" className="brand" aria-label="Bricks by Ralc home" onClick={e=>{if(!e.metaKey&&!e.ctrlKey&&!e.shiftKey){e.preventDefault();setWorkspaceOpen(false);setSettingsOpen(false);setDrawerOpen(false);window.scrollTo({top:0,behavior:"auto"});}}}><img className="brand-logo" src="/bricks-logo.png" width={48} height={48} alt=""/><span className="brand-wordmark">Bricks<small>by ralc</small></span></a><div className="header-actions"><ThemeToggle/><DropdownMenu><DropdownMenuTrigger asChild><button className="button secondary" aria-label="Save or export project"><Download size={16}/><span>Save / export</span></button></DropdownMenuTrigger><DropdownMenuContent align="end"><DropdownMenuItem onSelect={exportLDraw}><Box size={16}/>LDraw model (.ldr)</DropdownMenuItem><DropdownMenuItem onSelect={exportCSV}><ClipboardList size={16}/>Parts inventory (.csv)</DropdownMenuItem><DropdownMenuItem onSelect={()=>download(projectJSON(model,{owned,elementIds,priceOverrides,quotes}),`${filename}.bricks.json`,"application/json")}><Braces size={16}/>Save complete project (.json)</DropdownMenuItem></DropdownMenuContent></DropdownMenu><button className="button secondary shop-header-button" aria-label="Get the pieces" onClick={()=>setShop(true)}><ShoppingBag size={17}/><span>Get the pieces</span><span className="button-count">{buyCount}</span></button></div></header>
+  <header className="topbar"><a href="/" className="brand" aria-label="Bricks by Ralc home" onClick={e=>{if(!e.metaKey&&!e.ctrlKey&&!e.shiftKey){e.preventDefault();setWorkspaceOpen(false);setSettingsOpen(false);setDrawerOpen(false);window.scrollTo({top:0,behavior:"auto"});}}}><img className="brand-logo" src="/bricks-logo.png" width={48} height={48} alt=""/><span className="brand-wordmark">Bricks<small>by ralc</small></span></a><div className="header-actions"><ThemeToggle/><button type="button" className="button secondary share-button" aria-label="Share this creation" onClick={()=>{setShareOpen(true);shareLink.start(model,{owned,elementIds,priceOverrides,quotes});}}><Share2 size={16}/><span>Share</span></button><DropdownMenu><DropdownMenuTrigger asChild><button className="button secondary" aria-label="Save or export project"><Download size={16}/><span>Save / export</span></button></DropdownMenuTrigger><DropdownMenuContent align="end"><DropdownMenuItem onSelect={exportLDraw}><Box size={16}/>LDraw model (.ldr)</DropdownMenuItem><DropdownMenuItem onSelect={exportCSV}><ClipboardList size={16}/>Parts inventory (.csv)</DropdownMenuItem><DropdownMenuItem onSelect={()=>download(projectJSON(model,{owned,elementIds,priceOverrides,quotes}),`${filename}.bricks.json`,"application/json")}><Braces size={16}/>Save complete project (.json)</DropdownMenuItem></DropdownMenuContent></DropdownMenu><button className="button secondary shop-header-button" aria-label="Get the pieces" onClick={()=>setShop(true)}><ShoppingBag size={17}/><span>Get the pieces</span><span className="button-count">{buyCount}</span></button></div></header>
+  <ShareDialog open={shareOpen} onOpenChange={open=>{setShareOpen(open);if(!open)shareLink.cancel();}} name={model.name} state={shareLink.state}/>
+  {sharedName&&<div className="shared-banner" role="status"><Share2 size={16}/><span><strong>Shared creation:</strong> {sharedName}. Explore it, remix it or get the pieces. Your changes stay on this device until you share them.</span><button type="button" className="icon-button" aria-label="Dismiss" onClick={()=>setSharedName("")}><X size={16}/></button></div>}
   <div className="command-bar"><button type="button" className="drawer-toggle" aria-label="Open your designs" aria-pressed={drawerOpen} aria-expanded={drawerOpen} aria-controls="designs-drawer" onClick={()=>{setSettingsOpen(false);setDrawerOpen(v=>!v);}}><PanelLeft size={16}/><span>Designs</span><span className="button-count">{designs.length}</span></button><IdeaBar inline draft={ideaDraft} onDraftChange={setIdeaDraft} preparingPhotos={preparingIdeaPhotos} onPreparingPhotos={setPreparingIdeaPhotos} disabled={createOpen||generationOpen} onGenerate={startIdea} onOpen={()=>setCreateOpen(true)}/><button type="button" className="tools-toggle" aria-label="Build settings" aria-pressed={compactLayout?settingsOpen:workspaceOpen} aria-expanded={compactLayout?settingsOpen:workspaceOpen} aria-controls="model-settings-panel" onClick={()=>{if(compactLayout){setWorkspaceOpen(true);setDrawerOpen(false);setSettingsOpen(v=>!v);}else if(workspaceOpen){setWorkspaceOpen(false);setSettingsOpen(false);}else openTools();}}><SlidersHorizontal size={16}/><span>{compactLayout?"Build settings":workspaceOpen?"Close":"Make it yours"}</span></button></div>
   <div className="stage-layout"><StudioPanel id="designs-drawer" title="Your designs" description="Open a featured design, a saved build, or a landmark." open={drawerOpen} onOpenChange={setDrawerOpen} triggerSelector=".drawer-toggle"><DesignsDrawer open={drawerOpen} onClose={()=>setDrawerOpen(false)} model={model} designs={designs} onChoose={recipe=>{const next=generateRecipe(recipe,"large");create({model:next,detail:"large",color:next.primary||"white",accent:next.accent||"white"},true);}} onOpenSaved={d=>openSaved(d)} onContinueSaved={d=>openSaved(d,true)} onShopSaved={d=>openSaved(d,false,true)} onDeleteSaved={removeSaved} featureBusyId={featureBusyId} onFeatureSaved={d=>{void toggleFeatured(d);}}/></StudioPanel>
   <main className="stage-main">
