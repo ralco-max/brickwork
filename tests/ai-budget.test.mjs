@@ -6,8 +6,8 @@ import {join} from 'node:path';
 import {build} from 'esbuild';
 import {budgetDb} from './helpers/budget-db.mjs';
 
-const bundle=await build({stdin:{contents:'export {compactScene} from "./lib/generated-scene";export * from "./lib/ai-budget";export * from "./lib/generation-stream";export * from "./lib/generation-provider";export {defaultBrief} from "./lib/design-project";export {foundationScene} from "./lib/live-arrivals";export {env as testEnv} from "cloudflare:workers";export {POST as generatePOST} from "./app/api/generate/route";export {POST as reviewPOST} from "./app/api/review/route";export {GET as budgetGET} from "./app/api/budget/route";',resolveDir:process.cwd(),loader:'ts'},bundle:true,platform:'node',format:'esm',write:false,plugins:[{name:'fixture-env',setup(b){b.onResolve({filter:/^cloudflare:workers$/},()=>({path:'env',namespace:'fixture'}));b.onLoad({filter:/.*/,namespace:'fixture'},()=>({contents:'export const env={};',loader:'js'}));}}]});
-const {BUDGET_NANOS,BUDGET_MODEL,worstCaseHold,stopCostNotice,longDesignRun,keyFingerprint,budgetSnapshot,reserveBudget,tokenCost,budgetedProvider,readEvents,generateScene,defaultBrief,foundationScene,testEnv,generatePOST,reviewPOST,budgetGET,compactScene}=await import('data:text/javascript;base64,'+Buffer.from(bundle.outputFiles[0].text).toString('base64'));
+const bundle=await build({stdin:{contents:'export {compactScene} from "./lib/generated-scene";export * from "./lib/ai-budget";export * from "./lib/generation-stream";export * from "./lib/generation-provider";export {defaultBrief} from "./lib/design-project";export {researchSubject} from "./lib/design-research";export {foundationScene} from "./lib/live-arrivals";export {env as testEnv} from "cloudflare:workers";export {POST as generatePOST} from "./app/api/generate/route";export {POST as reviewPOST} from "./app/api/review/route";export {GET as budgetGET} from "./app/api/budget/route";',resolveDir:process.cwd(),loader:'ts'},bundle:true,platform:'node',format:'esm',write:false,plugins:[{name:'fixture-env',setup(b){b.onResolve({filter:/^cloudflare:workers$/},()=>({path:'env',namespace:'fixture'}));b.onLoad({filter:/.*/,namespace:'fixture'},()=>({contents:'export const env={};',loader:'js'}));}}]});
+const {BUDGET_NANOS,BUDGET_MODEL,researchSubject,worstCaseHold,stopCostNotice,longDesignRun,keyFingerprint,budgetSnapshot,reserveBudget,tokenCost,budgetedProvider,readEvents,generateScene,defaultBrief,foundationScene,testEnv,generatePOST,reviewPOST,budgetGET,compactScene}=await import('data:text/javascript;base64,'+Buffer.from(bundle.outputFiles[0].text).toString('base64'));
 const url='https://api.openai.com/v1/responses',key='fixture-personal-api-key-123',signal=()=>new AbortController().signal;
 const payload=(extra={})=>({method:'POST',signal:signal(),headers:{Authorization:`Bearer ${key}`},body:JSON.stringify({model:BUDGET_MODEL,input:'A castle',max_output_tokens:32000,...extra})});
 const collect=async response=>{const result=[];for await(const event of readEvents(response.body))result.push(event);return result;};
@@ -179,20 +179,44 @@ test('readable usage over the reserved bounds is charged its actual cost up to 3
  ({provider}=await lookup());assert.ok((await budgetSnapshot(db,hash)).held>0);
 });
 
-test('web search reserves page content and a re-read of the request for every allowed search, matching the exported worst case',async t=>{
+test('web search reserves page content for every allowed search, matching the exported worst case',async t=>{
  const {db,sqlite}=budgetDb();t.after(()=>sqlite.close());const holds=[];
  for(const calls of [1,2,3]){const events=[];const provider=budgetedProvider(db,'search-key-'+calls,b=>events.push(b),async u=>u.endsWith('/input_tokens')?Response.json({input_tokens:500}):Response.json({ok:true}));
   await provider.fetch(url,payload({max_output_tokens:2500,tools:[{type:'web_search'}],max_tool_calls:calls}));holds.push(events[0].hold);
   assert.equal(events[0].hold,worstCaseHold(BUDGET_MODEL,502,2500,calls));assert.ok(Math.abs(events[0].held-events[0].hold)<1e-12);}
- // Each extra search adds 25,000 page tokens plus the 502-token request re-read at the cache-write bound, and a $0.01 call fee.
- for(const i of [1,2])assert.ok(Math.abs(holds[i]-holds[i-1]-((502+25000)*2500+10000000)/1e9)<1e-12,String(holds));
- // Two searches with their re-reads stay inside a two-search reservation and settle exactly.
+ // Each extra search adds 25,000 page tokens at the cache-write bound and a $0.01 call fee, nothing per request size.
+ for(const i of [1,2])assert.ok(Math.abs(holds[i]-holds[i-1]-(25000*2500+10000000)/1e9)<1e-12,String(holds));
+ assert.ok(Math.abs(holds[0]-((502+4096+25000)*2500+2500*10000+10000000)/1e9)<1e-12,String(holds));
+ // Two searches whose turns each re-read this small request still fit the margin and settle exactly.
  const events=[],provider=budgetedProvider(db,key,b=>events.push(b),async u=>u.endsWith('/input_tokens')?Response.json({input_tokens:500}):Response.json({ok:true}));
  await provider.fetch(url,payload({max_output_tokens:2500,tools:[{type:'web_search'}],max_tool_calls:2}));
  await provider.recordUsage({input_tokens:3*502+2*25000,output_tokens:2500},{searchCalls:2});assert.equal(events.at(-1).held,0);
  assert.ok(Math.abs(events.at(-1).spent-((3*502+50000)*2000+2500*10000+2*10000000)/1e9)<1e-9);
  const design=worstCaseHold(BUDGET_MODEL,20000,32000);assert.ok(Math.abs(design-((24096*2500+32000*10000)/1e9))<1e-12);assert.equal(worstCaseHold('gpt-4o',1,1),null);
  assert.equal(stopCostNotice(design),'Stopping uses up to $0.39 of your budget for work already started.');assert.match(stopCostNotice(.37),/\$0\.37 /);assert.match(stopCostNotice(.001),/\$0\.01 /);
+});
+
+test('a web lookup stopped mid-request pays for its input, the output estimate and only the searches time allows, below both its hold and the old hold',async t=>{
+ const logs=[];t.mock.method(console,'info',m=>logs.push(JSON.parse(m)));
+ const run=async({counted,advance})=>{
+  const {db,sqlite}=budgetDb();t.after(()=>sqlite.close());const events=[],stop=new AbortController();let sent;t.mock.timers.enable({apis:['Date'],now:1_000_000});
+  // The lookup is not streamed: nothing arrives until it finishes, so the stop rejects the paid fetch itself.
+  const provider=budgetedProvider(db,key,b=>events.push(b),async(u,init)=>{if(u.endsWith('/input_tokens'))return Response.json({input_tokens:counted});sent=JSON.parse(init.body);
+   return new Promise((_,reject)=>{init.signal.addEventListener('abort',()=>reject(new DOMException('The operation was aborted.','AbortError')),{once:true});t.mock.timers.tick(advance);stop.abort();});});
+  await assert.rejects(researchSubject('the Washington Monument',key,BUDGET_MODEL,stop.signal,provider.fetch,provider.recordUsage),{name:'AbortError'});t.mock.timers.reset();
+  const snapshot=await budgetSnapshot(db,await keyFingerprint(key)),base=counted+Buffer.byteLength(JSON.stringify(sent.text)),n=sent.max_tool_calls,hold=events[0].hold;
+  assert.equal(n,2);assert.equal(sent.max_output_tokens,2500);assert.equal(snapshot.held,0);assert.equal(hold,worstCaseHold(BUDGET_MODEL,base,2500,n));
+  // The base commit reserved one 30,000-token page allowance per lookup; a stop kept all of it.
+  const oldHold=((base+4096+30000)*2500+2500*10000+n*10000000)/1e9,log=logs.findLast(l=>l.event==='bricks_budget_estimated');
+  assert.ok(snapshot.spent<hold&&snapshot.spent<oldHold,`${snapshot.spent} vs ${hold} and ${oldHold}`);assert.equal(log.estimated,true);assert.equal(log.reservedSearchCalls,n);
+  return {spent:snapshot.spent,base,searches:log.searchCalls};
+ };
+ // Stopped 5 ms after sending, before any search could run: counted input plus the 2,000-token low-effort floor, no searches or fees.
+ for(const counted of [1500,12000]){const {spent,base,searches}=await run({counted,advance:5});assert.equal(searches,0);assert.ok(Math.abs(spent-(base*2500+2000*10000)/1e9)<1e-9,String(spent));}
+ // Four seconds in, at most one quick search turn has run: its 25,000 page tokens and fee are added.
+ let {spent,base,searches}=await run({counted:5000,advance:4000});assert.equal(searches,1);assert.ok(Math.abs(spent-((base+25000)*2500+2000*10000+10000000)/1e9)<1e-9,String(spent));
+ // A minute in, both searches may have run, but their pages count only up to the old 30,000-token allowance.
+ ({spent,base,searches}=await run({counted:12000,advance:60000}));assert.equal(searches,2);assert.ok(Math.abs(spent-((base+30000)*2500+2500*10000+2*10000000)/1e9)<1e-9,String(spent));
 });
 
 const drain=async events=>{for await(const event of events)void event;};

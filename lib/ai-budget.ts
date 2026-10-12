@@ -15,8 +15,10 @@ export const BEST_MODEL=QUALITY_MODELS.best;
 export const longDesignRun=(quality?:string)=>quality==="better"||quality==="best"||quality==="sol_medium";
 const INPUT=2000,CACHED_INPUT=100,OUTPUT=10000;
 // The built-in web search tool: $10 per 1,000 calls, and its page content is billed as input tokens.
-// Each search is another model pass, so it is reserved as a re-read of the request plus its pages.
-const SEARCH_CALL_NANOS=10_000_000,SEARCH_CONTENT_TOKENS=25000;
+// Each allowed search reserves its own pages; calibrate that from the bricks_ai_usage research logs.
+// A stopped lookup can't see which searches ran, so it counts one per SEARCH_MS elapsed (a deliberately
+// quick search turn) with at most the old single 30k lookup allowance of pages, never every search up front.
+const SEARCH_CALL_NANOS=10_000_000,SEARCH_CONTENT_TOKENS=25000,SEARCH_MS=3000,STOPPED_SEARCH_TOKENS=30000;
 // Reasoning is never streamed, so a stopped request's output estimate cannot drop below an
 // effort floor or below its elapsed time at a deliberately high generation rate.
 const REASONING_FLOOR:Record<string,number>={none:500,minimal:500,low:2000,medium:4000,high:8000,xhigh:16000},TOKENS_PER_SECOND=150,OVERAGE_CAP=3;
@@ -67,7 +69,7 @@ async function settle(db:BudgetDatabase,id:string,amount:number){
  catch{throw unavailable();}
 }
 // inputTokens is the counted request plus its output schema's UTF-8 bytes; the margin and searches go on top.
-const reservedInput=(inputTokens:number,searchCalls:number)=>inputTokens+4096+searchCalls*(inputTokens+SEARCH_CONTENT_TOKENS);
+const reservedInput=(inputTokens:number,searchCalls:number)=>inputTokens+4096+searchCalls*SEARCH_CONTENT_TOKENS;
 const holdNanos=(rates:{input:number;cached:number;output:number;write?:number},input:number,maxOutput:number,searchCalls:number)=>tokenCost(input,maxOutput,0,rates,input)+searchCalls*SEARCH_CALL_NANOS;
 // The worst case for one request in USD: its reservation. A stopped request settles an
 // estimate capped at this, so it is also the most a Stop can keep (null for unpriced models).
@@ -87,15 +89,15 @@ export function budgetedProvider(db:BudgetDatabase,key:string,notify:(budget:Bud
  // A request stopped after it was sent (Stop, closed dialog, disconnect, timeout, or a caller
  // abandoning the stream) settles an estimate instead of keeping its ceiling forever: counted input
  // plus output = max(2x the streamed text tokens, the effort floor, elapsed time at a high rate),
- // capped at the reservation. Searches can't be observed mid-request, so all allowed ones count.
+ // capped at the reservation. Searches can't be observed mid-request, so only those elapsed time allows count.
  const settleAbandoned=():Promise<void>=>{
   const r=reservation;if(phase!=="sent"||!r)return abandoned??Promise.resolve();phase="closed";
   const elapsedMs=Math.max(0,Date.now()-sentAt),streamedTokens=Math.max(deltas,Math.ceil(bytes/3));
   const output=Math.min(r.maxOutput,Math.max(2*streamedTokens,REASONING_FLOOR[r.effort]??REASONING_FLOOR.medium,Math.ceil(elapsedMs/1000*TOKENS_PER_SECOND)));
-  const input=r.base+r.searchCalls*(r.base+SEARCH_CONTENT_TOKENS),amount=Math.min(r.amount,holdNanos(r.rates,input,output,r.searchCalls));
+  const searches=Math.min(r.searchCalls,Math.floor(elapsedMs/SEARCH_MS)),input=r.base+Math.min(STOPPED_SEARCH_TOKENS,searches*SEARCH_CONTENT_TOKENS),amount=Math.min(r.amount,holdNanos(r.rates,input,output,searches));
   return abandoned=(async()=>{
    try{await settle(db,r.id,amount);}catch{console.error(JSON.stringify({event:"bricks_budget_unsettled",reason:"estimate_failed"}));return;}
-   console.info(JSON.stringify({event:"bricks_budget_estimated",estimated:true,model:requestModel,reservedNanos:r.amount,chargedNanos:amount,inputTokens:input,outputTokens:output,streamedTokens,searchCalls:r.searchCalls,elapsedMs}));
+   console.info(JSON.stringify({event:"bricks_budget_estimated",estimated:true,model:requestModel,reservedNanos:r.amount,chargedNanos:amount,inputTokens:input,outputTokens:output,streamedTokens,searchCalls:searches,reservedSearchCalls:r.searchCalls,elapsedMs}));
    await report().catch(()=>{});
   })();
  };
