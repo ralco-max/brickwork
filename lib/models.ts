@@ -145,9 +145,21 @@ export function generateRecipe(recipe:Recipe,detail:Detail="medium",primary?:Col
  }else base(32,24,p);
  return finishModel(packVoxels(voxels),{name:defaultNames[recipe],description:RECIPES.find(r=>r.id===recipe)!.description,source:"recipe",recipe,detail,primary:p,accent:a});
 }
-export function nearestColor(r:number,g:number,b:number):ColorKey {
- let best:ColorKey="white",distance=Infinity;for(const [key,c] of Object.entries(COLORS)){const hex=parseInt(c.hex.slice(1),16),dr=r-(hex>>16),dg=g-((hex>>8)&255),db=b-(hex&255),v=dr*dr*.3+dg*dg*.59+db*db*.11;if(v<distance){distance=v;best=key as ColorKey;}}return best;
+// CIELAB (sRGB, D65): equal distances look about equally different. Weighted RGB sent dark bluish
+// gray concrete to green and medium blue to gray; in Lab they land on gray and blue.
+export function rgbLab(r:number,g:number,b:number):[number,number,number]{
+ const lin=(c:number)=>{c/=255;return c<=.04045?c/12.92:((c+.055)/1.055)**2.4;},R=lin(r),G=lin(g),B=lin(b);
+ const f=(t:number)=>t>.008856?Math.cbrt(t):7.787*t+16/116,fx=f((R*.4124+G*.3576+B*.1805)/.95047),fy=f(R*.2126+G*.7152+B*.0722),fz=f((R*.0193+G*.1192+B*.9505)/1.08883);
+ return [116*fy-16,500*(fx-fy),200*(fy-fz)];
 }
+export const hexRgb=(hex:string):[number,number,number]=>{const n=parseInt(hex.slice(1),16);return [n>>16,(n>>8)&255,n&255];};
+// The palette colour nearest an RGB value, optionally only among the colours a part is made in.
+export function nearestColor(r:number,g:number,b:number,among:readonly ColorKey[]=Object.keys(COLORS) as ColorKey[]):ColorKey {
+ const [L,A,B]=rgbLab(r,g,b);let best:ColorKey=among[0]||"white",distance=Infinity;
+ for(const key of among){const [l,a,bb]=paletteLab(key),v=(L-l)**2+(A-a)**2+(B-bb)**2;if(v<distance){distance=v;best=key;}}return best;
+}
+const labCache=new Map<ColorKey,[number,number,number]>();
+const paletteLab=(key:ColorKey)=>{let v=labCache.get(key);if(!v){v=rgbLab(...hexRgb(COLORS[key].hex));labCache.set(key,v);}return v;};
 export function mosaicFromPixels(data:ArrayLike<number>,width:number,height:number,name:string):BuildModel {
  if(width<1||height<1||width>96||height>96||data.length!==width*height*4)throw Error("Invalid image dimensions.");
  const voxels:VoxelMap=new Map();for(let z=0;z<height;z++)for(let x=0;x<width;x++){const i=(z*width+x)*4,alpha=data[i+3]/255,c=nearestColor(data[i]*alpha+255*(1-alpha),data[i+1]*alpha+255*(1-alpha),data[i+2]*alpha+255*(1-alpha));voxels.set(voxelKey(x,0,z),"gray");voxels.set(voxelKey(x,1,z),"gray");voxels.set(voxelKey(x,2,z),c);}

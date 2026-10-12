@@ -187,7 +187,10 @@ export function tidyVoxels(voxels:VoxelMap,retain:ReadonlySet<string>=new Set())
  return removed;
 }
 export function compileScene(raw:unknown,options:{manual?:ManualEdits;hollow?:boolean;smooth?:boolean;slopes?:boolean}={}){
- const scene=validateScene(raw),protect=new Set<string>(),letteringProtect=new Set<string>(),wheels:Piece[]=[],explicit:Piece[]=[],voxels=sceneVoxels(scene,protect,wheels,undefined,letteringProtect,explicit);
+ const scene=validateScene(raw),protect=new Set<string>(),letteringProtect=new Set<string>(),wheels:Piece[]=[],explicit:Piece[]=[],owners=new Map<string,string>(),voxels=sceneVoxels(scene,protect,wheels,owners,letteringProtect,explicit);
+ // The display base stays plates: a wall set in from its edge reads as a step, and carving that
+ // rim into cheese slopes leaves each one loose (the minifig shop fell into 16 assemblies).
+ for(const [key,owner] of owners)if(/^base$/i.test(owner)||+key.split(",")[1]<2)protect.add(key);
  const maskedErase=new Set<string>(),eraseBoxes=options.manual?.erase.filter(b=>!b.cells)||[];
  for(const b of options.manual?.erase||[])for(const [x,y,z] of b.cells||[])maskedErase.add(voxelKey(b.x+x,b.y+y,b.z+z));
  const erased=(p:Piece)=>options.manual&&([...pieceCells(p)].some(([x,y,z])=>maskedErase.has(voxelKey(x,y,z))||eraseBoxes.some(b=>x>=b.x&&x<b.x+b.w&&y>=b.y&&y<b.y+b.h&&z>=b.z&&z<b.z+b.d))||options.manual.bricks.some(b=>piecesIntersect(p,b)));
