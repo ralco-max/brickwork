@@ -1,0 +1,105 @@
+{
+ "synthetic":true,
+ "note":"SYNTHETIC: hand-authored stand-in for provider responses, not a recording. It exercises the harness plumbing (budget ledger, routes, compile, checks, review/judge parsing) at $0. Its scores say nothing about real model quality.",
+ "case":"photo-house",
+ "idea":"Our two-storey house from this photo",
+ "research":[
+  {
+   "reasoning":"Unnamed photo-based house: generic, no search.",
+   "searches":[],
+   "images":[],
+   "usage":{"reasoning_tokens":450,"search_content_tokens":0},
+   "sheet":{
+    "identity":{"status":"generic","location":"","question":""},
+    "contextAdequate":true,
+    "image_urls":[],
+    "included":["House","Front porch","Porch columns","Roof","Dormers","Lawn base"],
+    "excluded":["Street","Fence","Trees"],
+    "uncertainties":["Only the front facade is visible; sides and back are inferred."],
+    "relations":[
+     {"from":"Front porch","relation":"in_front_of","to":"House"},
+     {"from":"Dormers","relation":"above","to":"Front porch"},
+     {"from":"Roof","relation":"above","to":"House"}
+    ],
+    "searchable":false,
+    "kind":"building",
+    "subject":"Two-storey house from the user photo",
+    "summary":"An unnamed private house from one front photo: tan siding, hipped red roof with two dormers, full-width porch on white columns.",
+    "length_m":null,
+    "width_m":null,
+    "height_m":null,
+    "openness":null,
+    "proportions":"Facade about twice as wide as the wall height; roof about 60 percent of the wall height.",
+    "colors":["tan","red","white","navy (windows)","brown (door)"],
+    "silhouette":["Box house under a hipped roof with two dormers","Porch roof line across the full front"],
+    "distinctive":["Full-width porch on four white columns","Two dormers on the front roof slope","Symmetric pairs of windows either side of the door"],
+    "sources":[],
+    "hero":"Front view as in the photo.",
+    "layout":"Photographed facade faces +z."
+   }
+  }
+ ],
+ "design":{
+  "reasoning":"Front facade from the photo; sides inferred.",
+  "usage":{"reasoning_tokens":3000},
+  "scene":{
+   "n":"Our House",
+   "d":"A tan two-storey house with a hipped red roof, two dormers and a full-width porch on white columns, as in the photo.",
+   "f":["Hipped red roof with two dormers","Full-width porch on white columns","Symmetric windows either side of the door"],
+   "dim":[36,46,30],
+   "rm":["display-foundation"],
+   "sh":[
+    {"i":"lawn","c":"Lawn base","l":"Lawn","k":"box","o":"add","col":"green","p":[0,0,0],"s":[36,2,30]},
+    {"i":"walls","c":"House","l":"Walls","k":"box","o":"add","col":"tan","p":[5,2,6],"s":[26,22,16]},
+    {"i":"porch-deck","c":"Front porch","l":"Porch deck","k":"box","o":"add","col":"gray","p":[4,2,22],"s":[28,1,4]},
+    {"i":"columns","c":"Porch columns","l":"Porch columns","k":"box","o":"add","col":"white","p":[5,3,25],"s":[1,7,1],"rep":[4,8,0,0]},
+    {"i":"porch-roof","c":"Front porch","l":"Porch roof","k":"box","o":"add","col":"white","p":[4,10,21],"s":[28,1,5]},
+    {"i":"door","c":"House","l":"Front door","k":"box","o":"add","col":"brown","p":[17,3,21],"s":[3,7,1]},
+    {"i":"windows-low","c":"House","l":"Ground floor windows","k":"box","o":"add","col":"navy","p":[8,4,21],"s":[4,3,1],"rep":[2,16,0,0]},
+    {"i":"windows-up","c":"House","l":"Upper windows","k":"box","o":"add","col":"navy","p":[8,13,21],"s":[4,3,1],"rep":[2,16,0,0]},
+    {"i":"roof-1","c":"Roof","l":"Roof course 1","k":"box","o":"add","col":"red","p":[3,24,4],"s":[30,3,20]},
+    {"i":"roof-2","c":"Roof","l":"Roof course 2","k":"box","o":"add","col":"red","p":[4,27,6],"s":[28,3,16]},
+    {"i":"roof-3","c":"Roof","l":"Roof course 3","k":"box","o":"add","col":"red","p":[6,30,8],"s":[24,3,12]},
+    {"i":"roof-4","c":"Roof","l":"Roof course 4","k":"box","o":"add","col":"red","p":[8,33,10],"s":[20,3,8]},
+    {"i":"dormers","c":"Dormers","l":"Dormers","k":"box","o":"add","col":"tan","p":[11,27,19],"s":[4,5,3],"rep":[2,10,0,0]},
+    {"i":"dormer-roofs","c":"Dormers","l":"Dormer roofs","k":"box","o":"add","col":"red","p":[10,32,19],"s":[6,1,3],"rep":[2,10,0,0]},
+    {"i":"dormer-glass","c":"Dormers","l":"Dormer windows","k":"box","o":"add","col":"navy","p":[12,28,21],"s":[2,3,1],"rep":[2,10,0,0]},
+    {"i":"path","c":"Lawn base","l":"Path","k":"box","o":"add","col":"gray","p":[17,2,26],"s":[3,1,4]}
+   ]
+  }
+ },
+ "review":{
+  "reasoning":"Compared view 1 with the user photo.",
+  "usage":{"reasoning_tokens":800},
+  "review":{
+   "revision":{"status":"not_requested","evidence":"No revision was requested for this first build."},
+   "composition":{"status":"matches","evidence":"House only, front facade arrangement matches the photo."},
+   "summary":"Matches the photographed facade: porch on four columns, two dormers, windows either side of the door.",
+   "recognizable":true,
+   "features":{
+    "Covered front porch with columns":{"status":"visible","evidence":"White porch roof on four columns (view 1)."},
+    "Two roof dormers":{"status":"visible","evidence":"Two tan dormers with red roofs."},
+    "Hipped red roof with two dormers":{"status":"visible","evidence":"Roof."},
+    "Full-width porch on white columns":{"status":"visible","evidence":"Porch."},
+    "Symmetric windows either side of the door":{"status":"visible","evidence":"Windows."}
+   },
+   "improvements":["Roof: the photo shows a steeper pitch; use two-plate courses."]
+  }
+ },
+ "judge":{
+  "usage":{"reasoning_tokens":400},
+  "checks":{
+   "Roof shape and pitch match the photo":{"status":"uncertain","evidence":"Hipped shape right; pitch shallower."},
+   "Front door, porch and windows sit on the photographed facade in the same arrangement":{"status":"pass","evidence":"Same arrangement."},
+   "Two storeys plus the dormered roof, not one storey or three":{"status":"pass","evidence":"Two rows of windows plus dormers."}
+  },
+  "features":{
+   "Full-width porch on four white columns":{"status":"present","evidence":"Porch."},
+   "Two dormers on the front roof slope":{"status":"present","evidence":"Dormers."},
+   "Symmetric pairs of windows either side of the door":{"status":"present","evidence":"Windows."},
+   "Box house under a hipped roof with two dormers":{"status":"present","evidence":"Silhouette."},
+   "Porch roof line across the full front":{"status":"present","evidence":"Porch."}
+  },
+  "summary":"Facade matches; pitch shallow."
+ }
+}

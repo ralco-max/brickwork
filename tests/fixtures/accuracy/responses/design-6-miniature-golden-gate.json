@@ -1,0 +1,102 @@
+{
+ "synthetic":true,
+ "note":"SYNTHETIC: hand-authored stand-in for provider responses, not a recording. It exercises the harness plumbing (budget ledger, routes, compile, checks, review/judge parsing) at $0. Its scores say nothing about real model quality.",
+ "case":"design-6-miniature-golden-gate",
+ "idea":"A miniature Golden Gate Bridge with a sailboat below it",
+ "research":[
+  {
+   "reasoning":"The bridge is a real subject; used the district statistics.",
+   "searches":[{"query":"Golden Gate Bridge total length tower height deck width","sources":["https://en.wikipedia.org/wiki/Golden_Gate_Bridge"]}],
+   "images":[],
+   "usage":{"reasoning_tokens":600,"search_content_tokens":7000},
+   "sheet":{
+    "identity":{"status":"confirmed","location":"San Francisco, California, USA","question":""},
+    "contextAdequate":true,
+    "image_urls":[],
+    "included":["North tower","South tower","Main cables","Roadway deck","Sailboat"],
+    "excluded":["Fort Point","Toll plaza","City skyline"],
+    "uncertainties":["Sailboat size is decorative, not to bridge scale."],
+    "relations":[
+     {"from":"North tower","relation":"left_of","to":"South tower"},
+     {"from":"Sailboat","relation":"in_front_of","to":"Roadway deck"},
+     {"from":"Main cables","relation":"above","to":"Roadway deck"}
+    ],
+    "searchable":true,
+    "kind":"bridge",
+    "subject":"Golden Gate Bridge with a sailboat",
+    "summary":"A miniature of the whole Golden Gate Bridge with a sailboat passing in front.",
+    "length_m":2737,
+    "width_m":27,
+    "height_m":227,
+    "openness":0.93,
+    "proportions":"Very long and low: about 12:1 length to tower height; the deck is about a third of the tower height.",
+    "colors":["red","blue (water)","white (sailboat)"],
+    "silhouette":["Two towers with a deep central catenary","Long low deck"],
+    "distinctive":["Two red Art Deco towers","Main cables stepping down to mid-span","A white sailboat in the foreground"],
+    "sources":["https://en.wikipedia.org/wiki/Golden_Gate_Bridge"],
+    "hero":"Broadside view with the boat in front.",
+    "layout":"x north (left) to south (right); +z front where the boat sails."
+   }
+  }
+ ],
+ "design":{
+  "reasoning":"Bridge follows the target length; boat in front on the water.",
+  "usage":{"reasoning_tokens":3800},
+  "scene":{
+   "n":"Golden Gate and Sailboat",
+   "d":"A miniature Golden Gate Bridge with stepped red cables and a white sailboat on the water in front.",
+   "f":["Red towers rising from the water","Cables stepping down to mid-span","White sailboat in front of the bridge"],
+   "dim":[48,20,16],
+   "rm":["display-foundation"],
+   "sh":[
+    {"i":"water","c":"Base","l":"Bay water","k":"box","o":"add","col":"blue","p":[0,0,0],"s":[48,2,16]},
+    {"i":"anchor-n","c":"Anchorages","l":"North anchorage","k":"box","o":"add","col":"gray","p":[0,2,6],"s":[3,4,3]},
+    {"i":"anchor-s","c":"Anchorages","l":"South anchorage","k":"box","o":"add","col":"gray","p":[45,2,6],"s":[3,4,3]},
+    {"i":"deck","c":"Roadway deck","l":"Deck","k":"box","o":"add","col":"red","p":[0,5,6],"s":[48,2,3]},
+    {"i":"tower-n","c":"North tower","l":"North tower legs","k":"box","o":"add","col":"red","p":[11,2,6],"s":[2,12,1],"rep":[2,0,0,2]},
+    {"i":"tower-s","c":"South tower","l":"South tower legs","k":"box","o":"add","col":"red","p":[35,2,6],"s":[2,12,1],"rep":[2,0,0,2]},
+    {"i":"cable-n","c":"Main cables","l":"North side cable","k":"lean","o":"add","col":"red","p":[2,7,6],"s":[1,1,0],"e":[11,14,6],"rep":[2,0,0,2]},
+    {"i":"cable-mn","c":"Main cables","l":"Main cable north half","k":"lean","o":"add","col":"red","p":[24,7,6],"s":[1,1,0],"e":[13,14,6],"rep":[2,0,0,2]},
+    {"i":"cable-ms","c":"Main cables","l":"Main cable south half","k":"lean","o":"add","col":"red","p":[24,7,6],"s":[1,1,0],"e":[35,14,6],"rep":[2,0,0,2]},
+    {"i":"cable-s","c":"Main cables","l":"South side cable","k":"lean","o":"add","col":"red","p":[46,7,6],"s":[1,1,0],"e":[37,14,6],"rep":[2,0,0,2]},
+    {"i":"hull","c":"Sailboat","l":"Hull","k":"box","o":"add","col":"white","p":[20,2,11],"s":[6,2,3]},
+    {"i":"mast","c":"Sailboat","l":"Mast","k":"box","o":"add","col":"white","p":[22,4,12],"s":[1,8,1]},
+    {"i":"sail-1","c":"Sailboat","l":"Sail","k":"box","o":"add","col":"white","p":[23,4,12],"s":[4,2,1]},
+    {"i":"sail-2","c":"Sailboat","l":"Sail","k":"box","o":"add","col":"white","p":[23,6,12],"s":[3,2,1]},
+    {"i":"sail-3","c":"Sailboat","l":"Sail","k":"box","o":"add","col":"white","p":[23,8,12],"s":[2,2,1]},
+    {"i":"sail-4","c":"Sailboat","l":"Sail","k":"box","o":"add","col":"white","p":[23,10,12],"s":[1,2,1]}
+   ]
+  }
+ },
+ "review":{
+  "reasoning":"Broadside and overhead views.",
+  "usage":{"reasoning_tokens":700},
+  "review":{
+   "revision":{"status":"not_requested","evidence":"No revision was requested for this first build."},
+   "composition":{"status":"matches","evidence":"Bridge with a sailboat in front; no scenery."},
+   "summary":"A recognisable miniature Golden Gate with a white sailboat in front.",
+   "recognizable":true,
+   "features":{
+    "Two red towers":{"status":"visible","evidence":"Towers at x11 and x35."},
+    "Stepped suspension cables":{"status":"visible","evidence":"Stepped leans in two planes."},
+    "A white sailboat":{"status":"visible","evidence":"Hull, mast and stepped sail in front."},
+    "Red towers rising from the water":{"status":"visible","evidence":"Towers."},
+    "Cables stepping down to mid-span":{"status":"visible","evidence":"Cables."},
+    "White sailboat in front of the bridge":{"status":"visible","evidence":"Boat."}
+   },
+   "improvements":["Towers: add a portal strut near the top of each tower."]
+  }
+ },
+ "judge":{
+  "usage":{"reasoning_tokens":400},
+  "checks":{},
+  "features":{
+   "Two red Art Deco towers":{"status":"uncertain","evidence":"Plain legs."},
+   "Main cables stepping down to mid-span":{"status":"present","evidence":"Cables."},
+   "A white sailboat in the foreground":{"status":"present","evidence":"Boat."},
+   "Two towers with a deep central catenary":{"status":"present","evidence":"Side view."},
+   "Long low deck":{"status":"present","evidence":"Deck."}
+  },
+  "summary":"Reads well."
+ }
+}

@@ -1,0 +1,100 @@
+{
+ "synthetic":true,
+ "note":"SYNTHETIC: hand-authored stand-in for provider responses, not a recording. It exercises the harness plumbing (budget ledger, routes, compile, checks, review/judge parsing) at $0. Its scores say nothing about real model quality.",
+ "case":"photo-pet",
+ "idea":"Our dog from this photo, sitting",
+ "research":[
+  {
+   "reasoning":"Unnamed pet photo: generic.",
+   "searches":[],
+   "images":[],
+   "usage":{"reasoning_tokens":450,"search_content_tokens":0},
+   "sheet":{
+    "identity":{"status":"generic","location":"","question":""},
+    "contextAdequate":true,
+    "image_urls":[],
+    "included":["Body","Haunches","Front legs","Head","Ears","Tail","Chest"],
+    "excluded":["Background","Floor"],
+    "uncertainties":["Tail curl direction is partly hidden in the photo."],
+    "relations":[{"from":"Head","relation":"above","to":"Body"},{"from":"Tail","relation":"behind","to":"Haunches"}],
+    "searchable":false,
+    "kind":"animal",
+    "subject":"The user's dog, sitting",
+    "summary":"An unnamed dog from one photo: reddish-brown coat, white chest, dark floppy ears, curled tail, sitting.",
+    "length_m":null,
+    "width_m":null,
+    "height_m":null,
+    "openness":null,
+    "proportions":"Sitting height about 1.6 times body width; head about 60 percent of body width.",
+    "colors":["brown","white","darkbrown","black"],
+    "silhouette":["Sitting dog with upright chest and tucked haunches"],
+    "distinctive":["White chest blaze","Dark floppy ears hanging beside the head","Tail curled over the back","Short muzzle with black nose"],
+    "sources":[],
+    "hero":"Front three-quarter view like the photo.",
+    "layout":"Dog faces +z."
+   }
+  }
+ ],
+ "design":{
+  "reasoning":"Sitting pose: haunch ellipsoid, upright chest, head above.",
+  "usage":{"reasoning_tokens":2800},
+  "scene":{
+   "n":"Our Dog",
+   "d":"A sitting reddish-brown dog with a white chest, dark floppy ears and a curled tail.",
+   "f":["Sitting pose with tucked haunches","Dark floppy ears","White chest blaze"],
+   "dim":[24,40,22],
+   "rm":["display-foundation"],
+   "sh":[
+    {"i":"floor","c":"Base","l":"Floor","k":"box","o":"add","col":"tan","p":[0,0,0],"s":[24,2,22]},
+    {"i":"haunches","c":"Haunches","l":"Haunches","k":"ellipsoid","o":"add","col":"brown","p":[5,2,4],"s":[14,12,12]},
+    {"i":"legs","c":"Front legs","l":"Front legs","k":"box","o":"add","col":"brown","p":[8,2,14],"s":[2,10,2],"rep":[2,5,0,0]},
+    {"i":"paws","c":"Front legs","l":"Paws","k":"box","o":"add","col":"white","p":[8,2,15],"s":[2,2,2],"rep":[2,5,0,0]},
+    {"i":"body","c":"Body","l":"Upright chest","k":"ellipsoid","o":"add","col":"brown","p":[6,8,8],"s":[12,16,10]},
+    {"i":"chest","c":"Chest","l":"White chest","k":"ellipsoid","o":"add","col":"white","p":[8,10,14],"s":[8,12,4]},
+    {"i":"head","c":"Head","l":"Head","k":"ellipsoid","o":"add","col":"brown","p":[7,24,9],"s":[10,9,10]},
+    {"i":"muzzle","c":"Head","l":"Muzzle","k":"ellipsoid","o":"add","col":"tan","p":[10,25,17],"s":[4,4,4]},
+    {"i":"nose","c":"Head","l":"Nose","k":"box","o":"add","col":"black","p":[11,28,20],"s":[2,1,1]},
+    {"i":"eyes","c":"Head","l":"Eyes","k":"box","o":"add","col":"black","p":[9,30,17],"s":[1,1,1],"rep":[2,5,0,0]},
+    {"i":"ear-l","c":"Ears","l":"Left ear","k":"box","o":"add","col":"darkbrown","p":[6,24,11],"s":[2,7,4]},
+    {"i":"ear-r","c":"Ears","l":"Right ear","k":"box","o":"add","col":"darkbrown","p":[16,24,11],"s":[2,7,4]},
+    {"i":"tail","c":"Tail","l":"Tail","k":"lean","o":"add","col":"brown","p":[18,6,5],"s":[1,1,0],"e":[21,14,4]},
+    {"i":"tail-curl","c":"Tail","l":"Tail curl","k":"box","o":"add","col":"brown","p":[19,14,3],"s":[2,2,2]}
+   ]
+  }
+ },
+ "review":{
+  "reasoning":"View 1 vs photo.",
+  "usage":{"reasoning_tokens":700},
+  "review":{
+   "revision":{"status":"not_requested","evidence":"No revision was requested for this first build."},
+   "composition":{"status":"matches","evidence":"Dog only, sitting, as in the photo."},
+   "summary":"A sitting brown dog with a white chest and dark ears; the tail reads straight.",
+   "recognizable":true,
+   "features":{
+    "Floppy ears":{"status":"visible","evidence":"Dark ears beside the head (view 1)."},
+    "Curled tail":{"status":"uncertain","evidence":"Tail is a straight diagonal with a small block at the end."},
+    "White chest":{"status":"visible","evidence":"White chest panel."},
+    "Sitting pose with tucked haunches":{"status":"visible","evidence":"Pose."},
+    "Dark floppy ears":{"status":"visible","evidence":"Ears."},
+    "White chest blaze":{"status":"visible","evidence":"Chest."}
+   },
+   "improvements":["Tail: curve the tail up and over the back as in the photo."]
+  }
+ },
+ "judge":{
+  "usage":{"reasoning_tokens":400},
+  "checks":{
+   "Body, leg and head proportions match the photo":{"status":"uncertain","evidence":"Head slightly large."},
+   "Sitting pose, not standing":{"status":"pass","evidence":"Sitting."},
+   "Coat colours and the white chest match the photo":{"status":"pass","evidence":"Brown with white chest."}
+  },
+  "features":{
+   "White chest blaze":{"status":"present","evidence":"Chest."},
+   "Dark floppy ears hanging beside the head":{"status":"present","evidence":"Ears."},
+   "Tail curled over the back":{"status":"missing","evidence":"Straight tail."},
+   "Short muzzle with black nose":{"status":"present","evidence":"Muzzle."},
+   "Sitting dog with upright chest and tucked haunches":{"status":"present","evidence":"Silhouette."}
+  },
+  "summary":"Pose and colours right; tail wrong."
+ }
+}

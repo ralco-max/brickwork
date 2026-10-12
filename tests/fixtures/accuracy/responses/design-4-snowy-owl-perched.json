@@ -1,0 +1,100 @@
+{
+ "synthetic":true,
+ "note":"SYNTHETIC: hand-authored stand-in for provider responses, not a recording. It exercises the harness plumbing (budget ledger, routes, compile, checks, review/judge parsing) at $0. Its scores say nothing about real model quality.",
+ "case":"design-4-snowy-owl-perched",
+ "idea":"A snowy owl perched on a gnarled branch",
+ "research":[
+  {
+   "reasoning":"Generic animal.",
+   "searches":[],
+   "images":[],
+   "usage":{"reasoning_tokens":450,"search_content_tokens":0},
+   "sheet":{
+    "identity":{"status":"generic","location":"","question":""},
+    "contextAdequate":true,
+    "image_urls":[],
+    "included":["Owl body","Head","Eyes","Wings","Claws","Branch"],
+    "excluded":["Tree","Snow scene"],
+    "uncertainties":[],
+    "relations":[
+     {"from":"Owl body","relation":"above","to":"Branch"},
+     {"from":"Head","relation":"above","to":"Owl body"},
+     {"from":"Claws","relation":"above","to":"Branch"}
+    ],
+    "searchable":false,
+    "kind":"animal",
+    "subject":"Snowy owl perched on a gnarled branch",
+    "summary":"A generic snowy owl, white with dark barring, perched on a twisted branch.",
+    "length_m":null,
+    "width_m":null,
+    "height_m":null,
+    "openness":null,
+    "proportions":"Body about 1.6 times as tall as wide; head about half the body width.",
+    "colors":["white","gray (barring)","yellow (eyes)","brown (branch)"],
+    "silhouette":["Rounded upright owl on a horizontal branch"],
+    "distinctive":["Large round yellow eyes","Dark barring on white feathers","Feathered feet gripping the branch","Gnarled twisted branch"],
+    "sources":[],
+    "hero":"Front view.",
+    "layout":"Owl faces +z; branch runs along x."
+   }
+  }
+ ],
+ "design":{
+  "reasoning":"Branch on a post for support, ellipsoid body and head, barred wing layers.",
+  "usage":{"reasoning_tokens":3200},
+  "scene":{
+   "n":"Snowy Owl",
+   "d":"A white snowy owl with yellow eyes and gray barring perched on a gnarled brown branch.",
+   "f":["Round white body on a gnarled branch","Large yellow eyes","Barred gray feather markings"],
+   "dim":[26,48,22],
+   "rm":["display-foundation"],
+   "sh":[
+    {"i":"base","c":"Base","l":"Display base","k":"box","o":"add","col":"darkbrown","p":[0,0,0],"s":[26,2,22]},
+    {"i":"post","c":"Branch","l":"Supporting trunk","k":"cylinder","o":"add","a":null,"col":"brown","p":[10,2,8],"s":[4,16,4]},
+    {"i":"branch","c":"Branch","l":"Gnarled branch","k":"cylinder","o":"add","a":"x","col":"brown","p":[3,16,8],"s":[20,3,4]},
+    {"i":"knots","c":"Branch","l":"Knots","k":"box","o":"add","col":"brown","p":[5,19,9],"s":[2,1,2],"rep":[2,12,0,0]},
+    {"i":"body","c":"Owl body","l":"Body","k":"ellipsoid","o":"add","col":"white","p":[7,19,6],"s":[12,18,10]},
+    {"i":"head","c":"Head","l":"Head","k":"ellipsoid","o":"add","col":"white","p":[8,34,6],"s":[10,10,10]},
+    {"i":"eyes","c":"Eyes","l":"Yellow eyes","k":"box","o":"add","col":"yellow","p":[10,38,15],"s":[2,2,1],"rep":[2,4,0,0]},
+    {"i":"pupils","c":"Eyes","l":"Pupils","k":"box","o":"add","col":"black","p":[11,39,15],"s":[1,1,1],"rep":[2,4,0,0]},
+    {"i":"beak","c":"Head","l":"Beak","k":"box","o":"add","col":"black","p":[12,36,15],"s":[2,1,1]},
+    {"i":"wing-l","c":"Wings","l":"Left wing","k":"box","o":"add","col":"white","p":[6,22,7],"s":[2,12,8]},
+    {"i":"wing-r","c":"Wings","l":"Right wing","k":"box","o":"add","col":"white","p":[18,22,7],"s":[2,12,8]},
+    {"i":"bars-l","c":"Wings","l":"Left wing barring","k":"box","o":"add","col":"gray","p":[6,24,8],"s":[1,1,6],"rep":[4,0,3,0]},
+    {"i":"bars-r","c":"Wings","l":"Right wing barring","k":"box","o":"add","col":"gray","p":[19,24,8],"s":[1,1,6],"rep":[4,0,3,0]},
+    {"i":"claws","c":"Claws","l":"Claws","k":"box","o":"add","col":"black","p":[9,18,11],"s":[2,2,1],"rep":[2,5,0,0]}
+   ]
+  }
+ },
+ "review":{
+  "reasoning":"Front view for eyes, side views for barring.",
+  "usage":{"reasoning_tokens":700},
+  "review":{
+   "revision":{"status":"not_requested","evidence":"No revision was requested for this first build."},
+   "composition":{"status":"matches","evidence":"Owl on a branch only."},
+   "summary":"A white owl with yellow eyes on a brown branch; barring reads as stripes.",
+   "recognizable":true,
+   "features":{
+    "Round yellow eyes":{"status":"visible","evidence":"Two yellow squares with black pupils (view 1)."},
+    "Layered white feathers":{"status":"uncertain","evidence":"Gray stripes read as bars rather than layered feathers."},
+    "Claws touching the branch":{"status":"visible","evidence":"Black claws on the branch top."},
+    "Round white body on a gnarled branch":{"status":"visible","evidence":"Body."},
+    "Large yellow eyes":{"status":"visible","evidence":"Eyes."},
+    "Barred gray feather markings":{"status":"visible","evidence":"Bars."}
+   },
+   "improvements":["Wings: overlap two white courses with a one-stud step so the feathers read as layers."]
+  }
+ },
+ "judge":{
+  "usage":{"reasoning_tokens":400},
+  "checks":{},
+  "features":{
+   "Large round yellow eyes":{"status":"present","evidence":"Eyes."},
+   "Dark barring on white feathers":{"status":"present","evidence":"Bars."},
+   "Feathered feet gripping the branch":{"status":"uncertain","evidence":"Black claws, no feathering."},
+   "Gnarled twisted branch":{"status":"uncertain","evidence":"Straight cylinder with knots."},
+   "Rounded upright owl on a horizontal branch":{"status":"present","evidence":"Silhouette."}
+  },
+  "summary":"Owl reads; branch straight."
+ }
+}

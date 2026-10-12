@@ -42,3 +42,7 @@ next-env.d.ts
 /work/
 
 tsconfig.tsbuildinfo
+
+# accuracy harness: dated run folders and private reference photos
+/accuracy-runs/
+/accuracy-photos/

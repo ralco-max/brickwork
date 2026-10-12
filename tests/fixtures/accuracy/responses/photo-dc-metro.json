@@ -1,0 +1,114 @@
+{
+ "synthetic":true,
+ "note":"SYNTHETIC: hand-authored stand-in for provider responses, not a recording. It exercises the harness plumbing (budget ledger, routes, compile, checks, review/judge parsing) at $0. Its scores say nothing about real model quality.",
+ "case":"photo-dc-metro",
+ "idea":"This DC Metro station from my photos",
+ "research":[
+  {
+   "reasoning":"Photos show the standard WMATA coffered vault; the specific station is not identifiable, which the composition does not need.",
+   "searches":[{"query":"Washington Metro coffered vault station design platform length","sources":["https://en.wikipedia.org/wiki/Washington_Metro"]}],
+   "images":[],
+   "usage":{"reasoning_tokens":700,"search_content_tokens":8000},
+   "sheet":{
+    "identity":{"status":"confirmed","location":"Washington, DC, USA","question":""},
+    "contextAdequate":true,
+    "image_urls":[],
+    "included":["Coffered vault","Back platform","Front platform","Left track","Right track","Train","Tunnel mouth"],
+    "excluded":["Mezzanine","Escalators","Street entrance"],
+    "uncertainties":["Station dimensions are typical values (600 ft platform, about 30 m vault span), not measured for this station."],
+    "relations":[
+     {"from":"Coffered vault","relation":"above","to":"Left track"},
+     {"from":"Train","relation":"above","to":"Left track"},
+     {"from":"Back platform","relation":"behind","to":"Left track"},
+     {"from":"Front platform","relation":"in_front_of","to":"Right track"}
+    ],
+    "searchable":true,
+    "kind":"building",
+    "subject":"Washington Metro coffered-vault station interior",
+    "summary":"A standard WMATA side-platform station under the Harry Weese coffered concrete vault, from the user photos; the specific station is not identified.",
+    "length_m":180,
+    "width_m":30,
+    "height_m":18,
+    "openness":0.6,
+    "proportions":"Very long vault about 6:1 length to span; the vault crown is about 0.6 of the span above the track.",
+    "colors":["gray (concrete)","brown (platform tiles)","gray (silver train)","red (train stripe)","yellow (platform-edge lights)"],
+    "silhouette":["Barrel vault spanning both tracks","Side platforms flanking two tracks"],
+    "distinctive":["Waffle-like coffered concrete vault","Brown hexagonal floor tiles","Flashing platform-edge lights","Silver railcars with a red-white-blue stripe"],
+    "sources":["https://en.wikipedia.org/wiki/Washington_Metro"],
+    "hero":"View along the platform as in the first photo.",
+    "layout":"x along the tracks; +z front; the left track as photographed is the back track (low z).",
+    "photoEvidence":true
+   }
+  }
+ ],
+ "design":{
+  "reasoning":"Target 46 x 8 x 12 is very shallow; deepened to 12 studs so both platforms fit. Open-front section so both track beds show.",
+  "usage":{"reasoning_tokens":4200},
+  "scene":{
+   "n":"DC Metro Station",
+   "d":"A coffered concrete vault over two tracks with side platforms, edge lights and a silver train on the left track; the front is left open to show both track beds.",
+   "f":["Coffered vault in stepped bands","Side platforms with edge lights","Silver train on the left track"],
+   "dim":[48,18,12],
+   "rm":["display-foundation"],
+   "sh":[
+    {"i":"base","c":"Base","l":"Station box floor","k":"box","o":"add","col":"gray","p":[0,0,0],"s":[48,2,12]},
+    {"i":"trackbed","c":"Left track","l":"Track bed","k":"box","o":"add","col":"black","p":[1,2,3],"s":[46,1,6]},
+    {"i":"rails","c":"Right track","l":"Rails","k":"box","o":"add","col":"gray","p":[1,3,4],"s":[46,1,1],"rep":[2,0,0,3]},
+    {"i":"platform-back","c":"Back platform","l":"Back platform","k":"box","o":"add","col":"brown","p":[1,2,0],"s":[46,3,3]},
+    {"i":"platform-front","c":"Front platform","l":"Front platform","k":"box","o":"add","col":"brown","p":[1,2,9],"s":[46,3,3]},
+    {"i":"edge-lights","c":"Back platform","l":"Platform edge lights","k":"box","o":"add","col":"yellow","p":[1,4,2],"s":[46,1,1],"rep":[2,0,0,7]},
+    {"i":"vault-wall","c":"Coffered vault","l":"Back vault wall","k":"box","o":"add","col":"gray","p":[1,5,0],"s":[46,6,1]},
+    {"i":"vault-band-1","c":"Coffered vault","l":"Vault band 1","k":"box","o":"add","col":"gray","p":[1,11,0],"s":[46,2,4]},
+    {"i":"vault-band-2","c":"Coffered vault","l":"Vault band 2","k":"box","o":"add","col":"gray","p":[1,13,2],"s":[46,2,4]},
+    {"i":"vault-crown","c":"Coffered vault","l":"Vault crown","k":"box","o":"add","col":"gray","p":[1,15,4],"s":[46,2,5]},
+    {"i":"coffers-1","c":"Coffered vault","l":"Coffers","k":"box","o":"subtract","col":"gray","p":[2,11,2],"s":[2,1,2],"rep":[12,4,0,0]},
+    {"i":"coffers-2","c":"Coffered vault","l":"Coffers","k":"box","o":"subtract","col":"gray","p":[2,13,4],"s":[2,1,2],"rep":[12,4,0,0]},
+    {"i":"train","c":"Train","l":"Silver railcar","k":"box","o":"add","col":"gray","p":[6,4,3],"s":[30,6,3]},
+    {"i":"train-stripe","c":"Train","l":"Red stripe","k":"box","o":"add","col":"red","p":[6,6,5],"s":[30,1,1]},
+    {"i":"train-windows","c":"Train","l":"Windows","k":"box","o":"add","col":"black","p":[8,7,5],"s":[3,2,1],"rep":[5,6,0,0]},
+    {"i":"tunnel","c":"Tunnel mouth","l":"Tunnel mouth","k":"box","o":"add","col":"black","p":[0,2,3],"s":[1,9,6]}
+   ]
+  }
+ },
+ "review":{
+  "reasoning":"Compared views with both photos; front is open.",
+  "usage":{"reasoning_tokens":1000},
+  "review":{
+   "revision":{"status":"not_requested","evidence":"No revision was requested for this first build."},
+   "composition":{
+    "status":"uncertain",
+    "evidence":"The photos show a full barrel vault spanning both tracks; the model vault stops above the left track, so the right track is uncovered."
+   },
+   "summary":"Platforms, edge lights and the train read; the vault is a partial section with small coffers.",
+   "recognizable":false,
+   "features":{
+    "Coffered barrel vault":{"status":"uncertain","evidence":"Stepped bands with small notches; not a barrel spanning both tracks."},
+    "Two side platforms":{"status":"visible","evidence":"Brown platforms at the back and front (view 5)."},
+    "Silver train on the left track":{"status":"visible","evidence":"Train."},
+    "Coffered vault in stepped bands":{"status":"visible","evidence":"Bands."},
+    "Side platforms with edge lights":{"status":"visible","evidence":"Yellow edge strips."}
+   },
+   "improvements":[
+    "Coffered vault: continue the bands down to the front platform so the vault spans both tracks.",
+    "Coffers: deepen the recesses to two plates so the waffle pattern reads."
+   ]
+  }
+ },
+ "judge":{
+  "usage":{"reasoning_tokens":500},
+  "checks":{
+   "The coffered vault spans both tracks":{"status":"fail","evidence":"Vault ends above the left track."},
+   "Two side platforms, not one island platform":{"status":"pass","evidence":"Two side platforms."},
+   "The train is on the left track as photographed":{"status":"pass","evidence":"Train on the back (left) track."}
+  },
+  "features":{
+   "Waffle-like coffered concrete vault":{"status":"uncertain","evidence":"Shallow notches."},
+   "Brown hexagonal floor tiles":{"status":"present","evidence":"Brown platforms."},
+   "Flashing platform-edge lights":{"status":"present","evidence":"Yellow strips."},
+   "Silver railcars with a red-white-blue stripe":{"status":"present","evidence":"Gray car with red stripe."},
+   "Barrel vault spanning both tracks":{"status":"missing","evidence":"Partial vault."},
+   "Side platforms flanking two tracks":{"status":"present","evidence":"Platforms."}
+  },
+  "summary":"Vault coverage is the critical failure."
+ }
+}

@@ -1,0 +1,9 @@
+{
+ "note":"Photo-driven accuracy cases. Photos load from <photos dir>/<case id>/*.jpg|jpeg|png|webp (at most 4, sorted by name). The committed tests/fixtures/accuracy/photos/ folders hold labelled placeholder drawings; pass --photos <dir> with real photos for a meaningful live run.",
+ "cases":[
+  {"id":"photo-house","idea":"Our two-storey house from this photo","composition":"The house only on a small lawn base. No street, fence, trees or neighbouring houses.","features":["Covered front porch with columns","Two roof dormers"],"criticalChecks":["Roof shape and pitch match the photo","Front door, porch and windows sit on the photographed facade in the same arrangement","Two storeys plus the dormered roof, not one storey or three"]},
+  {"id":"photo-pet","idea":"Our dog from this photo, sitting","composition":"The dog only, sitting on a small display base.","features":["Floppy ears","Curled tail","White chest"],"criticalChecks":["Body, leg and head proportions match the photo","Sitting pose, not standing","Coat colours and the white chest match the photo"]},
+  {"id":"photo-vehicle","idea":"My car from this photo","composition":"The car only on a short road base. Keep the photographed body style.","features":["Black roof rack","Four wheels"],"criticalChecks":["Body style (hatchback) matches the photo","Wheelbase and wheel positions match the photo","Body colour matches the photo"]},
+  {"id":"photo-dc-metro","idea":"This DC Metro station from my photos","identityHint":"Washington, DC Metro (WMATA), coffered-vault station","composition":"One station interior: the coffered vault, both side platforms, the two tracks and one train on the left track. No street entrance or mezzanine.","features":["Coffered barrel vault","Two side platforms","Silver train on the left track"],"criticalChecks":["The coffered vault spans both tracks","Two side platforms, not one island platform","The train is on the left track as photographed"]}
+ ]
+}

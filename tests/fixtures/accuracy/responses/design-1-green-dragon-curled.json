@@ -1,0 +1,105 @@
+{
+ "synthetic":true,
+ "note":"SYNTHETIC: hand-authored stand-in for provider responses, not a recording. It exercises the harness plumbing (budget ledger, routes, compile, checks, review/judge parsing) at $0. Its scores say nothing about real model quality.",
+ "case":"design-1-green-dragon-curled",
+ "idea":"A green dragon curled around a ruined tower with a library inside",
+ "research":[
+  {
+   "reasoning":"Imaginary subject; no search needed.",
+   "searches":[],
+   "images":[],
+   "usage":{"reasoning_tokens":450,"search_content_tokens":0},
+   "sheet":{
+    "identity":{"status":"generic","location":"","question":""},
+    "contextAdequate":true,
+    "image_urls":[],
+    "included":["Ruined tower","Library interior","Dragon body","Dragon head","Wings","Tail"],
+    "excluded":["Village","Knight"],
+    "uncertainties":[],
+    "relations":[{"from":"Dragon head","relation":"above","to":"Ruined tower"},{"from":"Library interior","relation":"inside","to":"Ruined tower"}],
+    "searchable":false,
+    "kind":"character",
+    "subject":"Green dragon curled around a ruined tower",
+    "summary":"An imaginary scene: a green dragon coiled around a ruined stone tower whose interior holds a library.",
+    "length_m":null,
+    "width_m":null,
+    "height_m":null,
+    "openness":null,
+    "proportions":"Tower about 1.5 times as tall as it is wide; the dragon wraps it about twice.",
+    "colors":["green","gray","yellow (horns)","brown (books)"],
+    "silhouette":["Tall broken tower with a dragon head above the top","Wings spread from the upper coil"],
+    "distinctive":["Broken crenellated tower top","Coiled body climbing the tower","Bookshelves visible through an open window","Horned head looking down"],
+    "sources":[],
+    "hero":"Front three-quarter view with the library window.",
+    "layout":"Tower centred; +z front with the library window facing the viewer."
+   }
+  }
+ ],
+ "design":{
+  "reasoning":"Hollow tower with two-stud walls, ellipsoid coils climbing around it, neck lean to a head above the ruin.",
+  "usage":{"reasoning_tokens":6000},
+  "scene":{
+   "n":"Dragon and the Ruined Library",
+   "d":"A green dragon coils up a broken gray tower to look over its top; an open window shows the library inside. Horns are yellow because the palette has no gold.",
+   "f":["Dragon coiled around the tower","Ruined tower top","Glowing library window"],
+   "dim":[40,72,40],
+   "rm":["display-foundation"],
+   "sh":[
+    {"i":"base","c":"Base","l":"Grass base","k":"box","o":"add","col":"green","p":[0,0,0],"s":[40,2,40]},
+    {"i":"tower","c":"Ruined tower","l":"Tower wall","k":"cylinder","o":"add","a":null,"col":"gray","p":[12,2,12],"s":[16,56,16]},
+    {"i":"tower-hollow","c":"Ruined tower","l":"Tower interior","k":"cylinder","o":"subtract","a":null,"col":"gray","p":[14,4,14],"s":[12,56,12]},
+    {"i":"ruin-a","c":"Ruined tower","l":"Broken top","k":"box","o":"subtract","col":"gray","p":[12,48,12],"s":[8,12,8]},
+    {"i":"ruin-b","c":"Ruined tower","l":"Broken top","k":"box","o":"subtract","col":"gray","p":[20,52,20],"s":[8,8,8]},
+    {"i":"shelves","c":"Library interior","l":"Bookshelves","k":"box","o":"add","col":"brown","p":[15,4,15],"s":[1,14,8],"rep":[2,9,0,0]},
+    {"i":"books","c":"Library interior","l":"Books","k":"box","o":"add","col":"red","p":[16,6,16],"s":[1,1,6],"rep":[4,0,3,0]},
+    {"i":"window","c":"Ruined tower","l":"Open library window","k":"box","o":"subtract","col":"gray","p":[18,20,24],"s":[4,8,6]},
+    {"i":"lamp","c":"Library interior","l":"Lamp light behind the window","k":"box","o":"add","col":"yellow","p":[19,21,22],"s":[2,2,1]},
+    {"i":"coil-front","c":"Dragon body","l":"Lower coil, front","k":"ellipsoid","o":"add","col":"green","p":[12,2,26],"s":[16,8,10]},
+    {"i":"coil-left","c":"Dragon body","l":"Coil, left","k":"ellipsoid","o":"add","col":"green","p":[4,8,12],"s":[10,8,16]},
+    {"i":"coil-back","c":"Dragon body","l":"Coil, back","k":"ellipsoid","o":"add","col":"green","p":[12,14,4],"s":[16,8,10]},
+    {"i":"coil-right","c":"Dragon body","l":"Coil, right","k":"ellipsoid","o":"add","col":"green","p":[26,20,12],"s":[10,8,16]},
+    {"i":"neck","c":"Dragon body","l":"Neck","k":"lean","o":"add","col":"green","p":[30,28,20],"s":[3,3,0],"e":[32,58,22]},
+    {"i":"head","c":"Dragon head","l":"Head","k":"ellipsoid","o":"add","col":"green","p":[28,58,18],"s":[10,8,8]},
+    {"i":"horn-l","c":"Dragon head","l":"Left horn","k":"cone","o":"add","col":"yellow","p":[30,66,19],"s":[2,4,2]},
+    {"i":"horn-r","c":"Dragon head","l":"Right horn","k":"cone","o":"add","col":"yellow","p":[34,66,19],"s":[2,4,2]},
+    {"i":"eyes","c":"Dragon head","l":"Eyes","k":"box","o":"add","col":"red","p":[35,61,25],"s":[1,1,1],"rep":[2,0,0,0]},
+    {"i":"wing-1","c":"Wings","l":"Wing, lower layer","k":"box","o":"add","col":"green","p":[4,44,16],"s":[9,1,8]},
+    {"i":"wing-2","c":"Wings","l":"Wing, middle layer","k":"box","o":"add","col":"green","p":[3,45,17],"s":[8,1,6]},
+    {"i":"wing-3","c":"Wings","l":"Wing, top layer","k":"box","o":"add","col":"green","p":[2,46,18],"s":[6,1,4]},
+    {"i":"tail","c":"Tail","l":"Tail along the base","k":"box","o":"add","col":"green","p":[26,2,30],"s":[12,3,4]}
+   ]
+  }
+ },
+ "review":{
+  "reasoning":"Checked horns, window and wing layering.",
+  "usage":{"reasoning_tokens":900},
+  "review":{
+   "revision":{"status":"not_requested","evidence":"No revision was requested for this first build."},
+   "composition":{"status":"matches","evidence":"Tower with a coiled dragon and an interior library, as in the plan."},
+   "summary":"The coiled dragon and ruined tower read clearly; horns are yellow rather than gold and the wings are small.",
+   "recognizable":true,
+   "features":{
+    "Gold horns":{"status":"uncertain","evidence":"Two yellow cones; the palette has no gold."},
+    "An open library window":{"status":"visible","evidence":"Window opening with shelves behind (view 1)."},
+    "Layered wings":{"status":"visible","evidence":"Three stacked wing layers on the left (views 2, 4)."},
+    "Dragon coiled around the tower":{"status":"visible","evidence":"Four coils climb the tower."},
+    "Ruined tower top":{"status":"visible","evidence":"Two broken notches."},
+    "Glowing library window":{"status":"visible","evidence":"Yellow lamp behind the window."}
+   },
+   "improvements":["Wings: extend the wing layers outward so they read at the silhouette.","Horns: use a lighter accent so they stand out from the head."]
+  }
+ },
+ "judge":{
+  "usage":{"reasoning_tokens":500},
+  "checks":{},
+  "features":{
+   "Broken crenellated tower top":{"status":"present","evidence":"Notched top."},
+   "Coiled body climbing the tower":{"status":"present","evidence":"Coils."},
+   "Bookshelves visible through an open window":{"status":"present","evidence":"Shelves."},
+   "Horned head looking down":{"status":"uncertain","evidence":"Head faces sideways."},
+   "Tall broken tower with a dragon head above the top":{"status":"present","evidence":"Head above."},
+   "Wings spread from the upper coil":{"status":"uncertain","evidence":"Wings small."}
+  },
+  "summary":"Scene reads; wings small."
+ }
+}

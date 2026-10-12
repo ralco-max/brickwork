@@ -1,0 +1,103 @@
+{
+ "synthetic":true,
+ "note":"SYNTHETIC: hand-authored stand-in for provider responses, not a recording. It exercises the harness plumbing (budget ledger, routes, compile, checks, review/judge parsing) at $0. Its scores say nothing about real model quality.",
+ "case":"photo-vehicle",
+ "idea":"My car from this photo",
+ "research":[
+  {
+   "reasoning":"Unnamed vehicle photo: generic.",
+   "searches":[],
+   "images":[],
+   "usage":{"reasoning_tokens":450,"search_content_tokens":0},
+   "sheet":{
+    "identity":{"status":"generic","location":"","question":""},
+    "contextAdequate":true,
+    "image_urls":[],
+    "included":["Body","Cabin","Wheels","Roof rack","Windows","Lights"],
+    "excluded":["Road markings","Background"],
+    "uncertainties":["Only one side is photographed; the other side is mirrored."],
+    "relations":[{"from":"Roof rack","relation":"above","to":"Cabin"},{"from":"Cabin","relation":"above","to":"Body"}],
+    "searchable":false,
+    "kind":"vehicle",
+    "subject":"The user's blue hatchback",
+    "summary":"An unnamed blue hatchback from a side photo, with a black roof rack.",
+    "length_m":null,
+    "width_m":null,
+    "height_m":null,
+    "openness":null,
+    "proportions":"Length about 2.3 times width; height about 0.6 of width.",
+    "colors":["blue","black","navy (glass)","gray"],
+    "silhouette":["Short hatchback with a near-vertical tail"],
+    "distinctive":["Black roof rack with three cross bars","Two-window side profile","Near-vertical rear hatch"],
+    "sources":[],
+    "hero":"Side view like the photo.",
+    "layout":"Car faces -x (nose left in the photo); +z is the photographed side."
+   }
+  }
+ ],
+ "design":{
+  "reasoning":"Hatchback pattern from the worked example, recoloured, with a roof rack.",
+  "usage":{"reasoning_tokens":2600},
+  "scene":{
+   "n":"My Car",
+   "d":"A blue hatchback with four wheels in carved arches, a set-back cabin and a black roof rack.",
+   "f":["Blue hatchback body with set-back cabin","Black roof rack bars","Four black wheels in arches"],
+   "dim":[28,22,16],
+   "rm":["display-foundation"],
+   "sh":[
+    {"i":"road","c":"Base","l":"Road","k":"box","o":"add","col":"gray","p":[0,0,0],"s":[28,2,16]},
+    {"i":"body","c":"Body","l":"Lower body","k":"box","o":"add","col":"blue","p":[3,7,3],"s":[22,6,10]},
+    {"i":"arch-front","c":"Body","l":"Front wheel arch","k":"cylinder","o":"subtract","a":"z","col":"blue","p":[5,2,1],"s":[5,10,14]},
+    {"i":"arch-rear","c":"Body","l":"Rear wheel arch","k":"cylinder","o":"subtract","a":"z","col":"blue","p":[18,2,1],"s":[5,10,14]},
+    {"i":"axle-front","c":"Wheels","l":"Front axle box","k":"box","o":"add","col":"black","p":[6,4,2],"s":[3,7,12]},
+    {"i":"axle-rear","c":"Wheels","l":"Rear axle box","k":"box","o":"add","col":"black","p":[19,4,2],"s":[3,7,12]},
+    {"i":"wheel-fl","c":"Wheels","l":"Front left wheel","k":"wheel","o":"add","a":"z","col":"black","p":[7.5,7,2],"s":[4,0,0]},
+    {"i":"wheel-fr","c":"Wheels","l":"Front right wheel","k":"wheel","o":"add","a":"z","col":"black","p":[7.5,7,14],"s":[4,0,0]},
+    {"i":"wheel-rl","c":"Wheels","l":"Rear left wheel","k":"wheel","o":"add","a":"z","col":"black","p":[20.5,7,2],"s":[4,0,0]},
+    {"i":"wheel-rr","c":"Wheels","l":"Rear right wheel","k":"wheel","o":"add","a":"z","col":"black","p":[20.5,7,14],"s":[4,0,0]},
+    {"i":"cabin","c":"Cabin","l":"Cabin","k":"box","o":"add","col":"blue","p":[10,13,4],"s":[12,5,8]},
+    {"i":"windscreen","c":"Cabin","l":"Windscreen","k":"lean","o":"add","col":"navy","p":[9.5,13,8],"s":[6,1,0],"e":[11.5,18,8]},
+    {"i":"side-windows","c":"Cabin","l":"Side windows","k":"box","o":"add","col":"navy","p":[12,14,4],"s":[8,3,1],"rep":[2,0,0,7]},
+    {"i":"hatch","c":"Cabin","l":"Rear hatch window","k":"box","o":"add","col":"navy","p":[21,14,5],"s":[1,3,6]},
+    {"i":"roof","c":"Cabin","l":"Roof","k":"box","o":"add","col":"blue","p":[11,18,5],"s":[10,1,6]},
+    {"i":"rack-bars","c":"Roof rack","l":"Rack cross bars","k":"box","o":"add","col":"black","p":[12,19,5],"s":[1,1,6],"rep":[3,4,0,0]},
+    {"i":"rack-rails","c":"Roof rack","l":"Rack rails","k":"box","o":"add","col":"black","p":[11,20,5],"s":[10,1,1],"rep":[2,0,0,5]},
+    {"i":"headlights","c":"Lights","l":"Headlights","k":"box","o":"add","col":"yellow","p":[3,10,4],"s":[1,2,1],"rep":[2,0,0,7]},
+    {"i":"taillights","c":"Lights","l":"Tail lights","k":"box","o":"add","col":"red","p":[24,10,4],"s":[1,2,1],"rep":[2,0,0,7]}
+   ]
+  }
+ },
+ "review":{
+  "reasoning":"Side view vs photo.",
+  "usage":{"reasoning_tokens":700},
+  "review":{
+   "revision":{"status":"not_requested","evidence":"No revision was requested for this first build."},
+   "composition":{"status":"matches","evidence":"Car only on a road base."},
+   "summary":"A blue hatchback with a black roof rack; body style matches the photo.",
+   "recognizable":true,
+   "features":{
+    "Black roof rack":{"status":"visible","evidence":"Three bars and two rails on the roof."},
+    "Four wheels":{"status":"visible","evidence":"Four wheels in arches (views 2, 3)."},
+    "Blue hatchback body with set-back cabin":{"status":"visible","evidence":"Body."},
+    "Black roof rack bars":{"status":"visible","evidence":"Rack."},
+    "Four black wheels in arches":{"status":"visible","evidence":"Wheels."}
+   },
+   "improvements":["Body: the photo shows a longer bonnet; move the cabin one stud back."]
+  }
+ },
+ "judge":{
+  "usage":{"reasoning_tokens":400},
+  "checks":{
+   "Body style (hatchback) matches the photo":{"status":"pass","evidence":"Hatchback."},
+   "Wheelbase and wheel positions match the photo":{"status":"uncertain","evidence":"Wheelbase slightly short."},
+   "Body colour matches the photo":{"status":"pass","evidence":"Blue."}
+  },
+  "features":{
+   "Black roof rack with three cross bars":{"status":"present","evidence":"Rack."},
+   "Two-window side profile":{"status":"present","evidence":"Windows."},
+   "Near-vertical rear hatch":{"status":"present","evidence":"Hatch."},
+   "Short hatchback with a near-vertical tail":{"status":"present","evidence":"Silhouette."}
+  },
+  "summary":"Matches the photo closely."
+ }
+}

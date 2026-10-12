@@ -1,0 +1,93 @@
+{
+ "synthetic":true,
+ "note":"SYNTHETIC: hand-authored stand-in for provider responses, not a recording. It exercises the harness plumbing (budget ledger, routes, compile, checks, review/judge parsing) at $0. Its scores say nothing about real model quality.",
+ "case":"design-5-tiny-astronaut-tending",
+ "idea":"A tiny astronaut tending a garden on the moon",
+ "research":[
+  {
+   "reasoning":"Generic scene.",
+   "searches":[],
+   "images":[],
+   "usage":{"reasoning_tokens":450,"search_content_tokens":0},
+   "sheet":{
+    "identity":{"status":"generic","location":"","question":""},
+    "contextAdequate":true,
+    "image_urls":[],
+    "included":["Astronaut","Watering can","Garden bed","Plants","Lunar ground"],
+    "excluded":["Lunar lander","Earth"],
+    "uncertainties":[],
+    "relations":[{"from":"Astronaut","relation":"left_of","to":"Garden bed"},{"from":"Plants","relation":"inside","to":"Garden bed"}],
+    "searchable":false,
+    "kind":"character",
+    "subject":"Tiny astronaut tending a lunar garden",
+    "summary":"A generic minifigure-scale astronaut watering three small plants in a raised bed on the cratered Moon.",
+    "length_m":null,
+    "width_m":null,
+    "height_m":null,
+    "openness":null,
+    "proportions":"Minifigure scale; the bed is about as long as the astronaut is tall.",
+    "colors":["gray","white","yellow (visor accent)","green","brown"],
+    "silhouette":["Small figure beside a raised bed of plants"],
+    "distinctive":["Gold visor on the helmet","Watering can held toward the plants","Three different plants","Cratered gray ground"],
+    "sources":[],
+    "hero":"Front view.",
+    "layout":"Astronaut on the left facing +x toward the bed; +z front."
+   }
+  }
+ ],
+ "design":{
+  "reasoning":"Person at minifig scale: one minifigure facing the bed, feet on the base.",
+  "usage":{"reasoning_tokens":3400},
+  "scene":{
+   "n":"Lunar Garden",
+   "d":"An astronaut minifigure waters a raised bed with three different plants on cratered gray lunar ground.",
+   "f":["Astronaut minifigure facing the garden","Raised soil bed with three plants","Cratered gray lunar ground"],
+   "dim":[28,24,24],
+   "rm":["display-foundation"],
+   "sh":[
+    {"i":"ground","c":"Lunar ground","l":"Lunar ground","k":"box","o":"add","col":"gray","p":[0,0,0],"s":[28,2,24]},
+    {"i":"crater-rim","c":"Lunar ground","l":"Crater rim","k":"box","o":"add","col":"gray","p":[3,2,3],"s":[6,1,6]},
+    {"i":"crater","c":"Lunar ground","l":"Crater","k":"box","o":"subtract","col":"gray","p":[4,2,4],"s":[4,1,4]},
+    {"i":"bed","c":"Garden bed","l":"Raised soil bed","k":"box","o":"add","col":"brown","p":[12,2,6],"s":[12,2,10]},
+    {"i":"sprout","c":"Plants","l":"Cone sprout","k":"cone","o":"add","col":"green","p":[13,4,7],"s":[3,6,3]},
+    {"i":"stem","c":"Plants","l":"Flower stem","k":"box","o":"add","col":"green","p":[18,4,8],"s":[1,5,1]},
+    {"i":"flower","c":"Plants","l":"Red flower","k":"ellipsoid","o":"add","col":"red","p":[17,9,7],"s":[3,3,3]},
+    {"i":"cabbage","c":"Plants","l":"Leafy plant","k":"ellipsoid","o":"add","col":"green","p":[13,4,12],"s":[4,4,4]},
+    {"i":"astronaut","c":"Astronaut","l":"Astronaut","k":"minifig","o":"add","col":"white","p":[6,2,14],"s":[1,12,2],"face":"px","bg":"white","pid":null},
+    {"i":"can","c":"Watering can","l":"Watering can","k":"box","o":"add","col":"yellow","p":[9,2,14],"s":[2,2,2]},
+    {"i":"spout","c":"Watering can","l":"Spout","k":"box","o":"add","col":"yellow","p":[10,3,16],"s":[1,1,1]}
+   ]
+  }
+ },
+ "review":{
+  "reasoning":"Front view: figure, can and three plants.",
+  "usage":{"reasoning_tokens":700},
+  "review":{
+   "revision":{"status":"not_requested","evidence":"No revision was requested for this first build."},
+   "composition":{"status":"matches","evidence":"Astronaut beside a raised bed on lunar ground."},
+   "summary":"Charming lunar garden; the minifigure has no visor and the can sits on the ground rather than in a hand.",
+   "recognizable":true,
+   "features":{
+    "Gold visor":{"status":"missing","evidence":"The minifigure shows a plain face; no visor element and no gold in the palette."},
+    "A watering can":{"status":"visible","evidence":"Yellow can beside the figure."},
+    "Three distinct plants":{"status":"visible","evidence":"Cone sprout, red flower and round leafy plant."},
+    "Astronaut minifigure facing the garden":{"status":"visible","evidence":"Figure faces the bed."},
+    "Raised soil bed with three plants":{"status":"visible","evidence":"Bed."},
+    "Cratered gray lunar ground":{"status":"uncertain","evidence":"One small crater."}
+   },
+   "improvements":["Astronaut: add a helmet with a yellow visor accent.","Lunar ground: add two more craters of different sizes."]
+  }
+ },
+ "judge":{
+  "usage":{"reasoning_tokens":400},
+  "checks":{},
+  "features":{
+   "Gold visor on the helmet":{"status":"missing","evidence":"No helmet."},
+   "Watering can held toward the plants":{"status":"uncertain","evidence":"Can on the ground."},
+   "Three different plants":{"status":"present","evidence":"Three."},
+   "Cratered gray ground":{"status":"uncertain","evidence":"One crater."},
+   "Small figure beside a raised bed of plants":{"status":"present","evidence":"Scene."}
+  },
+  "summary":"Scene reads; visor missing."
+ }
+}
