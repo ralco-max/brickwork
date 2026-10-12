@@ -7,7 +7,7 @@ import type {BuildModel} from "./models";
 // Designs and in-progress drafts are kept in this browser so backing out of the
 // studio or the creation dialog never loses work. Nothing is sent to a server.
 export type SavedDesign={id:string;name:string;description:string;pieceCount:number;status:"draft"|"design";updatedAt:string;project:string;featured?:boolean};
-const DB="brickwork",STORE="designs",KEEP=12;
+const DB="brickwork",VERSION=2,STORE="designs",SHARES="shares",KEEP=12,VIEWED="bricks-viewed-shares",MAX_VIEWED=24;
 export const newDesignId=()=>typeof crypto!=="undefined"&&"randomUUID" in crypto?crypto.randomUUID():`design-${Date.now()}-${Math.random().toString(36).slice(2,8)}`;
 
 export function packDesign(model:BuildModel&{shopping?:ShoppingState},status:SavedDesign["status"]):SavedDesign{
@@ -35,15 +35,16 @@ export function unpackDesign(saved:SavedDesign):BuildModel{
 function open():Promise<IDBDatabase>{
  return new Promise((resolve,reject)=>{
   if(typeof indexedDB==="undefined"){reject(Error("Design storage is unavailable."));return;}
-  const request=indexedDB.open(DB,1);
-  request.onupgradeneeded=()=>{if(!request.result.objectStoreNames.contains(STORE))request.result.createObjectStore(STORE,{keyPath:"id"});};
-  request.onsuccess=()=>resolve(request.result);request.onerror=()=>reject(request.error);
+  const request=indexedDB.open(DB,VERSION);
+  // Version 2 adds the shares store; existing designs stay in place.
+  request.onupgradeneeded=()=>{const db=request.result;if(!db.objectStoreNames.contains(STORE))db.createObjectStore(STORE,{keyPath:"id"});if(!db.objectStoreNames.contains(SHARES))db.createObjectStore(SHARES,{keyPath:"projectHash"});};
+  request.onsuccess=()=>{const db=request.result;db.onversionchange=()=>db.close();resolve(db);};request.onerror=()=>reject(request.error);
  });
 }
-async function run<T>(mode:IDBTransactionMode,work:(store:IDBObjectStore)=>IDBRequest<T>):Promise<T>{
+async function run<T>(mode:IDBTransactionMode,work:(store:IDBObjectStore)=>IDBRequest<T>,name=STORE):Promise<T>{
  const db=await open();
  return new Promise((resolve,reject)=>{
-  const transaction=db.transaction(STORE,mode),request=work(transaction.objectStore(STORE));
+  const transaction=db.transaction(name,mode),request=work(transaction.objectStore(name));
   transaction.oncomplete=()=>{db.close();resolve(request.result);};
   transaction.onerror=transaction.onabort=()=>{db.close();reject(transaction.error||request.error||Error("Design storage could not be updated."));};
  });
@@ -82,4 +83,51 @@ export async function setDesignFeatured(id:string,featured:boolean):Promise<bool
 }
 export async function deleteDesign(id:string):Promise<void>{
  try{await run("readwrite",store=>store.delete(id));}catch{/* nothing to remove */}
+}
+
+// A shared link opens as `share-<id>` and is saved only once it differs from the shared
+// original, so following links never fills the list or evicts the visitor's own work. An
+// edited copy kept from an earlier visit stays as it is; editing again starts another copy.
+export type PristineShare={id:string;project:string};
+export async function openSharedDesign(shareId:string,shared:BuildModel){
+ const stable=`share-${shareId}`,id=(await listDesigns()).some(d=>d.id===stable)?newDesignId():stable,model={...shared,libraryId:id};
+ return {model,pristine:{id,project:projectJSON(model,model.shopping||emptyShopping())} as PristineShare};
+}
+export const unchangedShare=(saved:SavedDesign,pristine:PristineShare|null)=>pristine?.id===saved.id&&pristine.project===saved.project;
+
+// Links this browser created, keyed by the shared content, so re-sharing an unchanged
+// creation reuses its link after a reload. The owner token, sent once, can delete the link.
+export type SharedLink={projectHash:string;shareId:string;url:string;ownerToken?:string;createdAt:string};
+export async function shareProjectHash(model:BuildModel){
+ // Shopping never leaves the device, so it does not make a creation a different share.
+ const digest=await crypto.subtle.digest("SHA-256",new TextEncoder().encode(projectJSON(model,emptyShopping())));
+ return Array.from(new Uint8Array(digest),b=>b.toString(16).padStart(2,"0")).join("");
+}
+export async function listSharedLinks():Promise<SharedLink[]>{
+ try{return (await run("readonly",store=>store.getAll() as IDBRequest<SharedLink[]>,SHARES)).filter(l=>l&&typeof l.shareId==="string"&&typeof l.url==="string");}catch{return [];}
+}
+export async function findSharedLink(projectHash:string):Promise<SharedLink|undefined>{
+ try{return await run("readonly",store=>store.get(projectHash) as IDBRequest<SharedLink|undefined>,SHARES)||undefined;}catch{return undefined;}
+}
+export async function rememberSharedLink(link:SharedLink):Promise<boolean>{
+ // A repeat share of the same content comes back without a token; keep the one already held for that link.
+ const ownerToken=link.ownerToken||(await listSharedLinks()).find(l=>l.shareId===link.shareId&&l.ownerToken)?.ownerToken;
+ try{await run("readwrite",store=>store.put({...link,...(ownerToken?{ownerToken}:{})}),SHARES);return true;}catch{return false;}
+}
+export async function forgetSharedLink(shareId:string):Promise<void>{
+ for(const link of (await listSharedLinks()).filter(l=>l.shareId===shareId))try{await run("readwrite",store=>store.delete(link.projectHash),SHARES);}catch{/* already gone */}
+}
+
+// Shared links opened here, newest first. Kept apart from the designs store and its
+// KEEP limit, so following links never evicts the visitor's own work.
+export type ViewedShare={id:string;name:string;pieceCount:number;viewedAt:string};
+export function viewedShares():ViewedShare[]{
+ try{
+  const list:unknown=JSON.parse(localStorage.getItem(VIEWED)||"[]");
+  return Array.isArray(list)?list.filter((v):v is ViewedShare=>Boolean(v)&&typeof v.id==="string"&&typeof v.name==="string"&&typeof v.pieceCount==="number"&&typeof v.viewedAt==="string").slice(0,MAX_VIEWED):[];
+ }catch{return [];}
+}
+export function rememberViewedShare(share:Omit<ViewedShare,"viewedAt">){
+ try{localStorage.setItem(VIEWED,JSON.stringify([{id:share.id,name:share.name.slice(0,80),pieceCount:share.pieceCount,viewedAt:new Date().toISOString()},...viewedShares().filter(v=>v.id!==share.id)].slice(0,MAX_VIEWED)));}
+ catch{/* Private or full storage: this history is only a convenience. */}
 }

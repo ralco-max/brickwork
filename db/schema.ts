@@ -9,9 +9,11 @@ export const aiSpend=sqliteTable("ai_spend",{
  createdAt:integer("created_at").notNull(),
 },table=>[index("idx_ai_spend_key_hash").on(table.keyHash)]);
 
-// Public, unlisted share links. Reference photos, marked-area screenshots and
-// shopping data are stripped before storage; creator_hash is a salted IP hash
-// used only for rate limiting.
+// Public, unlisted share links. Reference photos, marked-area screenshots,
+// shopping data and the creator's typed words are stripped before storage;
+// creator_hash is a daily-salted IP hash used only for rate limiting and
+// duplicate detection. owner_hash is the SHA-256 of the owner token that can
+// delete the link (null on links made before owner tokens).
 export const shares=sqliteTable("shares",{
  id:text("id").primaryKey(),
  name:text("name").notNull(),
@@ -21,4 +23,6 @@ export const shares=sqliteTable("shares",{
  image:text("image").notNull(),
  creatorHash:text("creator_hash").notNull(),
  createdAt:integer("created_at").notNull(),
-},table=>[index("idx_shares_creator").on(table.creatorHash,table.createdAt)]);
+ ownerHash:text("owner_hash"),
+ contentHash:text("content_hash"),
+},table=>[index("idx_shares_creator").on(table.creatorHash,table.createdAt),index("idx_shares_content").on(table.creatorHash,table.contentHash)]);

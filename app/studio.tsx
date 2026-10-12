@@ -19,7 +19,8 @@ import {LANDING_INTRO} from "@/lib/assembly";
 import {useAssemblyRecorder} from "@/lib/assembly-recorder";
 import {ThemeToggle} from "./theme";
 import ShareDialog,{useShareLink} from "./share-dialog";
-import {listDesigns,saveDesign,setDesignFeatured,deleteDesign,packDesign,unpackDesign,newDesignId} from "@/lib/design-library";
+import {listDesigns,saveDesign,setDesignFeatured,deleteDesign,packDesign,unpackDesign,newDesignId,openSharedDesign,unchangedShare,rememberViewedShare} from "@/lib/design-library";
+import type {PristineShare} from "@/lib/design-library";
 import type {SavedDesign} from "@/lib/design-library";
 import {editModel,projectJSON,emptyShopping} from "@/lib/design-project";
 import type {Quote} from "@/lib/design-project";
@@ -42,11 +43,11 @@ import {auditModel,partsCSV,ldrawFile,Config,COLORS,PARTS,InventoryRow} from "@/
 
 const money=(v:number)=>new Intl.NumberFormat("en-US",{style:"currency",currency:"USD"}).format(v);
 function download(text:string,name:string,type="text/plain") {const url=URL.createObjectURL(new Blob([text],{type}));const a=document.createElement("a");a.href=url;a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(url),1500);toast.success(`${name} downloaded`);}
-export default function Studio({sharedId}:{sharedId?:string}={}){
+export default function Studio({sharedId,sharedSummary}:{sharedId?:string;sharedSummary?:{name:string;pieceCount:number}}={}){
  const compactLayout=useCompactLayout();
  const [workspaceOpen,setWorkspaceOpen]=useState(false),[drawerOpen,setDrawerOpen]=useState(false),[settingsOpen,setSettingsOpen]=useState(false);
  // The assembly is an intro that plays inside the interactive viewport; it replays on demand.
- const libraryId=useRef(newDesignId()),[designs,setDesigns]=useState<SavedDesign[]>([]),[featureBusyId,setFeatureBusyId]=useState<string|null>(null);
+ const libraryId=useRef(newDesignId()),pristineShare=useRef<PristineShare|null>(null),[designs,setDesigns]=useState<SavedDesign[]>([]),[featureBusyId,setFeatureBusyId]=useState<string|null>(null);
  const refreshDesigns=useCallback(async()=>{setDesigns(await listDesigns());},[]);
  useEffect(()=>{refreshDesigns();},[refreshDesigns]);
  const [quotes,setQuotes]=useState<Record<string,Quote>>({});
@@ -54,7 +55,8 @@ export default function Studio({sharedId}:{sharedId?:string}={}){
  const [generationOpen,setGenerationOpen]=useState(false),[generationPrompt,setGenerationPrompt]=useState(""),[generationPhotos,setGenerationPhotos]=useState<string[]>([]),[generationPrevious,setGenerationPrevious]=useState<BuildModel|undefined>();
  const startIdea=(draft:IdeaDraft)=>{if(preparingIdeaPhotos)return;const request=ideaForGeneration(draft);setCreateOpen(false);setGenerationPrompt(request.prompt);setGenerationPhotos(request.photos);setGenerationPrevious(undefined);setGenerationOpen(true);};
  const [config,setConfig]=useState<Config>({size:"display",color:"red",water:"blue",landscape:true});
- const [model,setModel]=useState<BuildModel>(()=>generateRecipe("bridge","large"));
+ // A shared link starts empty under the shared name rather than flashing the default bridge.
+ const [model,setModel]=useState<BuildModel>(()=>sharedSummary?finishModel([],{name:sharedSummary.name,description:"",source:"recipe"}):generateRecipe("bridge","large"));
  // One consistent short reveal, including replays and recordings.
  const intro=useRef({time:1,playing:false,last:0,speed:1}),[introPlaying,setIntroPlaying]=useState(false),[introSpeed,setIntroSpeed]=useState(1),introDone=useRef<(()=>void)|null>(null);
  const readIntro=useCallback(()=>{const c=intro.current,now=performance.now();if(c.playing){const elapsed=c.last?Math.min(.08,(now-c.last)/1000):0;c.time=Math.min(1,c.time+elapsed*c.speed/LANDING_INTRO);if(c.time>=1){c.playing=false;setIntroPlaying(false);introDone.current?.();introDone.current=null;}}c.last=now;return c.time;},[]);
@@ -95,7 +97,8 @@ export default function Studio({sharedId}:{sharedId?:string}={}){
  useEffect(()=>{
   if(model.source==="recipe"&&!model.generation&&!currentSaved)return;
   const id=libraryId.current,snapshot={...model,shopping:{owned,elementIds,priceOverrides,quotes},libraryId:id};
-  const timer=setTimeout(()=>{void saveDesign(packDesign(snapshot,"design")).then(refreshDesigns);},700);
+  // An opened share joins the visitor's designs only once they change it.
+  const timer=setTimeout(()=>{const saved=packDesign(snapshot,"design");if(unchangedShare(saved,pristineShare.current))return;void saveDesign(saved).then(refreshDesigns);},700);
   return()=>clearTimeout(timer);
  },[model,owned,elementIds,priceOverrides,quotes,refreshDesigns,currentSaved]);
  // The stage is one place. Tools open beside it and the designs drawer folds away to make room; both can be reopened at any time.
@@ -116,8 +119,9 @@ export default function Studio({sharedId}:{sharedId?:string}={}){
  const undo=()=>{const prev=history.current.pop();if(!prev)return;future.current.push(currentProject());setModel(prev);syncControls(prev);setSelected(null);setHistoryState({past:history.current.length,future:future.current.length});};
  const redo=()=>{const next=future.current.pop();if(!next)return;history.current.push(currentProject());setModel(next);syncControls(next);setSelected(null);setHistoryState({past:history.current.length,future:future.current.length});};
  const create=(creation:Creation,quiet=false)=>{setDrawerOpen(false);setSettingsOpen(false);if(!quiet)openTools();playIntro();libraryId.current=creation.model.libraryId||newDesignId();record(creation.model);setDetail(creation.detail);setPrimaryColor(creation.color);setAccentColor(creation.accent);setEditColor(creation.color);if(creation.bridgeConfig)setConfig(creation.bridgeConfig);else if(creation.model.recipe==="bridge")setConfig({size:creation.detail==="small"?"compact":"display",color:"red",water:"blue",landscape:true});setApplied(creation.applied||[]);setSelected(null);setTab("model");setExplode(0);setStage(creation.model.stages.length-1);setView(creation.model.source==="mosaic"?"top":"perspective");setReset(v=>v+1);setEditMode("inspect");setShowLoose(false);setEditorOpen(creation.model.recipe==="blank");setShop(Boolean(creation.shop));const shopping=creation.model.shopping||emptyShopping();setOwned(shopping.owned);setElementIds(shopping.elementIds);setPriceOverrides(shopping.priceOverrides);setQuotes(shopping.quotes);if(!quiet)toast.success(`${creation.model.name} is ready to edit`);};
- const [shareOpen,setShareOpen]=useState(false),[sharedName,setSharedName]=useState(""),shareLink=useShareLink();
- // A shared link opens that creation as an ordinary, editable model on this device.
+ const [shareOpen,setShareOpen]=useState(false),[sharedName,setSharedName]=useState(sharedSummary?.name||""),[sharedLoading,setSharedLoading]=useState(Boolean(sharedId)),shareLink=useShareLink();
+ // A shared link opens that creation as an ordinary, editable model on this device. It joins
+ // the visitor's designs only after an edit (openSharedDesign); views go to a separate small list.
  useEffect(()=>{
   if(!sharedId)return;let cancelled=false;
   void (async()=>{
@@ -126,9 +130,17 @@ export default function Studio({sharedId}:{sharedId?:string}={}){
     if(response.status===404)throw Error("This shared creation was not found. The link may be mistyped.");
     if(!response.ok)throw Error("This shared creation could not be loaded. Try again in a moment.");
     const shared=validateProject((await response.json()).project);if(cancelled)return;
-    create({model:shared,detail:shared.detail||"large",color:shared.primary||shared.inventory.find(r=>r.color!=="gray")?.color||"white",accent:shared.accent||"white"},true);
-    setSharedName(shared.name);
-   }catch(error){if(!cancelled)toast.error(error instanceof Error&&error.message?error.message:"This shared creation could not be opened.");}
+    const {model:opened,pristine}=await openSharedDesign(sharedId,shared);if(cancelled)return;
+    pristineShare.current=pristine;
+    create({model:opened,detail:shared.detail||"large",color:shared.primary||shared.inventory.find(r=>r.color!=="gray")?.color||"white",accent:shared.accent||"white"},true);
+    // The placeholder shown while loading is not the visitor's work, so there is nothing to undo back to.
+    history.current=[];future.current=[];setHistoryState({past:0,future:0});
+    setSharedName(shared.name);setSharedLoading(false);rememberViewedShare({id:sharedId,name:shared.name,pieceCount:shared.pieces.length});
+   }catch(error){
+    if(cancelled)return;
+    toast.error(error instanceof Error&&error.message?error.message:"This shared creation could not be opened.");
+    setSharedLoading(false);setSharedName("");if(sharedSummary)setModel(generateRecipe("bridge","large"));
+   }
   })();
   return()=>{cancelled=true;};
   /* eslint-disable-next-line react-hooks/exhaustive-deps */
@@ -164,7 +176,7 @@ export default function Studio({sharedId}:{sharedId?:string}={}){
   return <div className={`studio stage-shell ${workspaceOpen?"studio-focused":"studio-explore"} ${drawerOpen?"drawer-open":"drawer-closed"}`}><Toaster position="bottom-center" richColors/>
   <header className="topbar"><a href="/" className="brand" aria-label="Bricks by Ralc home" onClick={e=>{if(!e.metaKey&&!e.ctrlKey&&!e.shiftKey){e.preventDefault();setWorkspaceOpen(false);setSettingsOpen(false);setDrawerOpen(false);window.scrollTo({top:0,behavior:"auto"});}}}><img className="brand-logo" src="/bricks-logo.png" width={48} height={48} alt=""/><span className="brand-wordmark">Bricks<small>by ralc</small></span></a><div className="header-actions"><ThemeToggle/><button type="button" className="button secondary share-button" aria-label="Share this creation" onClick={()=>{setShareOpen(true);shareLink.start(model,{owned,elementIds,priceOverrides,quotes});}}><Share2 size={16}/><span>Share</span></button><DropdownMenu><DropdownMenuTrigger asChild><button className="button secondary" aria-label="Save or export project"><Download size={16}/><span>Save / export</span></button></DropdownMenuTrigger><DropdownMenuContent align="end"><DropdownMenuItem onSelect={exportLDraw}><Box size={16}/>LDraw model (.ldr)</DropdownMenuItem><DropdownMenuItem onSelect={exportCSV}><ClipboardList size={16}/>Parts inventory (.csv)</DropdownMenuItem><DropdownMenuItem onSelect={()=>download(projectJSON(model,{owned,elementIds,priceOverrides,quotes}),`${filename}.bricks.json`,"application/json")}><Braces size={16}/>Save complete project (.json)</DropdownMenuItem></DropdownMenuContent></DropdownMenu><button className="button secondary shop-header-button" aria-label="Get the pieces" onClick={()=>setShop(true)}><ShoppingBag size={17}/><span>Get the pieces</span><span className="button-count">{buyCount}</span></button></div></header>
   <ShareDialog open={shareOpen} onOpenChange={open=>{setShareOpen(open);if(!open)shareLink.cancel();}} name={model.name} state={shareLink.state}/>
-  {sharedName&&<div className="shared-banner" role="status"><Share2 size={16}/><span><strong>Shared creation:</strong> {sharedName}. Explore it, remix it or get the pieces. Your changes stay on this device until you share them.</span><button type="button" className="icon-button" aria-label="Dismiss" onClick={()=>setSharedName("")}><X size={16}/></button></div>}
+  {sharedName&&<div className="shared-banner" role="status"><Share2 size={16}/><span><strong>Shared creation:</strong> {sharedName}. {sharedLoading&&sharedSummary?`Loading ${sharedSummary.pieceCount.toLocaleString("en-US")} pieces…`:"Explore it, remix it or get the pieces. Your changes stay on this device until you share them."}</span><button type="button" className="icon-button" aria-label="Dismiss" onClick={()=>setSharedName("")}><X size={16}/></button></div>}
   <div className="command-bar"><button type="button" className="drawer-toggle" aria-label="Open your designs" aria-pressed={drawerOpen} aria-expanded={drawerOpen} aria-controls="designs-drawer" onClick={()=>{setSettingsOpen(false);setDrawerOpen(v=>!v);}}><PanelLeft size={16}/><span>Designs</span><span className="button-count">{designs.length}</span></button><IdeaBar inline draft={ideaDraft} onDraftChange={setIdeaDraft} preparingPhotos={preparingIdeaPhotos} onPreparingPhotos={setPreparingIdeaPhotos} disabled={createOpen||generationOpen} onGenerate={startIdea} onOpen={()=>setCreateOpen(true)}/><button type="button" className="tools-toggle" aria-label="Build settings" aria-pressed={compactLayout?settingsOpen:workspaceOpen} aria-expanded={compactLayout?settingsOpen:workspaceOpen} aria-controls="model-settings-panel" onClick={()=>{if(compactLayout){setWorkspaceOpen(true);setDrawerOpen(false);setSettingsOpen(v=>!v);}else if(workspaceOpen){setWorkspaceOpen(false);setSettingsOpen(false);}else openTools();}}><SlidersHorizontal size={16}/><span>{compactLayout?"Build settings":workspaceOpen?"Close":"Make it yours"}</span></button></div>
   <div className="stage-layout"><StudioPanel id="designs-drawer" title="Your designs" description="Open a featured design, a saved build, or a landmark." open={drawerOpen} onOpenChange={setDrawerOpen} triggerSelector=".drawer-toggle"><DesignsDrawer open={drawerOpen} onClose={()=>setDrawerOpen(false)} model={model} designs={designs} onChoose={recipe=>{const next=generateRecipe(recipe,"large");create({model:next,detail:"large",color:next.primary||"white",accent:next.accent||"white"},true);}} onOpenSaved={d=>openSaved(d)} onContinueSaved={d=>openSaved(d,true)} onShopSaved={d=>openSaved(d,false,true)} onDeleteSaved={removeSaved} featureBusyId={featureBusyId} onFeatureSaved={d=>{void toggleFeatured(d);}}/></StudioPanel>
   <main className="stage-main">

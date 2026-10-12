@@ -1,7 +1,9 @@
 import type {BuildModel} from "./models";
 import {renderReviewViews} from "./render-review";
+import {SHARE_IMAGE_WIDTH,SHARE_IMAGE_HEIGHT} from "./share";
 
-export const SHARE_IMAGE_WIDTH=1200,SHARE_IMAGE_HEIGHT=630;
+// The server checks uploads against the same size, so it is defined once in lib/share.
+export {SHARE_IMAGE_WIDTH,SHARE_IMAGE_HEIGHT};
 
 function load(src:string){return new Promise<HTMLImageElement>((resolve,reject)=>{const image=new Image();image.onload=()=>resolve(image);image.onerror=()=>reject(Error("Image failed to load."));image.src=src;});}
 

@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import {createRequire} from 'node:module';
 import {build} from 'esbuild';
-const bundle=await build({stdin:{contents:'export * from "./lib/design-library";export * from "./lib/models";',resolveDir:process.cwd(),loader:'ts'},bundle:true,platform:'node',format:'esm',write:false,logLevel:'error'});
+const bundle=await build({stdin:{contents:'export * from "./lib/design-library";export * from "./lib/models";export {projectJSON,emptyShopping} from "./lib/design-project";',resolveDir:process.cwd(),loader:'ts'},bundle:true,platform:'node',format:'esm',write:false,logLevel:'error'});
 const m=await import('data:text/javascript;base64,'+Buffer.from(bundle.outputFiles[0].text).toString('base64'));
 test('a design packs to a project file and unpacks with its id, name and bricks intact',()=>{
  const model={...m.generateRecipe('lighthouse','small'),libraryId:'abc',name:'My light',source:'custom'};
@@ -22,33 +22,44 @@ test('packing without a library id is refused',()=>{assert.throws(()=>m.packDesi
 
 // A small transactional IndexedDB fixture: requests queue asynchronously, writes
 // commit together, and databases reopened by the library share committed records.
-function useMemoryStorage(t,initial=[]){
+// Stores are separate and versioned: opening at a higher version runs the upgrade,
+// and a transaction on a store the upgrade never created fails like the real thing.
+function useMemoryStorage(t,initial=[],{version=2}={}){
  const original=globalThis.indexedDB;
- const db={records:new Map(initial.map(d=>[d.id,structuredClone(d)])),waiting:[],running:false,failNextCommit:false};
+ const db={version,stores:new Map([['designs',new Map(initial.map(d=>[d.id,structuredClone(d)]))],...(version>=2?[['shares',new Map()]]:[])]),keys:{designs:'id',shares:'projectHash'},waiting:[],running:false,failNextCommit:false};
  const next=()=>{
   if(db.running||!db.waiting.length)return;
-  db.running=true;const tx=db.waiting.shift();tx.data=structuredClone(db.records);
+  db.running=true;const tx=db.waiting.shift();tx.data=structuredClone(db.stores);
   const step=()=>{
    const job=tx.jobs.shift();
-   if(job){job.request.result=job.work(tx.data);job.request.onsuccess?.();setImmediate(step);return;}
+   if(job){job.request.result=job.work(tx.data.get(job.store));job.request.onsuccess?.();setImmediate(step);return;}
    if(db.failNextCommit&&tx.mode==='readwrite'){
     db.failNextCommit=false;tx.error=new Error('Storage full');tx.onabort?.();
-   }else{if(tx.mode==='readwrite')db.records=tx.data;tx.oncomplete?.();}
+   }else{if(tx.mode==='readwrite')db.stores=tx.data;tx.oncomplete?.();}
    db.running=false;next();
   };setImmediate(step);
  };
- const database={close(){},objectStoreNames:{contains:()=>true},transaction(_name,mode){
-  const tx={mode,jobs:[],objectStore(){
-   const request=work=>{const request={};tx.jobs.push({request,work});return request;};
+ const database={close(){},objectStoreNames:{contains:name=>db.stores.has(name)},createObjectStore(name,{keyPath}){db.stores.set(name,new Map());db.keys[name]=keyPath;},transaction(names,mode){
+  const scope=[names].flat();for(const name of scope)if(!db.stores.has(name))throw new DOMException(`No objectStore named ${name}`,'NotFoundError');
+  const tx={mode,jobs:[],objectStore(name){
+   assert.ok(scope.includes(name),`${name} is outside this transaction`);
+   const request=work=>{const request={};tx.jobs.push({request,work,store:name});return request;},key=db.keys[name];
    return {
     get:id=>request(data=>structuredClone(data.get(id))),
     getAll:()=>request(data=>structuredClone([...data.values()])),
-    put:value=>request(data=>{data.set(value.id,structuredClone(value));return value.id;}),
+    put:value=>request(data=>{data.set(value[key],structuredClone(value));return value[key];}),
     delete:id=>request(data=>{data.delete(id);}),
    };
   }};db.waiting.push(tx);setImmediate(next);return tx;
  }};
- globalThis.indexedDB={open(){const request={result:database};setImmediate(()=>request.onsuccess?.());return request;}};
+ globalThis.indexedDB={open(_name,requested=1){
+  const request={result:database};
+  setImmediate(()=>{
+   if(requested<db.version){request.error=new DOMException('The requested version is less than the existing version.','VersionError');request.onerror?.();return;}
+   if(requested>db.version){db.version=requested;request.onupgradeneeded?.();}
+   request.onsuccess?.();
+  });return request;
+ }};
  t.after(()=>{if(original===undefined)delete globalThis.indexedDB;else globalThis.indexedDB=original;});
  return db;
 }
@@ -108,6 +119,71 @@ test('feature success waits for storage commit and failed writes leave existing 
  assert.equal(await m.saveDesign(savedFixture('new'),{featured:true}),false);
  assert.deepEqual(await m.listDesigns(),[original]);
  await m.deleteDesign('full');assert.deepEqual(await m.listDesigns(),[]);
+});
+
+test('upgrading browser storage to hold share links keeps every existing design',async t=>{
+ const designs=[savedFixture('old-1'),{...savedFixture('old-2'),featured:true}],db=useMemoryStorage(t,designs,{version:1});
+ assert.equal(db.stores.has('shares'),false);
+ assert.deepEqual((await m.listDesigns()).map(d=>d.id).sort(),['old-1','old-2']);
+ assert.equal(db.version,2);assert.ok(db.stores.has('shares'));
+ assert.equal(await m.findSharedLink('missing'),undefined);
+ const featured=(await m.listDesigns()).find(d=>d.id==='old-2');assert.equal(featured.featured,true);assert.equal(featured.project,designs[1].project);
+ assert.equal(await m.saveDesign(savedFixture('new')),true);assert.equal((await m.listDesigns()).length,3);
+});
+
+test('share links are remembered by content across reloads, keep their owner token and can be forgotten',async t=>{
+ useMemoryStorage(t);
+ const model={...m.generateRecipe('lighthouse','small'),name:'My light'},hash=await m.shareProjectHash(model);
+ assert.match(hash,/^[0-9a-f]{64}$/);
+ assert.equal(await m.shareProjectHash({...model,shopping:{owned:{'3001:red':4},elementIds:{},priceOverrides:{},quotes:{}}}),hash,'shopping is never shared, so it does not make a new link');
+ assert.notEqual(await m.shareProjectHash({...model,name:'My light 2'}),hash);
+ const link={projectHash:hash,shareId:'AbCdEfGh23',url:'https://bricks.test/s/AbCdEfGh23',ownerToken:'owner-token',createdAt:'2026-10-12T00:00:00.000Z'};
+ assert.equal(await m.rememberSharedLink(link),true);assert.deepEqual(await m.findSharedLink(hash),link);
+ // The server answers a repeat of the same shared content with the same link and no token.
+ await m.rememberSharedLink({projectHash:'f'.repeat(64),shareId:'AbCdEfGh23',url:link.url,createdAt:link.createdAt});
+ assert.equal((await m.findSharedLink('f'.repeat(64))).ownerToken,'owner-token');
+ assert.equal((await m.listSharedLinks()).length,2);assert.deepEqual(await m.listDesigns(),[],'share links are not designs');
+ await m.forgetSharedLink('AbCdEfGh23');assert.deepEqual(await m.listSharedLinks(),[]);
+});
+
+test('opening shared links never evicts the visitor’s own designs, and a share is saved once, after its first edit',async t=>{
+ useMemoryStorage(t);
+ for(let i=1;i<=3;i++)await m.saveDesign(savedFixture(`own-${i}`,`2001-01-0${i}T00:00:00.000Z`));
+ // What the studio does on a link visit: open it, then autosave unless it is still the shared original.
+ const autosave=async(model,pristine)=>{const saved=m.packDesign(model,'design');return m.unchangedShare(saved,pristine)?false:m.saveDesign(saved);};
+ const share=recipe=>m.validateProject(JSON.parse(m.projectJSON(m.generateRecipe(recipe,'small'),m.emptyShopping())));
+ const shares={AAAAAAAAAA:share('castle'),BBBBBBBBBB:share('rocket')};
+ for(let visit=0;visit<20;visit++){
+  const id=visit%2?'AAAAAAAAAA':'BBBBBBBBBB',{model,pristine}=await m.openSharedDesign(id,shares[id]);
+  assert.equal(model.libraryId,`share-${id}`);assert.equal(await autosave(model,pristine),false);
+ }
+ assert.deepEqual((await m.listDesigns()).map(d=>d.id).sort(),['own-1','own-2','own-3']);
+ const {model,pristine}=await m.openSharedDesign('AAAAAAAAAA',shares.AAAAAAAAAA);
+ assert.equal(await autosave({...model,name:'My castle remix'},pristine),true);
+ assert.equal(await autosave({...model,name:'My castle remix, again'},pristine),true);
+ let all=await m.listDesigns();assert.equal(all.filter(d=>d.id.startsWith('share-')).length,1);assert.equal(all.find(d=>d.id==='share-AAAAAAAAAA').name,'My castle remix, again');
+ // The link reopens on the original; the remix already kept is never overwritten by it.
+ const again=await m.openSharedDesign('AAAAAAAAAA',shares.AAAAAAAAAA);
+ assert.notEqual(again.model.libraryId,'share-AAAAAAAAAA');assert.equal(again.model.name,shares.AAAAAAAAAA.name);assert.equal(await autosave(again.model,again.pristine),false);
+ all=await m.listDesigns();assert.equal(all.length,4);for(const id of ['own-1','own-2','own-3','share-AAAAAAAAAA'])assert.ok(all.some(d=>d.id===id),id);
+ assert.equal(m.unpackDesign(all.find(d=>d.id==='share-AAAAAAAAAA')).pieces.length,shares.AAAAAAAAAA.pieces.length);
+});
+
+test('recently viewed shares are a separate small list that tolerates broken storage',t=>{
+ const original=Object.getOwnPropertyDescriptor(globalThis,'localStorage'),store=new Map();
+ const use=value=>Object.defineProperty(globalThis,'localStorage',{value,configurable:true,writable:true});
+ t.after(()=>{if(original)Object.defineProperty(globalThis,'localStorage',original);else delete globalThis.localStorage;});
+ assert.deepEqual(m.viewedShares(),[],'no storage at all');assert.doesNotThrow(()=>m.rememberViewedShare({id:'x',name:'x',pieceCount:1}));
+ use({getItem:k=>store.get(k)??null,setItem:(k,v)=>store.set(k,String(v))});
+ for(let i=0;i<30;i++)m.rememberViewedShare({id:`share${String(i).padStart(5,'0')}`,name:`Shared ${i}`,pieceCount:i+1});
+ m.rememberViewedShare({id:'share00010',name:'Shared 10 again',pieceCount:11});
+ const viewed=m.viewedShares();
+ assert.equal(viewed.length,24);assert.equal(viewed[0].id,'share00010');assert.equal(viewed[0].name,'Shared 10 again');assert.equal(viewed[1].id,'share00029');
+ assert.equal(viewed.filter(v=>v.id==='share00010').length,1);assert.ok(viewed.every(v=>typeof v.viewedAt==='string'));
+ store.set('bricks-viewed-shares','{not json');assert.deepEqual(m.viewedShares(),[]);
+ store.set('bricks-viewed-shares',JSON.stringify([{id:1},null,{id:'x',name:'ok',pieceCount:2,viewedAt:'2026-10-12T00:00:00.000Z'}]));assert.deepEqual(m.viewedShares().map(v=>v.id),['x']);
+ use({getItem(){throw new Error('SecurityError');},setItem(){throw new Error('QuotaExceededError');}});
+ assert.deepEqual(m.viewedShares(),[]);assert.doesNotThrow(()=>m.rememberViewedShare({id:'y',name:'y',pieceCount:1}));
 });
 
 test('the drawer separates featured builds from recent designs and keeps the landmark choices',async()=>{

@@ -128,6 +128,8 @@ Bricks runs as a Cloudflare Worker with static assets, using the D1 database in 
 2. `npx wrangler secret put OPENAI_API_KEY` to set or rotate the shared studio key. The $10 budget is tracked per key fingerprint, so every visitor who uses the studio key shares one $10 pool; rotating the key starts a fresh pool. Also set a matching hard limit on the OpenAI project itself as a backstop.
 3. `npm run deploy` type-checks, builds with vinext and deploys with Wrangler. A type error stops the deploy.
 
+Shared links (`/s/:id`) can be taken down. Creating a link returns an owner token once; the creator's browser keeps it, and `DELETE /api/share/:id` with `Authorization: Bearer <token>` removes the link. To remove any link yourself, set `npx wrangler secret put GALLERY_ADMIN_TOKEN` and send that value as the bearer token instead. Previews and shared projects are cached for at most an hour.
+
 ## Verification
 
 Run `node --test tests/landmarks.test.mjs tests/design-workflow.test.mjs tests/generation.test.mjs tests/assembly.test.mjs` for landmark presets, packer anchoring, voxel cleanup, support/overlap, protected edit and export round trips, locks, repeated features, hollow interiors, schema/stream failures, visual review contracts, inventory parity and deterministic assembly placement. The production build uses the Sites build helper.

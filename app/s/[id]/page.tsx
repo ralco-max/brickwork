@@ -1,5 +1,6 @@
 import type {Metadata} from "next";
 import {headers} from "next/headers";
+import {notFound} from "next/navigation";
 import {env} from "cloudflare:workers";
 import Studio from "../../studio";
 import {readShareSummary,shareDescription,SHARE_ID} from "@/lib/share";
@@ -18,6 +19,10 @@ export async function generateMetadata({params}:Props):Promise<Metadata>{
 }
 
 export default async function SharedCreation({params}:Props){
- const {id}=await params;
- return <Studio sharedId={SHARE_ID.test(id)?id:"invalid"}/>;
+ const {id}=await params,db=(env as unknown as {DB?:ShareDatabase}).DB;
+ if(!SHARE_ID.test(id))notFound();
+ // Only a missing share is a 404. If the database is unreachable the studio still opens and explains.
+ const summary=db?await readShareSummary(db,id).catch(()=>undefined):undefined;
+ if(summary===null)notFound();
+ return <Studio sharedId={id} sharedSummary={summary?{name:summary.name,pieceCount:summary.pieceCount}:undefined}/>;
 }
