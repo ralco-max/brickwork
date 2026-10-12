@@ -15,12 +15,17 @@ export const BEST_MODEL=QUALITY_MODELS.best;
 export const longDesignRun=(quality?:string)=>quality==="better"||quality==="best"||quality==="sol_medium";
 const INPUT=2000,CACHED_INPUT=100,OUTPUT=10000;
 // The built-in web search tool: $10 per 1,000 calls, and its page content is billed as input tokens.
-const SEARCH_CALL_NANOS=10_000_000,SEARCH_CONTENT_TOKENS=30000;
+// Each search is another model pass, so it is reserved as a re-read of the request plus its pages.
+const SEARCH_CALL_NANOS=10_000_000,SEARCH_CONTENT_TOKENS=25000;
+// Reasoning is never streamed, so a stopped request's output estimate cannot drop below an
+// effort floor or below its elapsed time at a deliberately high generation rate.
+const REASONING_FLOOR:Record<string,number>={none:500,minimal:500,low:2000,medium:4000,high:8000,xhigh:16000},TOKENS_PER_SECOND=150,OVERAGE_CAP=3;
 type Statement={bind:(...values:(string|number|null)[])=>Statement;run:()=>Promise<{meta:{changes?:number}}>;
  first:<T>()=>Promise<T|null>};
 export type BudgetDatabase={prepare:(sql:string)=>Statement};
 export type RequestUsage={cost:number;model:string;inputTokens:number;outputTokens:number;searchCalls:number;cachedTokens:number;cacheWriteTokens:number;reasoningTokens:number};
-export type BudgetSnapshot={limit:number;spent:number;held:number;remaining:number};
+// hold is set only on the report sent when a request is reserved: that request's ceiling, which is also the most a Stop can charge.
+export type BudgetSnapshot={limit:number;spent:number;held:number;remaining:number;hold?:number};
 type Usage={input_tokens:number;output_tokens:number;input_tokens_details?:{cached_tokens?:number;cache_write_tokens?:number};output_tokens_details?:{reasoning_tokens?:number}};
 const unavailable=()=>new GenerationError("Spending checks are temporarily unavailable. Further AI requests are paused. Your draft is kept.","BUDGET_UNAVAILABLE");
 
@@ -61,14 +66,40 @@ async function settle(db:BudgetDatabase,id:string,amount:number){
  try{await db.prepare("UPDATE ai_spend SET charged_nanos = ? WHERE id = ? AND charged_nanos IS NULL").bind(amount,id).run();}
  catch{throw unavailable();}
 }
+// inputTokens is the counted request plus its output schema's UTF-8 bytes; the margin and searches go on top.
+const reservedInput=(inputTokens:number,searchCalls:number)=>inputTokens+4096+searchCalls*(inputTokens+SEARCH_CONTENT_TOKENS);
+const holdNanos=(rates:{input:number;cached:number;output:number;write?:number},input:number,maxOutput:number,searchCalls:number)=>tokenCost(input,maxOutput,0,rates,input)+searchCalls*SEARCH_CALL_NANOS;
+// The worst case for one request in USD: its reservation. A stopped request settles an
+// estimate capped at this, so it is also the most a Stop can keep (null for unpriced models).
+export function worstCaseHold(model:string,inputTokens:number,maxOutputTokens:number,searchCalls=0){
+ const rates=PRICED_MODELS[model];return rates?holdNanos(rates,reservedInput(inputTokens,searchCalls),maxOutputTokens,searchCalls)/1e9:null;
+}
+export const stopCostNotice=(usd:number)=>`Stopping uses up to $${(Math.ceil(Math.max(usd,0)*100-1e-9)/100).toFixed(2)} of your budget for work already started.`;
 
 // Providers pass their exact outgoing payload through this guard. The client
 // cannot supply a balance, raise the limit, or bypass review/repair accounting.
 export function budgetedProvider(db:BudgetDatabase,key:string,notify:(budget:BudgetSnapshot)=>void,fetcher:typeof fetch=fetch,onUsage?:(usage:RequestUsage)=>void,period="v1"){
- let recorded=false,requestModel="";
- let reservation:{id:string;input:number;maxOutput:number;searchCalls:number;rates:{input:number;cached:number;output:number}}|undefined;
- const fingerprint=keyFingerprint(key,period);
- const report=async()=>notify(await budgetSnapshot(db,await fingerprint));
+ // idle → sent (paid request issued) → done (body ended or usage unreadable: exact usage or the hold) → closed (settled once).
+ let phase:"idle"|"sent"|"done"|"closed"="idle",requestModel="",sentAt=0,deltas=0,bytes=0,abandoned:Promise<void>|undefined;
+ let reservation:{id:string;amount:number;base:number;input:number;maxOutput:number;searchCalls:number;effort:string;rates:{input:number;cached:number;output:number;write?:number}}|undefined;
+ const fingerprint=keyFingerprint(key,period),encoder=new TextEncoder();
+ const report=async(hold?:number)=>{const snapshot=await budgetSnapshot(db,await fingerprint);notify(hold===undefined?snapshot:{...snapshot,hold});};
+ // A request stopped after it was sent (Stop, closed dialog, disconnect, timeout, or a caller
+ // abandoning the stream) settles an estimate instead of keeping its ceiling forever: counted input
+ // plus output = max(2x the streamed text tokens, the effort floor, elapsed time at a high rate),
+ // capped at the reservation. Searches can't be observed mid-request, so all allowed ones count.
+ const settleAbandoned=():Promise<void>=>{
+  const r=reservation;if(phase!=="sent"||!r)return abandoned??Promise.resolve();phase="closed";
+  const elapsedMs=Math.max(0,Date.now()-sentAt),streamedTokens=Math.max(deltas,Math.ceil(bytes/3));
+  const output=Math.min(r.maxOutput,Math.max(2*streamedTokens,REASONING_FLOOR[r.effort]??REASONING_FLOOR.medium,Math.ceil(elapsedMs/1000*TOKENS_PER_SECOND)));
+  const input=r.base+r.searchCalls*(r.base+SEARCH_CONTENT_TOKENS),amount=Math.min(r.amount,holdNanos(r.rates,input,output,r.searchCalls));
+  return abandoned=(async()=>{
+   try{await settle(db,r.id,amount);}catch{console.error(JSON.stringify({event:"bricks_budget_unsettled",reason:"estimate_failed"}));return;}
+   console.info(JSON.stringify({event:"bricks_budget_estimated",estimated:true,model:requestModel,reservedNanos:r.amount,chargedNanos:amount,inputTokens:input,outputTokens:output,streamedTokens,searchCalls:r.searchCalls,elapsedMs}));
+   await report().catch(()=>{});
+  })();
+ };
+ const stopped=(error:unknown,signal?:AbortSignal|null)=>Boolean(signal?.aborted)||(error as {name?:string}|null)?.name==="AbortError";
  const guardedFetch:typeof fetch=async(url,init)=>{
   if(url!=="https://api.openai.com/v1/responses"||reservation)throw unavailable();
   const body=cacheStableContext(JSON.parse(String(init?.body)));
@@ -88,36 +119,58 @@ export function budgetedProvider(db:BudgetDatabase,key:string,notify:(budget:Bud
   const counted=await countResponse.json();
   if(!Number.isSafeInteger(counted.input_tokens)||counted.input_tokens<0)throw unavailable();
   const searchCalls=search?Math.min(5,Math.max(1,Number(body.max_tool_calls)||3)):0;
-  const input=counted.input_tokens+new TextEncoder().encode(JSON.stringify(body.text??{})).length+4096+(search?SEARCH_CONTENT_TOKENS:0);
+  const base=counted.input_tokens+encoder.encode(JSON.stringify(body.text??{})).length,input=reservedInput(base,searchCalls);
   if(input>1_000_000)throw new GenerationError("This design is too large to budget safely. Shorten the brief or lower the detail level.","BUDGET_INPUT");
-  const amount=tokenCost(input,body.max_output_tokens,0,rates,input)+searchCalls*SEARCH_CALL_NANOS,id=await reserveBudget(db,keyHash,amount);
-  reservation={id,input,maxOutput:body.max_output_tokens,searchCalls,rates};
-  await report();
-  // Disconnects and streams that end without usage keep the entire reservation:
-  // generation may have been billed even when its final usage never arrived.
-  // An HTTP error reply is different: nothing was generated, so release it.
-  const response=await fetcher(url,{...init,body:JSON.stringify({...body,service_tier:"default"})});
-  if(!response.ok){
-   await settle(db,id,0);await report();
-  }
-  return response;
+  const amount=holdNanos(rates,input,body.max_output_tokens,searchCalls),id=await reserveBudget(db,keyHash,amount);
+  reservation={id,amount,base,input,maxOutput:body.max_output_tokens,searchCalls,effort:String(body.reasoning?.effort??"medium"),rates};
+  await report(amount/1e9);
+  // An HTTP error reply means nothing was generated, so release it. A stop after sending settles
+  // an estimate. Other network failures and streams that end without usage keep the reservation:
+  // generation may have been billed even though its usage never arrived.
+  const signal=init?.signal;
+  if(signal?.aborted){phase="closed";await settle(db,id,0);await report();throw signal.reason??new DOMException("Cancelled","AbortError");}
+  phase="sent";sentAt=Date.now();signal?.addEventListener("abort",()=>void settleAbandoned(),{once:true});
+  let response:Response;
+  try{response=await fetcher(url,{...init,body:JSON.stringify({...body,service_tier:"default"})});}
+  catch(error){if(stopped(error,signal))await settleAbandoned();else if(phase==="sent")phase="done";throw error;}
+  if(!response.ok){if(phase==="sent"){phase="closed";await settle(db,id,0);await report();}return response;}
+  if(!response.body){if(phase==="sent")phase="done";return response;}
+  // Pass the body through untouched, counting streamed text so a stop can be estimated.
+  const reader=response.body.getReader(),decoder=new TextDecoder(),streaming=body.stream===true;let buffer="";
+  const scan=(chunk:Uint8Array)=>{
+   buffer=(buffer+decoder.decode(chunk,{stream:true})).replace(/\r\n/g,"\n");let boundary;
+   while((boundary=buffer.indexOf("\n\n"))!==-1){
+    const data=buffer.slice(0,boundary).split("\n").filter(line=>line.startsWith("data:")).map(line=>line.slice(5).trimStart()).join("\n");buffer=buffer.slice(boundary+2);
+    if(data.includes('.delta"'))try{const event=JSON.parse(data);if(typeof event?.delta==="string"&&String(event.type).endsWith(".delta")){deltas++;bytes+=encoder.encode(event.delta).length;}}catch{}
+   }
+   if(buffer.length>250000)buffer="";
+  };
+  return new Response(new ReadableStream<Uint8Array>({
+   async pull(controller){
+    let chunk;try{chunk=await reader.read();}catch(error){if(stopped(error,signal))await settleAbandoned();else if(phase==="sent")phase="done";throw error;}
+    if(chunk.done){if(phase==="sent")phase="done";controller.close();return;}
+    if(streaming)scan(chunk.value);controller.enqueue(chunk.value);
+   },
+   async cancel(reason){void reader.cancel(reason).catch(()=>{});await settleAbandoned();}
+  }),{status:response.status,statusText:response.statusText,headers:response.headers});
  };
  const recordUsage=async(value:unknown,extra:{searchCalls?:number}={})=>{
-  if(recorded||!reservation||!value||typeof value!=="object")return;
+  const r=reservation;if(!r||(phase!=="sent"&&phase!=="done")||!value||typeof value!=="object")return;
   const usage=value as Usage,cached=usage.input_tokens_details?.cached_tokens??0,written=usage.input_tokens_details?.cache_write_tokens??0,calls=Math.max(0,Math.floor(extra.searchCalls||0));
   let amount:number;
-  try{amount=tokenCost(usage.input_tokens,usage.output_tokens,cached,reservation.rates,written)+calls*SEARCH_CALL_NANOS;}
-  catch{console.error(JSON.stringify({event:"bricks_budget_unsettled",reason:"unreadable_usage"}));return;}
-  // Unexpected provider accounting keeps a full budget hold and stops later
-  // requests. Never silently undercount usage outside the reserved bounds.
-  if(billedInputTokens(usage.input_tokens,cached,written)>reservation.input||usage.output_tokens>reservation.maxOutput||calls>reservation.searchCalls){
-   await settle(db,reservation.id,Math.max(BUDGET_NANOS,amount));await report();
-   throw new GenerationError("AI usage exceeded the expected request bounds. Further spending is paused; your draft is kept.","BUDGET_ACCOUNTING");
-  }
-  await settle(db,reservation.id,amount);recorded=true;await report();
+  try{amount=tokenCost(usage.input_tokens,usage.output_tokens,cached,r.rates,written)+calls*SEARCH_CALL_NANOS;}
+  catch{phase="done";console.error(JSON.stringify({event:"bricks_budget_unsettled",reason:"unreadable_usage"}));return;}
+  phase="closed";
+  // Readable usage outside the reserved bounds is charged its actual cost, capped at 3x the
+  // reservation, and fails only this request. Charging the whole pool would lock out every user of the key.
+  const input=billedInputTokens(usage.input_tokens,cached,written),over=input>r.input||usage.output_tokens>r.maxOutput||calls>r.searchCalls,charged=over?Math.min(amount,OVERAGE_CAP*r.amount):amount;
+  await settle(db,r.id,charged);
+  if(over)console.error(JSON.stringify({event:"bricks_budget_overage",model:requestModel,reservedNanos:r.amount,actualNanos:amount,chargedNanos:charged,capped:charged<amount,inputTokens:input,reservedInputTokens:r.input,outputTokens:usage.output_tokens,maxOutputTokens:r.maxOutput,searchCalls:calls,reservedSearchCalls:r.searchCalls}));
+  await report();
   const reasoning=usage.output_tokens_details?.reasoning_tokens;
   const reasoningTokens=typeof reasoning==="number"&&Number.isSafeInteger(reasoning)&&reasoning>=0&&reasoning<=usage.output_tokens?reasoning:0;
-  onUsage?.({cost:amount/1e9,model:requestModel,inputTokens:usage.input_tokens,outputTokens:usage.output_tokens,searchCalls:calls,cachedTokens:cached,cacheWriteTokens:written,reasoningTokens});
+  onUsage?.({cost:charged/1e9,model:requestModel,inputTokens:usage.input_tokens,outputTokens:usage.output_tokens,searchCalls:calls,cachedTokens:cached,cacheWriteTokens:written,reasoningTokens});
+  if(over)throw new GenerationError("AI usage went over this request's expected limit, so it was stopped and charged what it used. Your draft is kept and the rest of your budget is still available.","BUDGET_ACCOUNTING");
  };
- return {fetch:guardedFetch,recordUsage};
+ return {fetch:guardedFetch,recordUsage,settleAbandoned};
 }
