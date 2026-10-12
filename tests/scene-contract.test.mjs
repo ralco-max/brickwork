@@ -178,3 +178,27 @@ test('long judge text loaded from a save is trimmed at a sentence, not mid-word'
  assert.ok(review.improvements[0].length<=500);assert.ok(review.improvements[0].endsWith('train.'));
  assert.equal(m.reviewSchema.parse({summary:'Short.\nKept as written.',recognizable:true,features:[],improvements:[]}).summary,'Short.\nKept as written.');
 });
+
+// Imports, share links and judge output are untrusted: punctuation runs and long strings must not make
+// sentence handling quadratic (a 140k-character run of dots used to cost about a minute of CPU).
+const elapsed=f=>{const t=performance.now(),out=f();return {ms:performance.now()-t,out};};
+test('sentence clipping stays linear on hostile punctuation runs',()=>{
+ const MB=1_000_000;
+ for(const [label,text] of [['dots','.'.repeat(MB)],['bangs','!'.repeat(MB)],['ellipses','…'.repeat(MB)],['closers','.)'.repeat(MB/2)],['initials','A. '.repeat(MB/3)],['lines','a \n'.repeat(MB/3)]]){
+  const clip=elapsed(()=>m.clipSentence(text,500));assert.ok(clip.ms<50,`clipSentence ${label}: ${clip.ms.toFixed(1)} ms`);assert.ok(clip.out.length<=500);
+  const split=elapsed(()=>m.splitSentences(text));assert.ok(split.ms<1000,`splitSentences ${label}: ${split.ms.toFixed(1)} ms`);
+ }
+ assert.deepEqual(m.splitSentences('.'.repeat(MB)),['.'.repeat(MB)]);assert.equal(m.clipSentence('.'.repeat(MB),500),'.'.repeat(499));
+ // Behavior on ordinary text is unchanged: runs still end sentences, initials still do not.
+ assert.deepEqual(m.splitSentences('Wait... Really?! "Yes." (Fine.) J. R. R. Tolkien wrote it.'),['Wait...','Really?!','"Yes."','(Fine.)','J. R. R. Tolkien wrote it.']);
+});
+
+test('shared and imported projects with huge text validate quickly',()=>{
+ const dots='.'.repeat(200_000),data=legacyProject();
+ data.description=dots;data.design.review={summary:dots,recognizable:true,features:[{feature:'Vault',status:'visible',evidence:dots}],improvements:[dots,'A. '.repeat(70_000)],thinking:dots};
+ const share=elapsed(()=>m.sanitizeSharedProject(data));assert.ok(share.ms<500,`sanitizeSharedProject: ${share.ms.toFixed(1)} ms`);
+ assert.ok(share.out.description.length<=300);
+ // A visitor opening the link re-validates the stored project on the main thread.
+ const open=elapsed(()=>m.validateProject(JSON.parse(share.out.project)));assert.ok(open.ms<500,`validateProject: ${open.ms.toFixed(1)} ms`);
+ assert.ok(open.out.description.length<=500);assert.ok(open.out.design.review.summary.length<=1500);assert.ok(open.out.design.review.improvements.every(i=>i.length<=500));
+});
