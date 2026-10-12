@@ -48,7 +48,7 @@ test('creating, reading and previewing a share round-trips through D1',async t=>
  assert.equal(preview.status,200);assert.equal(preview.headers.get('content-type'),'image/jpeg');assert.equal(Buffer.from(await preview.arrayBuffer()).toString(),'fixture-jpeg');
  assert.equal((await m.projectGET(new Request('https://bricks.test/api/share/ZZZZZZZZZZ'),params('ZZZZZZZZZZ'))).status,404);
  assert.equal((await m.imageGET(new Request('https://bricks.test/api/share/x'),params('../../x'))).status,404);
- const summary=await m.readShareSummary(m.testEnv.DB,id);assert.match(m.shareDescription(summary),/pieces\. Built with Bricks\.$/);
+ const summary=await m.readShareSummary(m.testEnv.DB,id);assert.match(m.shareDescription(summary),/^\d[\d,]*-piece brick model · A small house by the water\.$/);
 });
 
 test('share creation rejects cross-site posts, bad previews and invalid projects without writing',async t=>{

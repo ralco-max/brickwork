@@ -13,6 +13,7 @@ import type {ColorKey} from "./bridge";
 import type {BuildModel,VoxelMap} from "./models";
 import {applyManual} from "./design-project";
 import type {ManualEdits} from "./design-project";
+import {clipSentence,splitSentences} from "./utils";
 
 const colors=Object.keys(COLORS) as [ColorKey,...ColorKey[]];
 const vector=z.object({x:z.number().finite().min(0).max(80),y:z.number().finite().min(0).max(160),z:z.number().finite().min(0).max(80)}).strict();
@@ -25,6 +26,8 @@ export const shapeSchema=z.object({
 }).strict();
 export const sceneSchema=z.object({
  catalogVersion:z.literal(1).optional(),name:z.string().min(1).max(80),description:z.string().max(500),signature:z.array(z.string().min(1).max(80)).max(4).optional(),
+ // Private builder notes (simplifications, uncertainties): carried into revisions, never shown as the caption.
+ notes:z.array(z.string().min(1).max(200)).max(6).optional(),
  dimensions:z.object({x:z.number().int().min(8).max(80),y:z.number().int().min(8).max(160),z:z.number().int().min(8).max(80)}).strict(),
  shapes:z.array(shapeSchema).min(1).max(240),
 }).strict();
@@ -239,17 +242,31 @@ export const compactShapeSchema=z.object({
  p:vec3,s:vec3,e:vec3.nullable().optional(),r:z.number().finite().nullable().optional(),rep:z.tuple([z.number(),z.number(),z.number(),z.number()]).nullable().optional(),
 }).strict();
 export type CompactShape=z.infer<typeof compactShapeSchema>;
-export type CompactScene={n:string;d:string;f:string[];dim:[number,number,number];rm?:string[]|null;sh:CompactShape[]};
+// d is the owner-facing caption (Build details, history, link previews); caveats belong in the
+// private notes. Older saves, and a model that ignores the limit, put them in d: whole sentences
+// past the caption move to notes, so nothing is cut mid-word and nothing the builder knew is lost.
+export const CAPTION_TARGET=160,CAPTION_MAX=200;
+const unnamed=(t:string)=>{const out=t.replace(/\b(an?|the)\s+unnamed\s+(?=(\S))/gi,(_m,art:string,next:string)=>{const a=/^the$/i.test(art)?art.toLowerCase():/[aeiou]/i.test(next)?"an":"a";return `${art[0]===art[0].toUpperCase()?a[0].toUpperCase()+a.slice(1):a} `;}).replace(/\bunnamed\b\s*/gi,"").trim();return out===t?t:out.replace(/^[a-z]/,c=>c.toUpperCase());};
+export function sceneTitle(raw:unknown){return clipSentence(unnamed(String(raw??"").replace(/\s+/g," ").trim()),80)||"Untitled design";}
+export function splitCaption(text:string,notes:string[]=[]):{description:string;notes:string[]}{
+ const t=unnamed(String(text??"").replace(/\s+/g," ").trim()),description=t.length<=CAPTION_MAX?t:clipSentence(t,CAPTION_TARGET);
+ let rest:string[]=[];if(description!==t){const sentences=splitSentences(t);let kept=0;while(kept<sentences.length&&sentences.slice(0,kept+1).join(" ").length<=description.length)kept++;rest=sentences.slice(kept);
+  // A trailing fragment is a hard cut from an older save ("No station or"), not a note.
+  if(rest.length&&!/[.!?…]["'”’)\]]*$/.test(rest.at(-1)!))rest.pop();}
+ const all=[...notes,...rest].map(n=>clipSentence(String(n),200)).filter(Boolean);
+ return {description,notes:[...new Set(all)].slice(0,6)};
+}
+export type CompactScene={n:string;d:string;nt?:string[];f:string[];dim:[number,number,number];rm?:string[]|null;sh:CompactShape[]};
 const vec3JSON={type:"array",items:{type:"number"},minItems:3,maxItems:3};
 const nullable=(schema:Record<string,unknown>)=>({anyOf:[schema,{type:"null"}]});
 export const compactJSONSchema={type:"object",additionalProperties:false,properties:{
- n:shortText,d:{type:"string",maxLength:500},f:{type:"array",items:shortText,maxItems:4},dim:vec3JSON,rm:{type:"array",items:{type:"string"}},
+ n:shortText,d:{type:"string",maxLength:CAPTION_MAX},nt:{type:"array",items:{type:"string",maxLength:140},maxItems:5},f:{type:"array",items:shortText,maxItems:4},dim:vec3JSON,rm:{type:"array",items:{type:"string"}},
  sh:{type:"array",maxItems:240,items:{type:"object",additionalProperties:false,properties:{
   i:shortText,c:shortText,l:shortText,k:{type:"string",enum:["box","ellipsoid","cylinder","cone","beam","lean","wheel","text","part","minifig"]},o:{type:"string",enum:["add","subtract"]},a:nullable({type:"string",enum:["x","y","z"]}),col:{type:"string",enum:colors},
   txt:nullable({type:"string",minLength:1,maxLength:12}),face:nullable({type:"string",enum:SIGN_FACES}),bg:nullable({type:"string",enum:colors}),pid:nullable({type:"string",minLength:1,maxLength:32}),
   p:vec3JSON,s:vec3JSON,e:nullable(vec3JSON),r:nullable({type:"number",minimum:.5,maximum:12}),rep:nullable({type:"array",items:{type:"number"},minItems:4,maxItems:4}),
  },required:["i","c","l","k","o","a","col","p","s","e","r","rep","txt","face","bg","pid"]}},
-},required:["n","d","f","dim","rm","sh"]};
+},required:["n","d","nt","f","dim","rm","sh"]};
 const clampAxis=(v:number,max:number)=>Math.min(max,Math.max(0,Number.isFinite(v)?v:0));
 const toVec=(v:[number,number,number])=>({x:clampAxis(v[0],80),y:clampAxis(v[1],160),z:clampAxis(v[2],80)});
 export function expandCompactShape(c:CompactShape):Shape{
@@ -264,11 +281,13 @@ export function compactShape(s:Shape):CompactShape{
  const beam=s.kind==="beam",lean=s.kind==="lean",rep=s.repeat&&s.repeat.count>1?s.repeat:null;
  return {i:s.id||s.label,c:s.component||s.label,l:s.label,k:s.kind,o:s.operation,a:s.axis&&s.axis!=="y"?s.axis:null,col:s.color,p:[s.position.x,s.position.y,s.position.z],s:[s.size.x,s.size.y,s.size.z],e:beam||lean?[s.end.x,s.end.y,s.end.z]:null,r:beam?s.radius:null,rep:rep?[rep.count,rep.offset.x,rep.offset.y,rep.offset.z]:null,txt:s.kind==="text"?s.text??null:null,face:s.kind==="text"||isExplicit(s)?s.face??"pz":null,bg:s.kind==="text"||s.kind==="minifig"?s.background??null:null,pid:s.kind==="part"?s.part??null:s.kind==="minifig"?s.skin??null:null};
 }
-export function compactScene(scene:GeneratedScene):CompactScene{return {n:scene.name,d:scene.description,f:scene.signature||[],dim:[scene.dimensions.x,scene.dimensions.y,scene.dimensions.z],rm:[],sh:scene.shapes.map(compactShape)};}
-export function expandCompactHeader(raw:{n?:unknown;d?:unknown;f?:unknown;dim?:unknown}):SceneHeader{
+export function compactScene(scene:GeneratedScene):CompactScene{return {n:scene.name,d:scene.description,nt:scene.notes||[],f:scene.signature||[],dim:[scene.dimensions.x,scene.dimensions.y,scene.dimensions.z],rm:[],sh:scene.shapes.map(compactShape)};}
+export function expandCompactHeader(raw:{n?:unknown;d?:unknown;nt?:unknown;f?:unknown;dim?:unknown}):SceneHeader{
  const dim=Array.isArray(raw.dim)&&raw.dim.length===3?raw.dim as number[]:[0,0,0];
  const signature=Array.isArray(raw.f)?raw.f.filter(x=>typeof x==="string"&&x.trim()).map(x=>String(x).trim().slice(0,80)).slice(0,4):[];
- return {catalogVersion:1,name:String(raw.n??"Untitled design").slice(0,80),description:String(raw.d??"").slice(0,500),...(signature.length?{signature}:{}),dimensions:{x:Number(dim[0]),y:Number(dim[1]),z:Number(dim[2])}};
+ // nt is required in the output schema but optional here: older streams and fixtures omit it.
+ const {description,notes}=splitCaption(String(raw.d??""),Array.isArray(raw.nt)?raw.nt.filter((x):x is string=>typeof x==="string").map(x=>clipSentence(x,140)).filter(Boolean).slice(0,5):[]);
+ return {catalogVersion:1,name:sceneTitle(raw.n),description,...(notes.length?{notes}:{}),...(signature.length?{signature}:{}),dimensions:{x:Number(dim[0]),y:Number(dim[1]),z:Number(dim[2])}};
 }
 // A revision returns only new and changed shapes plus the ids it removed; the
 // result is the previous scene with those applied, changed shapes keeping their

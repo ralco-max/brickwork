@@ -1,4 +1,6 @@
 import {validateProject} from "./models";
+import {splitCaption} from "./generated-scene";
+import {clipSentence} from "./utils";
 
 // Unlisted public links: anyone with the URL can view and remix, nothing is indexed.
 export const SHARE_ID=/^[A-Za-z0-9]{10}$/;
@@ -76,7 +78,10 @@ export async function readShareSummary(db:ShareDatabase,id:string){
  return db.prepare("SELECT id,name,description,piece_count AS pieceCount FROM shares WHERE id = ?").bind(id).first<Omit<ShareRecord,"project"|"image">>();
 }
 
+// Link previews lead with the count, then the caption. Rows saved before the caption contract hold
+// up to 300 raw characters cut mid-word, so the caption is re-clipped on read to end on a whole
+// sentence or word within about 200 characters overall.
 export function shareDescription(summary:{description:string;pieceCount:number}){
- const pieces=`${summary.pieceCount.toLocaleString("en-US")} pieces`;
- return summary.description?`${summary.description} · ${pieces}. Built with Bricks.`:`A custom brick creation with ${pieces}. Built with Bricks.`;
+ const lead=`${summary.pieceCount.toLocaleString("en-US")}-piece brick model`,caption=clipSentence(splitCaption(String(summary.description||"")).description.replace(/^[\s·•.,;:–—-]+/,""),200-lead.length-3);
+ return caption?`${lead} · ${caption}`:`A custom ${lead}, designed with Bricks by Ralc.`;
 }
