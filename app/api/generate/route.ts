@@ -1,7 +1,7 @@
 import {z} from "zod";
 import {revisionRegionSchema,MAX_REVISION_REGION_IMAGE_LENGTH} from "@/lib/revision-region";
 import {aiSettings,requireBudgetDb} from "@/lib/ai-settings";
-import {budgetedProvider,longDesignRun,QUALITY_MODELS} from "@/lib/ai-budget";
+import {budgetedProvider,designModelFor,longDesignRun} from "@/lib/ai-budget";
 import {generationFailure} from "@/lib/generation-errors";
 import {generateScene,MAX_RENDERS,MAX_RENDER_LENGTH} from "@/lib/generation-provider";
 import {validateScene} from "@/lib/generated-scene";
@@ -30,7 +30,7 @@ export async function POST(request:Request){
  return eventResponse(request,async(signal,send)=>{
   send({type:"status",message:"Connecting to your builder…"});
   const provider=budgetedProvider(requireBudgetDb(config.db),key,budget=>send({type:"budget",budget}),fetch,usage=>{console.info(JSON.stringify({event:"bricks_ai_usage",stage:"design",...usage}));send({type:"usage",usage});},config.period);
-  const chosen=input.brief?.quality?QUALITY_MODELS[input.brief.quality]:model;
+  const chosen=designModelFor(input.brief?.quality,model,config.studio);
   for await(const event of generateScene(input,key,chosen,signal,provider.fetch,provider.recordUsage))send(event);
  },{timeoutMs:longDesignRun(input.brief?.quality)?420000:240000});
 }

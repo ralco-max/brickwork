@@ -11,6 +11,12 @@ export const BUDGET_MODEL="gpt-6.1-sol";
 export const PRICED_MODELS:Record<string,{input:number;cached:number;output:number;write?:number}>={"gpt-6.1-sol":{input:2000,cached:100,write:2500,output:10000},"gpt-5.6-terra":{input:2000,cached:200,output:12000},"gpt-5.6-sol":{input:4000,cached:400,output:20000},"gpt-6-astra":{input:10000,cached:1000,output:50000}};
 export const QUALITY_MODELS={sol_low:"gpt-6.1-sol",sol_medium:"gpt-6.1-sol",standard:"gpt-5.6-terra",better:"gpt-5.6-sol",best:"gpt-6-astra"} as const;
 export const BEST_MODEL=QUALITY_MODELS.best;
+// The shared studio key runs only the two priced tiers; older, pricier designers need a personal key.
+export const STUDIO_QUALITIES=["sol_low","sol_medium"] as const;
+export function designModelFor(quality:keyof typeof QUALITY_MODELS|undefined,fallback:string,studio:boolean){
+ if(!quality)return fallback;if(studio&&!(STUDIO_QUALITIES as readonly string[]).includes(quality))return QUALITY_MODELS.sol_medium;
+ return QUALITY_MODELS[quality];
+}
 // Higher-effort runs get the longer stream timeout; low-effort defaults do not.
 export const longDesignRun=(quality?:string)=>quality==="better"||quality==="best"||quality==="sol_medium";
 const INPUT=2000,CACHED_INPUT=100,OUTPUT=10000;

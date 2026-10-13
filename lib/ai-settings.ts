@@ -8,7 +8,8 @@ export function aiSettings(request:Request){
  // A personal key explicitly added in the UI always takes precedence.
  const key=(request.headers.get("x-brickwork-api-key")||config.OPENAI_API_KEY||"").trim();
  if(key&&(key.length>512||/[\r\n]/.test(key)))throw new GenerationError("Enter a valid API key.","AI_AUTH");
- return {period:key===config.OPENAI_API_KEY?.trim()?(config.STUDIO_BUDGET_PERIOD||"v1"):"v1",key,model:BUDGET_MODEL,configured:Boolean(config.OPENAI_API_KEY),db:config.DB};
+ const studio=Boolean(key)&&key===config.OPENAI_API_KEY?.trim();
+ return {period:studio?(config.STUDIO_BUDGET_PERIOD||"v1"):"v1",studio,key,model:BUDGET_MODEL,configured:Boolean(config.OPENAI_API_KEY),db:config.DB};
 }
 export function requireBudgetDb(db:BudgetDatabase|undefined){
  if(!db)throw new GenerationError("The spending limit is temporarily unavailable. No new AI request was started.","BUDGET_UNAVAILABLE");

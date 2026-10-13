@@ -87,6 +87,18 @@ test('an incomplete streamed design records real usage before reporting its erro
  assert.deepEqual(await budgetSnapshot(db,await keyFingerprint(key)),{limit:10,spent:.2736,held:0,remaining:9.7264});
 });
 
+test('the shared studio key never runs the pricier legacy designers; a personal key may',async t=>{
+ const {db,sqlite}=budgetDb();t.after(()=>{sqlite.close();delete testEnv.DB;delete testEnv.OPENAI_API_KEY;});testEnv.DB=db;testEnv.OPENAI_API_KEY='fixture-server-key';
+ const scene=foundationScene(defaultBrief('A castle')),models=[];
+ t.mock.method(globalThis,'fetch',async(u,init)=>{if(u.endsWith('/input_tokens'))return Response.json({input_tokens:1000});models.push(JSON.parse(init.body).model);
+  return new Response([{type:'response.output_text.delta',delta:JSON.stringify(compactScene(scene))},{type:'response.completed',response:{status:'completed',usage:{input_tokens:1000,output_tokens:1000}}}].map(e=>'data: '+JSON.stringify(e)+'\n\n').join(''));});
+ const post=(quality,headers={})=>generatePOST(new Request('https://brickwork.test/api/generate',{method:'POST',headers,body:JSON.stringify({prompt:'A castle',detail:'medium',brief:{...defaultBrief('A castle'),quality}})}));
+ for(const quality of ['best','better','standard'])await collect(await post(quality));
+ await collect(await post('sol_low'));
+ assert.deepEqual(models,['gpt-6.1-sol','gpt-6.1-sol','gpt-6.1-sol','gpt-6.1-sol']);
+ await collect(await post('best',{'x-brickwork-api-key':key}));assert.equal(models.at(-1),'gpt-6-astra');
+});
+
 test('generation, review and budget routes share the personal key ledger instead of the configured key',async t=>{
  const {db,sqlite}=budgetDb();t.after(()=>{sqlite.close();delete testEnv.DB;delete testEnv.OPENAI_API_KEY;});testEnv.DB=db;testEnv.OPENAI_API_KEY='fixture-server-key';
  const brief=defaultBrief('A castle'),scene=foundationScene(brief),review={summary:'Castle visible',recognizable:true,features:[],improvements:[],revision:{status:'not_requested',evidence:'No revision'}},calls=[];

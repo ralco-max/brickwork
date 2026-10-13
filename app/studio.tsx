@@ -52,7 +52,6 @@ export const remakePreset:typeof generateRecipe=(...args)=>({...generateRecipe(.
 // Generator gains autoStart (skip the brief and build at once) and initialBrief (merged over the default brief)
 // in the feedback workstream; this view of its props compiles on either side of that merge.
 type BriefStart={autoStart?:boolean;initialBrief?:Partial<DesignBrief>};
-const BriefGenerator=Generator as React.ComponentType<React.ComponentProps<typeof Generator>&BriefStart>;
 const SIZES=["small","medium","large"] as const;
 // What a one-step Create will build: the inferred plan, with any change the person made on the chip on top.
 export function plannedBrief(prompt:string,photos:number,override:Partial<DesignBrief>|null):Partial<DesignBrief>{return {...inferBrief(prompt,photos),...override};}
@@ -258,7 +257,7 @@ export default function Studio({sharedId,sharedSummary}:{sharedId?:string;shared
     <div className="sidebar-note"><Info size={16}/><p>This is an original digital concept. Physical strength and assembly still need a test build.</p></div>
    </aside></StudioPanel>}
   </div>
-  <BriefGenerator open={generationOpen} onOpenChange={v=>{setGenerationOpen(v);if(!v)refreshDesigns();}} initialPrompt={generationPrompt} initialPhotos={generationPhotos} onDraftChange={setIdeaDraft} previous={generationPrevious} onCreate={create} {...generationStart}/><CreateBuild open={createOpen} onOpenChange={setCreateOpen} onCreate={create}/>
+  <Generator open={generationOpen} onOpenChange={v=>{setGenerationOpen(v);if(!v)refreshDesigns();}} initialPrompt={generationPrompt} initialPhotos={generationPhotos} onDraftChange={setIdeaDraft} previous={generationPrevious} onCreate={create} {...generationStart}/><CreateBuild open={createOpen} onOpenChange={setCreateOpen} onCreate={create}/>
   <Sheet open={shop} onOpenChange={setShop}><SheetContent className="shopping-sheet"><SheetHeader><SheetTitle>Get the pieces.</SheetTitle><SheetDescription>{buyCount} pieces to buy after subtracting the parts you already own.</SheetDescription></SheetHeader><LegoShopping inventory={model.inventory} owned={owned} elementIds={elementIds} priceOverrides={priceOverrides} quotes={quotes} filename={filename} download={download} exportCSV={exportCSV} onElementId={(key,value)=>setElementIds(current=>({...current,[key]:value}))} onPrice={(key,value)=>setPriceOverrides(current=>({...current,[key]:value}))} onQuote={(key,quote)=>{setQuotes(current=>({...current,[key]:quote}));setPriceOverrides(current=>({...current,[key]:quote.unitPrice}));}}/></SheetContent></Sheet>
  </div>;
 }
