@@ -20,13 +20,15 @@ export const isRetryItem=(text:string)=>text===RETRY_ITEM||text.startsWith(`${RE
 export function reviewSuggestions(review:VisualReview|null|undefined,s:{request?:string;issues?:readonly string[];notes?:readonly string[]}={}):{suggestions:Suggestion[];looksRight:string[]}{
  const out:Suggestion[]=[],looksRight:string[]=[],add=(kind:SuggestionKind,tag:string,label:string,text:string)=>{const t=clipSentence(text.replace(/\s+/g," ").trim(),500),l=label.replace(/\s+/g," ").trim();if(t&&l&&!out.some(o=>o.text===t))out.push({id:`${kind}-${out.length}`,kind,tag,label:l,text:t});};
  if(review){
-  const r=review.revision;if(r&&["missing","uncertain"].includes(r.status)&&s.request?.trim())add("retry","Retry",clipSentence(s.request.trim(),120),flagged(RETRY_ITEM,r.evidence));
+  // A chip-only send is recorded as "Apply the approved fixes: …"; offer the fix itself, once, as the retry.
+  const r=review.revision,asked=(s.request||"").trim().replace(/^Apply the approved fixes:\s*/i,"");if(r&&["missing","uncertain"].includes(r.status)&&asked)add("retry","Retry",clipSentence(asked,120),flagged(RETRY_ITEM,r.evidence));
   if(!review.recognizable&&review.composition&&["mismatch","uncertain"].includes(review.composition.status))add("missing","Layout","Overall layout",review.composition.evidence);
   for(const f of review.features)if(f.status==="visible")looksRight.push(f.feature);else add(f.status==="missing"?"missing":"unclear",f.status==="missing"?"Missing":"Hard to tell",f.feature,flagged(f.feature,f.evidence));
   for(const f of review.rubric||[])if(f.status==="visible")looksRight.push(f.feature);else if(f.status==="missing")add("missing","Missing",f.feature,flagged(f.feature,f.evidence));
  }
  for(const i of s.issues||[])add("check","Check",i,i);
- for(const i of review?.improvements||[])add("fix","Fix",i,i);
+ const retried=out.find(o=>o.kind==="retry")?.label.replace(/…$/,"")||"";
+ for(const i of review?.improvements||[])if(!retried||!i.startsWith(retried.slice(0,60)))add("fix","Fix",i,i);
  for(const n of s.notes||[])add("simplified","Simplified",n,`Improve this simplification: ${n}`);
  return {suggestions:out,looksRight:[...new Set(looksRight)]};
 }

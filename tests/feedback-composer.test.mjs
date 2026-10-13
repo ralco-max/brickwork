@@ -159,3 +159,13 @@ test('the generator has one send button, no duplicate feedback controls, and a s
  assert.match(src,/deferRun\(reviewOnly\?null:\{fresh,submitted,retrying\}\)/);assert.match(src,/void run\(false,key,p\.fresh,p\.submitted,p\.retrying\)/);
  assert.match(src,/Save & close/);assert.doesNotMatch(src,/>Done<ArrowRight/);
 });
+
+test('a retried chip-only fix is offered once, in plain words',()=>{
+ const fix='Step the Awning into a true pitched roof using two inward-stepped courses';
+ const review={summary:'s',recognizable:true,features:[],improvements:[fix,'Cut two window openings'],revision:{status:'uncertain',evidence:'Hard to see'}};
+ const {suggestions}=reviewSuggestions(review,{request:`Apply the approved fixes: ${fix}`});
+ const retry=suggestions.find(s=>s.kind==='retry');
+ assert.ok(retry&&!/approved fixes/i.test(retry.label),retry?.label);
+ assert.equal(suggestions.filter(s=>s.kind==='fix'&&s.text===fix).length,0,'the same fix must not appear twice');
+ assert.ok(suggestions.some(s=>s.kind==='fix'&&/window/.test(s.text)));
+});
