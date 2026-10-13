@@ -13,7 +13,7 @@ import type {RevisionRegion} from "./revision-region";
 
 const stable=(value:unknown):string=>Array.isArray(value)?`[${value.map(stable).join(",")}]`:value&&typeof value==="object"?`{${Object.entries(value).filter(([,v])=>v!==undefined&&v!==null).sort(([a],[b])=>a.localeCompare(b)).map(([k,v])=>`${JSON.stringify(k)}:${stable(v)}`).join(",")}}`:JSON.stringify(value)??"null";
 const placementKey=(p:Piece)=>`${p.part}:${p.x}:${p.y}:${p.z}:${p.face||(p.rotated?"px":"pz")}`;
-const pieceKey=(p:Piece)=>`${placementKey(p)}:${p.color}:${p.legs||""}:${p.skin||""}`;
+const pieceKey=(p:Piece)=>`${placementKey(p)}:${p.color}:${p.legs||""}:${p.skin||""}:${p.fitted||""}`;
 
 /** "VaultBands" → "Vault bands", "front_door" → "Front door", "Person3" → "Person 3": a component as people read it. */
 export function componentLabel(name:string){

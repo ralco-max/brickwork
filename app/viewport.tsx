@@ -9,7 +9,8 @@ import {reconcileArrivals,arrivalPose,brickIdentity,arrivalOpacity,arrivalEndTim
 import type {Arrival,ArrivalMode} from "@/lib/live-arrivals";
 import {assemblyPose,assemblyTracks,inspectionReach,inspectionTracks,type AssemblyTrack} from "@/lib/assembly";
 import {cameraPanOffset,advanceCameraMove,settledPieceBounds,cameraFramingSnapshot,cameraAutoFit,type CameraMove,type CameraFramingSnapshot} from "@/lib/camera-navigation";
-import {hasExactPartGeometry,partGeometriesReady} from "@/lib/part-meshes";
+import {fittedPartGeometry,hasExactPartGeometry,partGeometriesReady} from "@/lib/part-meshes";
+import {fittedColor,fittedElement} from "@/lib/part-catalog";
 import {isMinifig} from "@/lib/minifig";
 import {brickMaterial,finishColor,finishEnvironment,releaseFinishEnvironment} from "@/lib/brick-materials";
 import RegionMarker from "./region-marker";
@@ -153,10 +154,10 @@ function ReadyViewport(props:Props){
   for(const p of props.pieces){
    const entry=arrivalState.current.entries.get(brickIdentity(p));
    const arrival=props.arrivals?.mode==="revise"&&entry?.mode==="revise"&&arrivalState.current.clock<arrivalEndTime(entry)&&!reducedMotion.matches?entry:undefined;
-   const k=`${p.part}:${p.color}:${p.legs||""}:${p.skin||""}:${p.rotated}:${p.face||""}:${arrival?arrival.at:"solid"}`;
+   const k=`${p.part}:${p.color}:${p.legs||""}:${p.skin||""}:${fittedColor(p)||""}:${p.rotated}:${p.face||""}:${arrival?arrival.at:"solid"}`;
    const group=groups.get(k)||{pieces:[],arrival};group.pieces.push(p);groups.set(k,group);
   }
-  const batches:{body:THREE.InstancedMesh;studs:THREE.InstancedMesh|null;hubs:THREE.InstancedMesh|null;pieces:Piece[];studded:[number,number][];arrival?:Arrival;materials:THREE.MeshStandardMaterial[]}[]=[],meshes:THREE.InstancedMesh[]=[];
+  const batches:{body:THREE.InstancedMesh;studs:THREE.InstancedMesh|null;hubs:THREE.InstancedMesh|null;fitted:THREE.InstancedMesh|null;pieces:Piece[];studded:[number,number][];arrival?:Arrival;materials:THREE.MeshStandardMaterial[]}[]=[],meshes:THREE.InstancedMesh[]=[];
   for(const {pieces:list,arrival} of groups.values()){
    const reveal={opacity:arrival?arrivalOpacity(arrival,arrivalState.current.clock,reducedMotion.matches):1,alphaToCoverage:Boolean(arrival)&&coverage,alphaHash:Boolean(arrival)&&!coverage};
    // One material per colour group, with the colour's finish. Trans colours already blend, so a
@@ -166,10 +167,13 @@ function ReadyViewport(props:Props){
    const body=new THREE.InstancedMesh(pieceGeometry(p),material,list.length);body.castShadow=true;body.receiveShadow=true;body.userData.pieces=list;meshes.push(body);scene.add(body);
    let studs:THREE.InstancedMesh|null=null;if(studded.length){studs=new THREE.InstancedMesh(new THREE.CylinderGeometry(.30,.30,.18,12),material,list.length*studded.length);studs.castShadow=true;studs.receiveShadow=true;scene.add(studs);}
    const hubShape=hubGeometry(p);let hubs:THREE.InstancedMesh|null=null;if(hubShape){const hubMaterial=new THREE.MeshStandardMaterial({color:0xa9b1b8,roughness:.5,metalness:.1,...reveal});materials.push(hubMaterial);hubs=new THREE.InstancedMesh(hubShape,hubMaterial,list.length);scene.add(hubs);}
-   if(presentation||cinematic){body.frustumCulled=false;body.instanceMatrix.setUsage(THREE.DynamicDrawUsage);if(studs){studs.frustumCulled=false;studs.instanceMatrix.setUsage(THREE.DynamicDrawUsage);}if(hubs){hubs.frustumCulled=false;hubs.instanceMatrix.setUsage(THREE.DynamicDrawUsage);}}
-   batches.push({body,studs,hubs,pieces:list,studded,arrival,materials});
+   // A frame's glass or door, in its own colour and finish, posed and picked with the frame.
+   const fittedShape=fittedPartGeometry(p),glazing=fittedColor(p);let fitted:THREE.InstancedMesh|null=null;
+   if(fittedShape&&glazing){const fittedMaterial=brickMaterial(glazing,{roughness:.3,environment:()=>finishEnvironment(renderer)});if(fittedMaterial.transparent)fittedMaterial.opacity=fittedMaterial.userData.baseOpacity*reveal.opacity;else fittedMaterial.setValues(reveal);materials.push(fittedMaterial);fitted=new THREE.InstancedMesh(fittedShape,fittedMaterial,list.length);fitted.castShadow=!fittedMaterial.transparent;fitted.receiveShadow=true;fitted.userData.pieces=list;meshes.push(fitted);scene.add(fitted);}
+   if(presentation||cinematic){body.frustumCulled=false;body.instanceMatrix.setUsage(THREE.DynamicDrawUsage);if(studs){studs.frustumCulled=false;studs.instanceMatrix.setUsage(THREE.DynamicDrawUsage);}if(hubs){hubs.frustumCulled=false;hubs.instanceMatrix.setUsage(THREE.DynamicDrawUsage);}if(fitted){fitted.frustumCulled=false;fitted.instanceMatrix.setUsage(THREE.DynamicDrawUsage);}}
+   batches.push({body,studs,hubs,fitted,pieces:list,studded,arrival,materials});
   }
-  const temp=new THREE.Object3D(),studLocal=new THREE.Matrix4(),studWorld=new THREE.Matrix4(),baseColor=new THREE.Color(),dimColor=new THREE.Color("#c2cbd0");
+  const temp=new THREE.Object3D(),studLocal=new THREE.Matrix4(),studWorld=new THREE.Matrix4(),baseColor=new THREE.Color(),fittedTint=new THREE.Color(),dimColor=new THREE.Color("#c2cbd0");
   let previousAssemblyTime:number|undefined;
   const update=(state:Props,time?:number)=>{
    controls.enabled=!state.regionMode&&(!coarse||touchEnabled.current);renderer.domElement.style.touchAction=coarse&&!touchEnabled.current?"pan-y":"none";
@@ -178,8 +182,9 @@ function ReadyViewport(props:Props){
    const assemblyTime=time??state.assembly?.time()??1,animationOnly=time!==undefined,highlighted=new Set(state.highlightIds||[]);
    const sunTarget=state.light??.38;placeSun(sunTarget);
    const reusePoses=animationOnly&&cinematic&&!state.arrivals&&state.explode===0&&previousAssemblyTime!==undefined;
+   const tint=(target:THREE.Color,hex:string,p:Piece,selected:boolean)=>{target.set(hex);if(state.heat){const r=state.heat.get(p.id);if(r===undefined)target.lerp(dimColor,.8);else target.set(r>1?"#e5484d":r>.5?"#f2b134":"#3f9d5a");}else if(highlighted.size){if(highlighted.has(p.id))target.set("#fb541e");else target.lerp(dimColor,.85);}else if(!selected)target.lerp(dimColor,.85);return target;};
    for(const batch of batches){if(batch.arrival){const opacity=state.regionMode?1:arrivalOpacity(batch.arrival,arrivalState.current.clock,reducedMotion.matches);for(const material of batch.materials)material.opacity=opacity*(material.userData.baseOpacity??1);}let studIndex=0,matrixChanged=!animationOnly;batch.pieces.forEach((p,i)=>{
-    const visible=p.stage<=state.stage,key=`${p.part}:${p.color}`,selected=!state.selected||state.selected===key;
+    const visible=p.stage<=state.stage,key=`${p.part}:${p.color}`,glazing=fittedColor(p),selected=!state.selected||state.selected===key||Boolean(glazing)&&state.selected===`${fittedElement(p.part)!.part}:${glazing}`;
     const e=state.explode,y=p.y*.4,track=tracks.get(p.id)!;
     // Waiting and landed bricks have identical matrices; only active flights
     // need CPU transforms. Replay and reverse seeking still cross these bounds.
@@ -189,10 +194,10 @@ function ReadyViewport(props:Props){
     const px=p.x+p.w/2-L/2,py=y+p.h*.2,pz=p.z+p.d/2-centerZ;
     const pose=state.regionMode?null:entry?arrivalPose(entry,arrivalState.current.clock,reducedMotion.matches):e>0?assemblyPose(explodedTracks.get(p.id)!,1-e):cinematic?assemblyPose(track,assemblyTime):null;
     temp.position.set(px+(pose?.x??0),py+(pose?.y??0),pz+(pose?.z??0));temp.rotation.set(pose?.rx??0,pose?.ry??0,pose?.rz??0);temp.scale.setScalar(visible?(pose?.scale??1):0);temp.updateMatrix();batch.body.setMatrixAt(i,temp.matrix);
-    if(!animationOnly){baseColor.set(isMinifig(p.part)?"#ffffff":COLORS[p.color].hex);if(state.heat){const r=state.heat.get(p.id);if(r===undefined)baseColor.lerp(dimColor,.8);else baseColor.set(r>1?"#e5484d":r>.5?"#f2b134":"#3f9d5a");}else if(highlighted.size){if(highlighted.has(p.id))baseColor.set("#fb541e");else baseColor.lerp(dimColor,.85);}else if(!selected)baseColor.lerp(dimColor,.85);batch.body.setColorAt(i,baseColor);}
-    if(batch.hubs){batch.hubs.setMatrixAt(i,temp.matrix);}
+    if(!animationOnly){batch.body.setColorAt(i,tint(baseColor,isMinifig(p.part)?"#ffffff":COLORS[p.color].hex,p,selected));if(batch.fitted&&glazing)batch.fitted.setColorAt(i,tint(fittedTint,COLORS[glazing].hex,p,selected));}
+    if(batch.hubs){batch.hubs.setMatrixAt(i,temp.matrix);}if(batch.fitted)batch.fitted.setMatrixAt(i,temp.matrix);
     if(batch.studs)for(const [x,z] of batch.studded){studLocal.makeTranslation(x+.5-p.w/2,p.h*.2+.07,z+.5-p.d/2);studWorld.multiplyMatrices(temp.matrix,studLocal);batch.studs.setMatrixAt(studIndex,studWorld);if(!animationOnly)batch.studs.setColorAt(studIndex,baseColor);studIndex++;}
-   });batch.body.instanceMatrix.needsUpdate=matrixChanged;if(batch.hubs)batch.hubs.instanceMatrix.needsUpdate=matrixChanged;if(!animationOnly){if(batch.body.instanceColor)batch.body.instanceColor.needsUpdate=true;if(!presentation)batch.body.computeBoundingSphere();}if(batch.studs){batch.studs.instanceMatrix.needsUpdate=matrixChanged;if(!animationOnly){if(batch.studs.instanceColor)batch.studs.instanceColor.needsUpdate=true;if(!presentation)batch.studs.computeBoundingSphere();}}}
+   });batch.body.instanceMatrix.needsUpdate=matrixChanged;if(batch.hubs)batch.hubs.instanceMatrix.needsUpdate=matrixChanged;if(batch.fitted){batch.fitted.instanceMatrix.needsUpdate=matrixChanged;if(!animationOnly){if(batch.fitted.instanceColor)batch.fitted.instanceColor.needsUpdate=true;if(!presentation)batch.fitted.computeBoundingSphere();}}if(!animationOnly){if(batch.body.instanceColor)batch.body.instanceColor.needsUpdate=true;if(!presentation)batch.body.computeBoundingSphere();}if(batch.studs){batch.studs.instanceMatrix.needsUpdate=matrixChanged;if(!animationOnly){if(batch.studs.instanceColor)batch.studs.instanceColor.needsUpdate=true;if(!presentation)batch.studs.computeBoundingSphere();}}}
    previousAssemblyTime=cinematic&&!state.arrivals&&state.explode===0?assemblyTime:undefined;
   };
   update(latest.current);

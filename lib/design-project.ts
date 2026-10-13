@@ -5,14 +5,14 @@ import {SIGN_TEXT_PATTERN,SIGN_TEXT_HELP,normalizedSignText,signPixels} from "./
 import {referenceSheetSchema} from "./design-research";
 import {referencePhotoSchema,referencePhotosSchema,collectReferencePhotos,MAX_REFERENCE_PHOTOS} from "./reference-photos";
 import type {ReferenceSheet} from "./design-research";
-import {COLORS,PARTS,auditModel} from "./bridge";
+import {COLORS,ELEMENTS,PARTS,auditModel} from "./bridge";
 import type {Piece} from "./bridge";
 import {finishModel,intersects} from "./models";
 import type {BuildModel,VoxelMap} from "./models";
 import {validateScene,sceneVoxels,compileScene,looseByComponent,expandShapes,splitCaption,CAPTION_MAX,sceneSchema} from "./generated-scene";
 import {clipSentence} from "./utils";
 import {simulateClutch} from "./clutch";
-import {catalogPart} from "./part-catalog";
+import {catalogPart,fittedElement} from "./part-catalog";
 import {forEachPieceCell,pieceCellOffsets,partDimensions} from "./part-spatial";
 import type {GeneratedScene} from "./generated-scene";
 
@@ -44,7 +44,7 @@ export const emptyManual=():ManualEdits=>({erase:[],bricks:[]});
 const boxSchema=z.object({x:z.number().int().min(0).max(192),y:z.number().int().min(0).max(240),z:z.number().int().min(0).max(192),w:z.number().int().min(1).max(32),h:z.number().int().min(1).max(48),d:z.number().int().min(1).max(32)});
 // Saved bricks must be real parts in real colours at their true size. Which colours a part comes in is not re-checked:
 // that list is source data a refresh can change, so placing and painting check it instead and a save always reopens.
-const manualBrick=boxSchema.extend({id:z.number().int(),part:z.string(),color:z.string(),rotated:z.boolean(),stage:z.number().int(),face:z.enum(["px","nx","pz","nz"]).optional(),support:z.boolean().optional(),legs:z.string().optional(),skin:z.string().optional()}).refine(p=>Object.hasOwn(PARTS,p.part)&&Object.hasOwn(COLORS,p.color)&&[p.legs,p.skin].every(c=>c===undefined||p.part==="minifig"&&Object.hasOwn(COLORS,c))&&p.x+p.w<=192&&p.y+p.h<=240&&p.z+p.d<=192).refine(p=>{if(!Object.hasOwn(PARTS,p.part))return false;const t=partDimensions(p.part,p.rotated,p.face);return p.w===t.w&&p.d===t.d&&p.h===t.h&&p.rotated===t.rotated;});
+const manualBrick=boxSchema.extend({id:z.number().int(),part:z.string(),color:z.string(),rotated:z.boolean(),stage:z.number().int(),face:z.enum(["px","nx","pz","nz"]).optional(),support:z.boolean().optional(),legs:z.string().optional(),skin:z.string().optional(),fitted:z.string().optional()}).refine(p=>Object.hasOwn(PARTS,p.part)&&Object.hasOwn(COLORS,p.color)&&[p.legs,p.skin].every(c=>c===undefined||p.part==="minifig"&&Object.hasOwn(COLORS,c))&&(p.fitted===undefined||Boolean(fittedElement(p.part))&&Object.hasOwn(COLORS,p.fitted))&&p.x+p.w<=192&&p.y+p.h<=240&&p.z+p.d<=192).refine(p=>{if(!Object.hasOwn(PARTS,p.part))return false;const t=partDimensions(p.part,p.rotated,p.face);return p.w===t.w&&p.d===t.d&&p.h===t.h&&p.rotated===t.rotated;});
 const eraseSchema=boxSchema.extend({cells:z.array(z.tuple([z.number().int().min(0),z.number().int().min(0),z.number().int().min(0)])).min(1).max(8192).optional()}).refine(p=>!p.cells||p.cells.every(([x,y,z])=>x<p.w&&y<p.h&&z<p.d));
 export const manualSchema=z.object({erase:z.array(eraseSchema).max(32000),bricks:z.array(manualBrick).max(16000)});
 // The judge sometimes writes long; long text is trimmed at a sentence or word, never a reason to lose the review.
@@ -54,9 +54,9 @@ const featureStatus=z.enum(["visible","missing","uncertain"]);
 const reviewSchema=z.object({composition:z.object({status:z.enum(["matches","mismatch","uncertain","not_applicable"]),evidence:clip(1000)}).optional(),revision:z.object({status:z.enum(["visible","missing","uncertain","not_requested"]),evidence:clip(500)}).optional(),summary:clip(1500),recognizable:z.boolean(),criticalMismatch:z.boolean().optional(),features:z.array(z.object({feature:z.string().max(160),status:featureStatus,evidence:clip(500)})).max(12),rubric:z.array(z.object({feature:clip(80),kind:z.enum(["distinctive","silhouette","signature"]),status:featureStatus,evidence:clip(500)})).max(12).optional(),improvements:z.array(clip(500)).max(8),thinking:clip(4000).optional(),scope:z.literal("targeted").optional()});
 export {reviewSchema};
 export const contextSchema=z.object({unfinished:z.boolean().optional(),reviewRequest:z.string().max(2000).optional(),reviewRegion:revisionRegionSchema.optional(),reference:z.object({sheet:referenceSheetSchema.optional(),photo:referencePhotoSchema.optional(),photos:referencePhotosSchema.optional(),identityHint:z.string().max(300).optional(),briefKey:z.string().max(5000)}).refine(r=>collectReferencePhotos(r.photo,r.photos).length<=MAX_REFERENCE_PHOTOS,"Use at most four reference photos.").optional(),brief:briefSchema,manual:manualSchema,locked:z.array(z.string().max(80)).max(240),revisions:z.array(z.object({request:z.string().max(2000),summary:z.string().max(1000),at:z.string().max(40),builder:z.string().max(1000).optional()})).max(50),review:reviewSchema.optional(),reviewStale:z.boolean().optional(),autoRepairs:z.array(z.object({at:z.string().max(40),reasons:z.array(z.string().max(300)).max(8),kept:z.boolean(),fixed:z.number().int().min(0).max(100),cost:z.number().finite().min(0).max(100),checked:z.boolean().optional()})).max(20).optional(),versions:z.array(z.object({n:z.number().int().min(1).max(1e6),at:z.string().max(40),label:z.string().max(300),scene:z.lazy(()=>sceneSchema),manual:manualSchema,locked:z.array(z.string().max(80)).max(240),brief:briefSchema,review:reviewSchema.optional(),pieces:z.number().int().min(0).max(16000),opened:z.boolean().optional()})).max(MAX_VERSIONS).optional()});
-const recordKey=z.string().max(40).refine(key=>{const [part,color,...extra]=key.split(":");return !extra.length&&Object.hasOwn(PARTS,part)&&Object.hasOwn(COLORS,color);});
+const recordKey=z.string().max(40).refine(key=>{const [part,color,...extra]=key.split(":");return !extra.length&&Object.hasOwn(ELEMENTS,part)&&Object.hasOwn(COLORS,color);});
 const shoppingSchema=z.object({owned:z.record(recordKey,z.number().int().min(0).max(16000)),elementIds:z.record(recordKey,z.string().regex(/^\d{0,8}$/)),priceOverrides:z.record(recordKey,z.number().finite().min(0).max(10000)),quotes:z.record(recordKey,z.object({available:z.number().int().min(0).max(100000),unitPrice:z.number().finite().min(0).max(10000),url:z.string().url().max(1000).refine(s=>/^https:\/\//.test(s)),checkedAt:z.string().datetime()}))});
-const pieceKey=(p:Piece)=>`${p.part}:${p.color}:${p.x}:${p.y}:${p.z}:${p.rotated}:${p.face||(p.rotated?"px":"pz")}${p.legs||p.skin?`:${p.legs||""}:${p.skin||""}`:""}`;
+const pieceKey=(p:Piece)=>`${p.part}:${p.color}:${p.x}:${p.y}:${p.z}:${p.rotated}:${p.face||(p.rotated?"px":"pz")}${p.legs||p.skin?`:${p.legs||""}:${p.skin||""}`:""}${p.fitted?`:fitted=${p.fitted}`:""}`;
 export function editModel(model:BuildModel,pieces:Piece[]):BuildModel{
  const meta={...model,recipe:undefined,bridgeConfig:undefined,source:"custom" as const,edited:true};
  if(model.generation){const before=new Set(model.pieces.map(pieceKey)),after=new Set(pieces.map(pieceKey)),removed=model.pieces.filter(p=>!after.has(pieceKey(p))),added=pieces.filter(p=>!before.has(pieceKey(p)));

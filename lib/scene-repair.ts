@@ -2,6 +2,7 @@ import {COLORS,PARTS} from "./bridge";
 import type {ColorKey} from "./bridge";
 import {SIGN_FACES,SIGN_TEXT_PATTERN,signMetrics} from "./brick-lettering";
 import {partColors} from "./part-colors";
+import {fittedElement} from "./part-catalog";
 import {colorFinish,SKIN_COLORS} from "./colors";
 import {pieceCells,piecesIntersect} from "./part-spatial";
 import {shapeSchema,expandShapes,explicitPiece,isExplicit,wheelPiece,wheelPart,compileScene,expandCompactHeader,expandCompactShape,compactShapeSchema} from "./generated-scene";
@@ -89,6 +90,10 @@ export function repairScene(raw:unknown,brief?:Partial<Pick<DesignBrief,"maxWidt
     if(!listed.length){note(`Removed ${quoted(s)}: part ${s.part} has no listed colours.`);return [];}
     const color=madeIn(next.color,listed);note(`Changed ${quoted(s)} (part ${s.part}) from ${next.color} to ${color}, the nearest colour it is made in.`);next={...next,color};
    }
+   // bg is a frame's glass or door colour; on any other part it means nothing and is dropped.
+   const fitted=fittedElement(s.part!);
+   if(next.background&&!fitted)next={...next,background:null};
+   else if(fitted&&next.background&&!fitted.colors.includes(next.background)){const color=madeIn(next.background,fitted.colors);note(`Changed the ${fitted.name} in ${quoted(s)} from ${next.background} to ${color}, the nearest colour it is made in.`);next={...next,background:color};}
   }
   // Heads and hands come in skin tones only; any other skin falls back to the classic yellow.
   if(s.kind==="minifig"&&next.skin&&!SKIN_COLORS.includes(next.skin)){note(`Gave ${quoted(s)} a classic yellow head and hands: ${next.skin} is not a skin tone.`);next={...next,skin:null};}

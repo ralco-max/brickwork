@@ -3,7 +3,7 @@ import {readProjectMetadata,migrateCaption} from "./design-project";
 import {clipSentence} from "./utils";
 import type {DesignContext,ShoppingState} from "./design-project";
 import {COLORS,PARTS,STAGES,auditModel,LEGACY_PARTS} from "./bridge";
-import {EXPANDED_PARTS} from "./part-catalog";
+import {EXPANDED_PARTS,fittedElement,fittedColor} from "./part-catalog";
 import {partColors,partAllowsColor} from "./part-colors";
 import {SOLID_COLORS} from "./colors";
 import {partDimensions,piecesIntersect,forEachPieceCell,topConnectorOffsets,bottomConnectorOffsets} from "./part-spatial";
@@ -29,7 +29,8 @@ export const RECIPES:{id:Recipe;name:string;prompt:string;color:ColorKey;descrip
  {id:"blank",name:"Blank canvas",prompt:"Start with a blank canvas",color:"gray",description:"A studded base for your own design"},
 ];
 const defaultNames:Record<Recipe,string>={bridge:"Golden Gate Bridge",castle:"Neuschwanstein Castle",lighthouse:"Cape Hatteras Lighthouse",house:"Weekend cottage",rocket:"Saturn V",robot:"Your tiny sidekick",car:"Sunday drive",tree:"A little green escape",cat:"Curious cat",dog:"Best friend",boat:"Set sail",skyline:"City after dark",blank:"Untitled build"};
-export function inventoryFor(pieces:Piece[]) {const map=new Map<string,InventoryRow>();for(const p of pieces){const key=`${p.part}:${p.color}`,r=map.get(key);if(r)r.quantity++;else map.set(key,{key,part:p.part,color:p.color,quantity:1});}return [...map.values()].sort((a,b)=>b.quantity-a.quantity);}
+// A frame's fitted glass or door is its own element in its own colour, so it gets its own row.
+export function inventoryFor(pieces:Piece[]) {const map=new Map<string,InventoryRow>(),count=(part:string,color:ColorKey)=>{const key=`${part}:${color}`,r=map.get(key);if(r)r.quantity++;else map.set(key,{key,part,color,quantity:1});};for(const p of pieces){count(p.part,p.color);const fitted=fittedElement(p.part);if(fitted)count(fitted.part,fittedColor(p)!);}return [...map.values()].sort((a,b)=>b.quantity-a.quantity);}
 export function finishModel(pieces:Piece[],meta:Pick<BuildModel,"name"|"description"|"source">&Partial<BuildModel>,keepStages=false):BuildModel {
  const clean=pieces.map((p,id)=>({...p,id}));const maxY=Math.max(1,...clean.map(p=>p.y+p.h));
  let stages=meta.stages||STAGES;
@@ -207,7 +208,9 @@ export function validateProject(raw:unknown):BuildModel{
   if(p.x+dimensions.w>192||p.z+dimensions.d>192||p.y+dimensions.h>240)throw Error("The project exceeds the supported dimensions.");
   // A minifigure keeps its leg and skin colors; other pieces never carry them.
   const figure=p.part==="minifig"?{...(Object.hasOwn(COLORS,String(p.legs))?{legs:p.legs}:{}),...(Object.hasOwn(COLORS,String(p.skin))?{skin:p.skin}:{})}:{};
-  return {id,part:p.part,color:p.color,x:p.x,y:p.y,z:p.z,...dimensions,stage:0,...figure,...(p.support===true?{support:true}:{})};
+  // A window or door frame keeps its glass or door colour; nothing else carries one.
+  const fitted=fittedElement(p.part)&&Object.hasOwn(COLORS,String(p.fitted))?{fitted:p.fitted}:{};
+  return {id,part:p.part,color:p.color,x:p.x,y:p.y,z:p.z,...dimensions,stage:0,...figure,...fitted,...(p.support===true?{support:true}:{})};
  });
  const occupied=new Set<string>();for(const p of pieces)forEachPieceCell(p,(x,y,z)=>{const k=voxelKey(x,y,z);if(occupied.has(k))throw Error("The project has overlapping pieces. Repair the file before importing.");occupied.add(k);if(occupied.size>350000)throw Error("The project is too complex. Import a smaller version.");});
  return migrateCaption(finishModel(pieces,{name:typeof data.name==="string"?data.name.slice(0,80):"Imported project",description:typeof data.description==="string"?clipSentence(data.description.slice(0,2000),500):"Your editable Bricks project",source:"custom",...readProjectMetadata(data,pieces)}));

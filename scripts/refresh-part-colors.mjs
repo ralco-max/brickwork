@@ -22,8 +22,8 @@ const option=name=>{const index=args.indexOf(name);return index>=0?args[index+1]
 const sourceDir=option("--source-dir"),localDir=option("--from-local"),check=args.includes("--check"),dryRun=args.includes("--dry-run");
 const updatedAt=option("--date")||(localDir?"2026-10-13":new Date().toISOString().slice(0,10));
 if(!/^\d{4}-\d{2}-\d{2}$/.test(updatedAt))throw Error("Use an ISO date with --date.");
-const bundle=await build({stdin:{contents:'export {PARTS,LEGACY_PARTS,WHEELS} from "./lib/bridge";export {COLORS,CLASSIC_COLORS} from "./lib/colors";export {EXPANDED_PARTS} from "./lib/part-catalog";',resolveDir:root,loader:"ts"},bundle:true,platform:"node",format:"esm",write:false,logLevel:"error"});
-const {PARTS,LEGACY_PARTS,COLORS,CLASSIC_COLORS,EXPANDED_PARTS}=await import("data:text/javascript;base64,"+Buffer.from(bundle.outputFiles[0].text).toString("base64"));
+const bundle=await build({stdin:{contents:'export {PARTS,ELEMENTS,LEGACY_PARTS,WHEELS} from "./lib/bridge";export {COLORS,CLASSIC_COLORS} from "./lib/colors";export {EXPANDED_PARTS} from "./lib/part-catalog";',resolveDir:root,loader:"ts"},bundle:true,platform:"node",format:"esm",write:false,logLevel:"error"});
+const {PARTS,ELEMENTS,LEGACY_PARTS,WHEELS,COLORS,CLASSIC_COLORS,EXPANDED_PARTS}=await import("data:text/javascript;base64,"+Buffer.from(bundle.outputFiles[0].text).toString("base64"));
 
 // A full CSV parser is necessary: source names can contain quoted commas.
 function csv(text){
@@ -98,20 +98,25 @@ for(const key of palette){
  if(!row||row.name.toLowerCase()!==c.name.toLowerCase()||isTrans(row.is_trans)!==Boolean(c.transparent))throw Error(`Verify the source color mapping for ${key} (Rebrickable ${c.rebrickable}) before refreshing.`);
 }
 const has=(id,key,part=sourceOf(id))=>evidence.has(`${part}:${COLORS[key].rebrickable}`);
-const newColors=(id,part=sourceOf(id))=>added.filter(key=>has(id,key,part));
+// A part or fitted element enabled after the LEGO element snapshot (lib/data/lego-elements.json) has no element IDs
+// there for its classic colours either, so every colour it is offered in needs this evidence until both refresh.
+const snapshot=JSON.parse(await readFile(path.join(root,"lib/data/lego-elements.json"),"utf8")),lookedUp=new Set([...Object.keys(snapshot.elements),...snapshot.missing].map(k=>k.slice(0,k.lastIndexOf(":"))));
+const classicOrder=Object.keys(selection.colorIds).filter(k=>CLASSIC_COLORS.includes(k)),unlooked=id=>Object.hasOwn(ELEMENTS,id)&&id!=="minifig"&&!Object.hasOwn(WHEELS,id)&&!lookedUp.has(id);
+const evidenced=id=>unlooked(id)?[...classicOrder,...added]:added;
+const newColors=(id,part=sourceOf(id))=>evidenced(id).filter(key=>has(id,key,part));
 const combos={};for(const id of appParts)for(const key of newColors(id))combos[`${id}:${key}`]=evidence.get(`${sourceOf(id)}:${COLORS[key].rebrickable}`);
 for(const p of selection.parts)if(!Object.hasOwn(PARTS,p.id)&&!Object.values(aliases).includes(p.id))for(const key of newColors(p.id,p.rebrickableId))combos[`${p.id}:${key}`]=evidence.get(`${p.rebrickableId}:${COLORS[key].rebrickable}`);
 // App part:colour keys that only placeholder inventories mention, recorded so the exclusion stays visible.
 const appKeys=[...appParts.map(id=>[id,sourceOf(id)]),...selection.parts.filter(p=>!Object.hasOwn(PARTS,p.id)&&!Object.values(aliases).includes(p.id)).map(p=>[p.id,p.rebrickableId])];
-const excluded=appKeys.flatMap(([id,part])=>added.filter(key=>placeholderOnly.has(`${part}:${COLORS[key].rebrickable}`)).map(key=>`${id}:${key}`)).sort();
-const meta={source,provisional,updatedAt,colors:added,rule:"Offered in a colour added after the classic palette only when the exact part number has an element ID or a non-spare inventory in a released set (never a Rebrickable Database Sets placeholder) in that Rebrickable colour ID.",evidence:"scripts/part-color-evidence.json"};
+const excluded=appKeys.flatMap(([id,part])=>evidenced(id).filter(key=>placeholderOnly.has(`${part}:${COLORS[key].rebrickable}`)).map(key=>`${id}:${key}`)).sort();
+const meta={source,provisional,updatedAt,colors:added,rule:"Offered in a colour added after the classic palette only when the exact part number has an element ID or a non-spare inventory in a released set (never a Rebrickable Database Sets placeholder) in that Rebrickable colour ID. A part enabled after the LEGO element snapshot is offered in every colour, classic ones too, only on this evidence.",evidence:"scripts/part-color-evidence.json"};
 
 // Outputs. Classic colours keep their existing, element-evidenced lists and order.
-const withColors=(list,id,part)=>[...list.filter(k=>CLASSIC_COLORS.includes(k)),...newColors(id,part)];
+const withColors=(list,id,part)=>unlooked(id)?newColors(id,part):[...list.filter(k=>CLASSIC_COLORS.includes(k)),...newColors(id,part)];
 const colorIds={...Object.fromEntries(Object.entries(selection.colorIds).filter(([k])=>CLASSIC_COLORS.includes(k))),...Object.fromEntries(added.map(k=>[k,COLORS[k].rebrickable]))};
 const nextSelection={};for(const [k,v] of Object.entries(selection)){if(k==="colorEvidence")continue;nextSelection[k]=k==="colorIds"?colorIds:k==="parts"?v.map(p=>({...p,colors:withColors(p.colors,p.id,p.rebrickableId)})):v;if(k==="colorIds")nextSelection.colorEvidence={...meta,files};}
 const legacyColors=Object.fromEntries(Object.keys(LEGACY_PARTS).sort().map(id=>[id,[...CLASSIC_COLORS,...newColors(id)]]));
-const catalogOutput=async file=>{const data=JSON.parse(await readFile(file,"utf8")),out={};for(const [k,v] of Object.entries(data)){if(k==="colorEvidence"||k==="legacyColors")continue;if(k==="parts"){out.colorEvidence=meta;out.legacyColors=legacyColors;out.parts=Object.fromEntries(Object.entries(v).map(([id,p])=>[id,{...p,colors:withColors(p.colors,id)}]));}else out[k]=v;}return JSON.stringify(out)+"\n";};
+const catalogOutput=async file=>{const data=JSON.parse(await readFile(file,"utf8")),out={};for(const [k,v] of Object.entries(data)){if(k==="colorEvidence"||k==="legacyColors")continue;if(k==="parts"){out.colorEvidence=meta;out.legacyColors=legacyColors;out.parts=Object.fromEntries(Object.entries(v).map(([id,p])=>[id,{...p,colors:withColors(p.colors,id),...(p.fitted?{fitted:{...p.fitted,colors:withColors(p.fitted.colors,p.fitted.part)}}:{})}]));}else out[k]=v;}return JSON.stringify(out)+"\n";};
 // Match the Python refresher's json.dumps(indent=2) so the two scripts produce identical files.
 const ascii=text=>text.replace(/[\u007f-￿]/g,c=>"\\u"+c.charCodeAt(0).toString(16).padStart(4,"0"));
 const evidenceOutput=JSON.stringify({note,source,provisional,updatedAt,colorIds:Object.fromEntries(added.map(k=>[k,COLORS[k].rebrickable])),files,fields:["elementIds","sets","lastSetYear"],combos,placeholderOnly:excluded},null,1).replace(/\[\n\s*(\d+),\n\s*(\d+),\n\s*(\d+)\n\s*\]/g,"[$1,$2,$3]")+"\n";

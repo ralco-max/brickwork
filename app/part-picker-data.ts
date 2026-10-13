@@ -1,6 +1,6 @@
 import {COLORS,PARTS} from "@/lib/bridge";
 import type {ColorKey,PartId,Piece} from "@/lib/bridge";
-import {catalogPart} from "@/lib/part-catalog";
+import {catalogPart,fittedElement} from "@/lib/part-catalog";
 import {partColors,partAllowsColor} from "@/lib/part-colors";
 
 export type PartOption={id:PartId;name:string;family:string;w:number;d:number;h:number;colors?:ColorKey[];handedness?:string;counterpart?:PartId};
@@ -28,4 +28,5 @@ export function partPage(options:PartOption[],requestedPage:number){
 }
 export const partColorAllowed=(part:PartId,color:ColorKey)=>partAllowsColor(part,color);
 // Paint keeps a piece real: it takes the colour only when its part is made in it (a minifigure torso takes any colour).
-export const paintPiece=(p:Piece,color:ColorKey):Piece|null=>partAllowsColor(p.part,color)?{...p,color}:null;
+// A colour the frame is not made in but its glass or door is (trans-clear on a window) paints that element instead.
+export const paintPiece=(p:Piece,color:ColorKey):Piece|null=>partAllowsColor(p.part,color)?{...p,color}:fittedElement(p.part)?.colors.includes(color)?{...p,fitted:color}:null;

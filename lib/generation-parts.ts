@@ -7,11 +7,13 @@ import type {ReferenceSheet} from "./design-research";
 import type {GeneratedScene} from "./generated-scene";
 
 type Cell=readonly [number,number,number];
-export type GenerationCatalogPart={name:string;w:number;d:number;h:number;family:string;colors:readonly ColorKey[];handedness?:"left"|"right";counterpart?:string;topStuds:readonly Cell[];bottomSockets:readonly Cell[];occupancy:readonly Cell[]};
+type Fitted={part:string;name:string;colors:readonly ColorKey[];default:ColorKey};
+export type GenerationCatalogPart={name:string;w:number;d:number;h:number;family:string;colors:readonly ColorKey[];handedness?:"left"|"right";counterpart?:string;topStuds:readonly Cell[];bottomSockets:readonly Cell[];occupancy:readonly Cell[];fitted?:Fitted};
 type Catalog=Readonly<Record<string,GenerationCatalogPart>>;
 export type PartSelectionInput={prompt:string;brief?:DesignBrief;research?:ReferenceSheet;previous?:GeneratedScene;feedback?:string[]};
 export type ConnectorLayout={cells:Cell[]}|{grids:{x:[number,number];y:number;z:[number,number]}[]};
-export type GenerationPart={id:string;name:string;family:string;size:[number,number,number];colors:readonly ColorKey[];topStuds:ConnectorLayout;bottomSockets:ConnectorLayout;handedness?:"left"|"right";counterpart?:string};
+// fitted: the glass or door that comes in a window or door frame; the shape's bg picks its colour.
+export type GenerationPart={id:string;name:string;family:string;size:[number,number,number];colors:readonly ColorKey[];topStuds:ConnectorLayout;bottomSockets:ConnectorLayout;handedness?:"left"|"right";counterpart?:string;fitted?:{id:string;name:string;colors:readonly ColorKey[];default:ColorKey}};
 
 // Rectangles are an exact, lossless encoding of connector locations. An arch's
 // missing middle and a curved wedge's raised sockets must never become a box.
@@ -28,6 +30,7 @@ export function compactConnectors(input:readonly Cell[]):ConnectorLayout{
  }
  return {grids};
 }
+const CONTEXTUAL=new Set(["window","door"]);
 const normalized=(s:string)=>s.toLowerCase().normalize("NFKD").replace(/[\u0300-\u036f]/g,"");
 const words=(s:string)=>new Set(normalized(s).match(/[a-z0-9]+/g)?.map(w=>w.length>4&&w.endsWith("s")?w.slice(0,-1):w)||[]);
 const intents:[RegExp,string[]][]=[
@@ -38,6 +41,10 @@ const intents:[RegExp,string[]][]=[
  [/\b(rocket|spaceship|spacecraft|tower|lighthouse|column|dome|rotunda|cylinder)\b/,["round","round_plate","round_tile","curved","slope"]],
  [/\b(animal|character|dog|cat|bird|plant|tree|flower|creature|face|eye|robot|monument)\b/,["curved","round","round_plate","round_tile","wedge","slope"]],
  [/\b(window|glass|wall|fence|railing|balcony)\b/,["panel","support","arch"]],
+ // Places people live, work, shop or travel through get real window frames with glass, doors, grilles and facade bricks.
+ [/\b(building|house|home|cottage|cabin|barn|apartment|townhouse|terrace|shop|store|storefront|shopfront|cafe|bakery|restaurant|diner|bar|pub|hotel|office|bank|vault|station|platform|terminal|depot|airport|garage|hospital|school|library|museum|church|chapel|temple|castle|palace|tower|lighthouse|mill|street|town|city|village|modular|facade|architecture)s?\b/,["window","door","tile","brick"]],
+ [/\b(windows?|glazed|glazing|doors?|doorway|entrance|porch)\b/,["window","door"]],
+ [/\b(train|tram|carriage|railway|locomotive|bus)\b/,["window","door","tile"]],
 ];
 function legacyPart(id:string):GenerationCatalogPart|undefined{
  const p=Object.hasOwn(PARTS,id)?PARTS[id]:undefined;if(!p)return;
@@ -47,7 +54,7 @@ function legacyPart(id:string):GenerationCatalogPart|undefined{
 }
 const hasConnectors=(layout:ConnectorLayout)=>"cells" in layout?layout.cells.length>0:layout.grids.length>0;
 function entry(id:string,p:GenerationCatalogPart):GenerationPart{
- return {id,name:p.name,family:p.family,size:[p.w,p.h,p.d],colors:p.colors,topStuds:compactConnectors(p.topStuds),bottomSockets:compactConnectors(p.bottomSockets),...(p.handedness?{handedness:p.handedness}:{}),...(p.counterpart?{counterpart:p.counterpart}:{})};
+ return {id,name:p.name,family:p.family,size:[p.w,p.h,p.d],colors:p.colors,topStuds:compactConnectors(p.topStuds),bottomSockets:compactConnectors(p.bottomSockets),...(p.handedness?{handedness:p.handedness}:{}),...(p.counterpart?{counterpart:p.counterpart}:{}),...(p.fitted?{fitted:{id:p.fitted.part,name:p.fitted.name,colors:p.fitted.colors,default:p.fitted.default}}:{})};
 }
 
 // This search is local and deterministic: no extra AI call, whole-catalog prompt
@@ -74,9 +81,11 @@ export function buildGenerationPartCatalog(input:PartSelectionInput,catalog:Cata
  // Seed the relevant families before filling by score, avoiding forty near-
  // identical slopes when the building also needs arches and round columns.
  const families=[...new Set(scored.map(({p})=>p.family))].sort((a,b)=>(familyWeight.get(b)||0)-(familyWeight.get(a)||0)||a.localeCompare(b));
- for(const family of families){if(chosen.size>=cap)break;const candidate=scored.find(c=>c.p.family===family&&!chosen.has(c.id));if(candidate)includePair(candidate.id,candidate.p);}
+ // Window and door frames only make sense where the brief asks for a building or an opening (or names one).
+ const offered=(family:string)=>!CONTEXTUAL.has(family)||Boolean(familyWeight.get(family));
+ for(const family of families){if(chosen.size>=cap)break;if(!offered(family))continue;const candidate=scored.find(c=>c.p.family===family&&!chosen.has(c.id));if(candidate)includePair(candidate.id,candidate.p);}
  while(chosen.size<cap){
-  const next=scored.filter(c=>!chosen.has(c.id)).sort((a,b)=>b.score/(1+(familyCounts.get(b.p.family)||0)*.45)-a.score/(1+(familyCounts.get(a.p.family)||0)*.45)||a.id.localeCompare(b.id))[0];
+  const next=scored.filter(c=>!chosen.has(c.id)&&offered(c.p.family)).sort((a,b)=>b.score/(1+(familyCounts.get(b.p.family)||0)*.45)-a.score/(1+(familyCounts.get(a.p.family)||0)*.45)||a.id.localeCompare(b.id))[0];
   if(!next)break;includePair(next.id,next.p);
  }
  const parts=[...chosen].map(([id,p])=>entry(id,p)),example=parts.find(p=>!["brick","plate","tile"].includes(p.family)&&hasConnectors(p.bottomSockets))||parts[0];

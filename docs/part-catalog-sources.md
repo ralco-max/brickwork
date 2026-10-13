@@ -198,6 +198,94 @@ Use the full rebuild command above for a release. The compiler's `--ids` and
 `--limit` options are diagnostics: they write a partial catalog and must be
 followed by a full rebuild before deployment.
 
+### Without the archives: a per-file mirror
+
+Where the archives and the GitHub API cannot be reached, `scripts/fetch-part-sources.mjs`
+mirrors exactly the files the compiler reads from the two pinned commits on
+`raw.githubusercontent.com`: every selected part, each subfile and primitive it
+references, each one's shadow file, the shadow-only files their `SNAP_INCL` metas name,
+and each frame's fitted element and LDraw shortcut. The shadow repository's
+`.gitattributes` checks `.dat` files out with CRLF line endings, so the mirror writes them
+that way too; its files then hash exactly as a checkout does. A mirror is not a git
+checkout, so the compiler is told the shadow commit:
+
+```sh
+NODE_USE_ENV_PROXY=1 node scripts/fetch-part-sources.mjs --out /tmp/part-sources
+node scripts/compile-part-catalog.mjs --ldraw /tmp/part-sources/ldraw \
+  --shadow /tmp/part-sources/shadow --shadow-commit 9b1131fb1991f8c0bfc072325e4e12f6271aba35
+```
+
+On 2026-10-13 this mirror matched every hash recorded in `public/parts/attribution.json`
+(1,164 LDraw and 479 shadow files), and a full rebuild from it reproduced the 438 parts
+then enabled byte for byte before any candidate was added.
+
+### Studs drawn inline
+
+A part's height comes from its body, which excludes the subtrees of stud primitives. A
+few parts draw a stud inline instead: the notched outer studs of `60594` (Window 1 x 4 x 3)
+and `60596` (Door Frame 1 x 4 x 6) are `3-4cyli`/`3-4disc` primitives, which would count as
+body and make the frame one plate too tall, with its top cells blocked. Geometry lying
+entirely inside a stud the shadow library documents (radius 6, 4 LDU above the stud's
+base) is therefore treated as stud, not body. This changed none of the 438 parts compiled
+before it.
+
+### Fitted glass and doors
+
+Glass and doors have no studs or anti-studs; they clip or hinge into a frame, so the
+compiler rejects them as parts of their own (`fittedIn` in the rejected list). A candidate
+with `fitted` is compiled with its element in place instead:
+
+- `60592` Window 1 x 2 x 2 Flat Front with `60601` glass and `60593` Window 1 x 2 x 3
+  Flat Front with `60602` glass, placed as the official LDraw shortcuts `60592c01` and
+  `60593c01` place them (both at the frame's origin);
+- `60596` Door Frame 1 x 4 x 6 with `60616b` Door 1 x 4 x 6 (chamfered handle plinth),
+  hung where the shadow library's finger snaps meet: the frame's `[group=door]` slot
+  `seq=2 132 2` at (-32, 70, 5) and the door's 132 LDU knuckle at (0, 70, 0), so the door
+  sits at (-32, 0, 5) in the frame.
+
+The element's mesh is compiled in the frame's placement box
+(`public/parts/ldraw/<frame>-<element>.json`), so it renders, turns, collides and exports
+with the frame. The frame's collision cells include it: a closed window or door fills its
+whole box. The door's stud handle stands 2.75 LDU proud of the frame face and is drawn,
+not collided. A piece's `fitted` field is the element's colour (default trans-clear, the
+element's most-made colour); scenes set it with a frame shape's `bg`. Inventories, CSV,
+BrickLink XML and LDraw exports list the element as its own part in its own colour. Like
+minifigures, frames follow LDraw's convention that a part's front faces -z: the glass of a
+flat-front window sits 3 LDU behind its front face and a door sits back in its frame, so a
+frame in a model's front (+z) wall is placed with face `nz`.
+
+### Building-detail parts added 2026-10-13
+
+Enabled: the three frames above, `2412b` Tile 1 x 2 Grille, `2877` Brick 1 x 2 with
+Grille, `98283` Brick 1 x 2 with Masonry Brick Profile and `4216` Brick 1 x 2 with Groove.
+Each compiles on the 20/8 LDU grid with one socket per bottom cell and (except the tile)
+one stud per top cell. `3070b`, `3069b` and `3068b` tiles were already core parts, and
+LDraw has moved `4073` to `6141` (Plate Round 1 x 1), already enabled.
+
+Left out, deliberately:
+
+- **Jumper plates** (`3794b`, and `15573` which replaced it): the single stud sits half a
+  stud off the grid, so the compiler would keep the two sockets and drop the stud, leaving
+  a studless plate that looks studded. They wait for half-stud offsets.
+- **`60594` Window 1 x 4 x 3**: the frame compiles, but no LDraw shortcut or shadow snap
+  places its glass (`60603`, an alias of `86210`), and an empty frame is not a window.
+  Two `60593` side by side make the same opening.
+- **Train windows `4033`/`4035`**: their LDraw shortcuts exist, but both are retired
+  (`4033` last appeared in a 2006 set and its glass `4034` in 2011; `4036`, the glass for
+  `4035`, has no element ID in the 2022 snapshot).
+- **`30044` Window 1 x 2 x 2 2/3 with rounded top**: its one stud is centred between grid
+  positions, so nothing can be stacked on it.
+- **`57894` 1 x 4 x 6 and `2493b` 1 x 4 x 5 windows**: no LDraw shortcut places their glass.
+
+Colours: these parts were enabled after the LEGO element snapshot, so they have no element
+IDs for their classic colours either. Every colour they and their fitted elements are
+offered in comes from the production evidence above (an element ID in the 2022 snapshot
+or a non-spare inventory of a released set), and `scripts/refresh-part-colors.mjs` records
+those classic combinations in `scripts/part-color-evidence.json` too. Their names come from
+the Rebrickable snapshot in `lego-oracle` 0.1.2. The next official refresh of
+`lib/data/lego-elements.json` covers them, after which their classic colours follow the
+element-ID rule like every other part.
+
 ## Requested new shells
 
 LEGO lists design `8432` as “Left shell 3 x 8 x 2, with bow and angle” and `8431`

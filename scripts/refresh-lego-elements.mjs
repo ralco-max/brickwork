@@ -13,8 +13,8 @@ const root=path.resolve(path.dirname(fileURLToPath(import.meta.url)),".."),args=
 const option=name=>{const index=args.indexOf(name);return index>=0?args[index+1]:undefined;};
 const sourceDir=option("--source-dir"),updatedAt=option("--date")||new Date().toISOString().slice(0,10);
 if(!/^\d{4}-\d{2}-\d{2}$/.test(updatedAt))throw Error("Use an ISO date with --date.");
-const bundle=await build({stdin:{contents:'export {PARTS,COLORS,WHEELS} from "./lib/bridge";',resolveDir:root,loader:"ts"},bundle:true,platform:"node",format:"esm",write:false});
-const {PARTS,COLORS,WHEELS}=await import("data:text/javascript;base64,"+Buffer.from(bundle.outputFiles[0].text).toString("base64"));
+const bundle=await build({stdin:{contents:'export {ELEMENTS,COLORS,WHEELS} from "./lib/bridge";',resolveDir:root,loader:"ts"},bundle:true,platform:"node",format:"esm",write:false});
+const {ELEMENTS,COLORS,WHEELS}=await import("data:text/javascript;base64,"+Buffer.from(bundle.outputFiles[0].text).toString("base64"));
 
 // A full CSV parser is necessary: source descriptions can contain quoted commas.
 function csv(text){
@@ -46,7 +46,8 @@ for(const [key,color] of Object.entries(COLORS)){
  if(!actual||/^(t|true)$/i.test(actual.is_trans)!==Boolean(color.transparent)||actual.name.toLowerCase()!==color.name.toLowerCase())throw Error(`Verify the source color mapping for ${key} (Rebrickable ${color.rebrickable}) before refreshing.`);
 }
 const catalog={},missing=[];
-for(const part of Object.keys(PARTS).sort()){
+// Every element a parts list can name, including the glass and doors fitted into frames.
+for(const part of Object.keys(ELEMENTS).sort()){
  if(Object.hasOwn(WHEELS,part)||part==="minifig")continue; // App wheels include a tire; catalog numbers identify the rim only.
  const sourcePart=aliases[part]||part;
  if(!parts.some(row=>row.part_num===sourcePart))throw Error(`Unknown source part ${sourcePart}.`);

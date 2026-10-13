@@ -9,6 +9,8 @@ const [catalog,elements,selection,attribution,colorEvidence,publicCatalog]=await
 // Colours added after the classic palette are evidenced by refresh-part-colors.mjs, not by element IDs.
 const added=new Set(catalog.colorEvidence.colors),evidenced=(part,color)=>{const e=colorEvidence.combos[`${part}:${color}`];return Array.isArray(e)&&(e[0]>0||e[1]>0);};
 const parts=Object.entries(catalog.parts),chosen=new Map(selection.parts.map(p=>[p.id,p])),palette=new Set(Object.keys(selection.colorIds));
+// Parts enabled after the LEGO element snapshot are offered in every colour, classic ones too, on production evidence alone.
+const lookedUp=new Set([...Object.keys(elements.elements),...elements.missing].map(key=>key.slice(0,key.lastIndexOf(':'))));
 const unique=(values,label)=>assert.equal(new Set(values).size,values.length,`${label}: duplicate entries`);
 const triple=(cell,label)=>assert.ok(Array.isArray(cell)&&cell.length===3&&cell.every(Number.isFinite),`${label}: finite xyz tuple`);
 const cellKey=cell=>cell.join(',');
@@ -41,7 +43,7 @@ test('every offered catalog color has an exact sourced element match or recorded
   assert.deepEqual(p.colors,chosen.get(id).colors,`${id}: selection color provenance`);
   for(const color of p.colors){
    assert.ok(palette.has(color),`${id}: unknown color ${color}`);
-   if(added.has(color)){assert.ok(evidenced(id,color),`${id}:${color}: no production evidence`);assert.equal(elements.elements[`${id}:${color}`],undefined,`${id}:${color}: no substituted element ID`);continue;}
+   if(added.has(color)||!lookedUp.has(id)){assert.ok(evidenced(id,color),`${id}:${color}: no production evidence`);assert.equal(elements.elements[`${id}:${color}`],undefined,`${id}:${color}: no substituted element ID`);continue;}
    assert.ok(elements.elements[`${id}:${color}`]?.length,`${id}:${color}: unsupported element match`);assert.ok(!elements.missing.includes(`${id}:${color}`));
   }
  }
@@ -105,7 +107,7 @@ test('added colours are offered only where evidenced and their provenance is rec
   unique(list,`${id}: legacy colors`);assert.deepEqual(list.slice(0,13).sort(),[...classic].sort(),`${id}: legacy parts keep every classic colour`);
   for(const color of list.slice(13)){assert.ok(added.has(color));assert.ok(evidenced(id,color),`${id}:${color}: legacy colour without evidence`);}
  }
- for(const combo of Object.keys(colorEvidence.combos)){const [id,color]=combo.split(':');assert.ok(added.has(color));assert.ok(evidenced(id,color));assert.ok((catalog.parts[id]?.colors||catalog.legacyColors[id]||chosen.get(id).colors).includes(color),`${combo}: evidence not applied`);}
+ for(const combo of Object.keys(colorEvidence.combos)){const [id,color]=combo.split(':');assert.ok(added.has(color)||!lookedUp.has(id),`${combo}: classic colours need element IDs once the element snapshot covers the part`);assert.ok(evidenced(id,color));assert.ok((catalog.parts[id]?.colors||catalog.legacyColors[id]||chosen.get(id).colors).includes(color),`${combo}: evidence not applied`);}
  // Sparse finishes stay sparse: no 4 x 8 plate in pearl gold or trans-clear.
  assert.ok(!catalog.legacyColors['3035'].includes('pearlgold'));assert.ok(!catalog.legacyColors['3035'].includes('transclear'));
  assert.ok(catalog.legacyColors['3024'].includes('translightblue')&&catalog.legacyColors['3024'].includes('pearlgold'));
