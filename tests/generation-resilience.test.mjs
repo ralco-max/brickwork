@@ -3,8 +3,8 @@ import test from 'node:test';
 import {build} from 'esbuild';
 import {budgetDb} from './helpers/budget-db.mjs';
 
-const bundle=await build({stdin:{contents:'export {env as testEnv} from "cloudflare:workers";export * from "./lib/server-events";export * from "./lib/generation-errors";export * from "./lib/generation-stream";export * from "./lib/generation-provider";export * from "./lib/generation-recovery";export * from "./lib/generated-scene";export * from "./lib/assembly";export {defaultBrief} from "./lib/design-project";export {foundationScene} from "./lib/live-arrivals";export {POST as reviewPOST} from "./app/api/review/route";export {POST as generatePOST} from "./app/api/generate/route";',resolveDir:process.cwd(),loader:'ts'},bundle:true,platform:'node',format:'esm',write:false,plugins:[{name:'fixture-env',setup(b){b.onResolve({filter:/^cloudflare:workers$/},()=>({path:'env',namespace:'fixture'}));b.onLoad({filter:/.*/,namespace:'fixture'},()=>({contents:'export const env={};',loader:'js'}));}}]});
-const {testEnv,eventResponse,GenerationError,upstreamError,readEvents,generateScene,canKeepPartial,continuationPrompt,compileScene,defaultBrief,foundationScene,LandingAssemblyClock,reviewPOST,generatePOST,compactScene}=await import('data:text/javascript;base64,'+Buffer.from(bundle.outputFiles[0].text).toString('base64'));
+const bundle=await build({stdin:{contents:'export {env as testEnv} from "cloudflare:workers";export * from "./lib/server-events";export * from "./lib/generation-errors";export * from "./lib/generation-stream";export * from "./lib/generation-provider";export * from "./lib/generation-recovery";export * from "./lib/generated-scene";export * from "./lib/assembly";export {defaultBrief} from "./lib/design-project";export {foundationScene} from "./lib/live-arrivals";export {POST as reviewPOST} from "./app/api/review/route";export {POST as generatePOST} from "./app/api/generate/route";export {runWithExecutionContext} from "vinext/shims/request-context";',resolveDir:process.cwd(),loader:'ts'},bundle:true,platform:'node',format:'esm',write:false,plugins:[{name:'fixture-env',setup(b){b.onResolve({filter:/^cloudflare:workers$/},()=>({path:'env',namespace:'fixture'}));b.onLoad({filter:/.*/,namespace:'fixture'},()=>({contents:'export const env={};',loader:'js'}));}}]});
+const {testEnv,eventResponse,GenerationError,upstreamError,readEvents,generateScene,canKeepPartial,continuationPrompt,compileScene,defaultBrief,foundationScene,LandingAssemblyClock,reviewPOST,generatePOST,compactScene,runWithExecutionContext}=await import('data:text/javascript;base64,'+Buffer.from(bundle.outputFiles[0].text).toString('base64'));
 const request=()=>new Request('https://brickwork.test/api/generate',{headers:{'cf-ray':'fixture-ray'}});
 const collect=async stream=>{const items=[];for await(const item of readEvents(stream))items.push(item);return items;};
 
@@ -32,6 +32,18 @@ test('consumer cancellation aborts the upstream request without a false error',a
  const logs=[];t.mock.method(console,'error',message=>logs.push(message));let signal;
  const response=eventResponse(request(),async(s)=>{signal=s;await new Promise(r=>s.addEventListener('abort',r,{once:true}));},{timeoutMs:1000,heartbeatMs:5});
  await response.body.cancel();assert.equal(signal.aborted,true);assert.deepEqual(logs,[]);
+});
+
+test('a client that disconnects mid-design keeps the worker alive until the ledger settles an estimate instead of the full hold',async t=>{
+ const {db,sqlite}=budgetDb();testEnv.DB=db;t.after(()=>{sqlite.close();delete testEnv.DB;});const logs=[],failures=[];t.mock.method(console,'info',m=>logs.push(m));t.mock.method(console,'error',m=>failures.push(m));
+ t.mock.method(globalThis,'fetch',async(url,init)=>{if(url.endsWith('/input_tokens'))return Response.json({input_tokens:1000});
+  return new Response(new ReadableStream({start(c){c.enqueue(new TextEncoder().encode('data: '+JSON.stringify({type:'response.output_text.delta',delta:'{"n":"Tower"'})+'\n\n'));init.signal.addEventListener('abort',()=>c.error(new DOMException('The operation was aborted.','AbortError')),{once:true});}}));});
+ const kept=[],brief=defaultBrief('A tower');
+ const response=await runWithExecutionContext({waitUntil:p=>kept.push(p)},()=>generatePOST(new Request('https://brickwork.test/api/generate',{method:'POST',headers:{'x-brickwork-api-key':'fixture-key'},body:JSON.stringify({brief,prompt:'A tower',detail:'medium'})})));
+ let hold;for await(const event of readEvents(response.body)){if(event.type==='budget'&&event.budget.hold)hold=event.budget.hold;if(event.type==='status'&&/Designing/.test(event.message))break;}
+ assert.equal(kept.length,1);await Promise.all(kept);
+ const [row]=sqlite.prepare('SELECT reserved_nanos,charged_nanos FROM ai_spend').all();assert.equal(row.reserved_nanos/1e9,hold);
+ assert.ok(row.charged_nanos>0&&row.charged_nanos<row.reserved_nanos/2,JSON.stringify(row));assert.equal(JSON.parse(logs.find(m=>m.includes('bricks_budget_estimated'))).chargedNanos,row.charged_nanos);assert.deepEqual(failures,[]);
 });
 
 test('truncated generation retains usable subject geometry and can send a valid continuation',async()=>{
