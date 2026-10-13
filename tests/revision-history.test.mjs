@@ -7,7 +7,7 @@ const root=fileURLToPath(new URL('..',import.meta.url));
 const vite=await createServer({appType:'custom',configFile:false,root,resolve:{alias:{'@':root}},server:{middlewareMode:true},logLevel:'error'});
 after(()=>vite.close());
 const [history,project,scenes,region,library]=await Promise.all([vite.ssrLoadModule('/lib/revision-history.ts'),vite.ssrLoadModule('/lib/design-project.ts'),vite.ssrLoadModule('/lib/generated-scene.ts'),vite.ssrLoadModule('/lib/revision-region.ts'),vite.ssrLoadModule('/lib/design-library.ts')]);
-const {addVersion,componentDiff,diffSummary,componentLabel,pieceOwners,piecesOf,componentsInBounds,composeRegion,TAP_POLYGON,changedPieceIds,highlightChanges,sameVersion,previousVersion,compactReview}=history;
+const {addVersion,componentDiff,diffSummary,componentLabel,pieceOwners,piecesOf,componentsInBounds,composeRegion,TAP_POLYGON,changedPieceIds,highlightChanges,sameVersion,previousVersion,compactReview,keepVersion}=history;
 const {contextSchema,defaultBrief,emptyManual,projectJSON,emptyShopping,readProjectMetadata,MAX_VERSIONS}=project;
 const {compileScene,validateScene}=scenes;
 const {revisionRegionSchema,revisionSceneKey}=region;
@@ -89,6 +89,16 @@ test('changed bricks are highlighted only in components that changed',()=>{
  assert.deepEqual(highlightChanges({scene:before,pieces:a.pieces},{scene:before,pieces:a.pieces}),[]);
  assert.equal(sameVersion({scene:before,manual:emptyManual(),locked:['A','B']},{scene:{...before},manual:emptyManual(),locked:['B','A']}),true);
  assert.equal(sameVersion({scene:before,manual:emptyManual(),locked:[]},{scene:after,manual:emptyManual(),locked:[]}),false);
+});
+
+test('a build left on screen by a stopped pass is kept as a version; one already kept is found, not repeated',()=>{
+ const list=[cafe(),cafe(3)].reduce((l,s,i)=>addVersion(l,version(s,`Pass ${i+1}`)),[]);
+ const same=keepVersion(list,version(cafe(3),'Edited'));
+ assert.equal(same.added,false);assert.equal(same.n,2);assert.equal(same.list.length,2,'the shown build is v2: nothing new to restore');
+ const stopped=keepVersion(list,{...version(cafe(5),'Add a door (stopped before review)'),review:undefined});
+ assert.equal(stopped.added,true);assert.equal(stopped.n,3);assert.equal(stopped.list.at(-1).label,'Add a door (stopped before review)');
+ assert.equal(keepVersion(stopped.list,version(cafe(),'x')).n,1,'an older version matches by content');
+ assert.equal(keepVersion([],version(cafe(),'First build')).n,1,'a first build stopped before its review becomes v1');
 });
 
 test('saved drafts keep their versions through the design library',()=>{

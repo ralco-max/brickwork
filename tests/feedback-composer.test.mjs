@@ -22,10 +22,25 @@ test('suggestions: missing and hard-to-tell features, the review\'s fixes, and w
  assert.deepEqual(reviewSuggestions(null),{suggestions:[],looksRight:[]});
 });
 
+test('failed design checks are tickable too, with or without a review, and a pass of only them reads as fixing the checks',()=>{
+ const issues=['The exact sign “CAFE” is missing from the build.','3 loose parts have nothing under them.'];
+ const {suggestions}=reviewSuggestions(review,{issues});
+ assert.deepEqual(suggestions.filter(s=>s.kind==='check').map(s=>[s.tag,s.label,s.text]),issues.map(i=>['Check',i,i]),'the issue text is what the designer gets');
+ assert.ok(suggestions.findIndex(s=>s.kind==='check')<suggestions.findIndex(s=>s.kind==='fix'),'objective failures come before the reviewer\'s ideas');
+ assert.deepEqual(reviewSuggestions(null,{issues:issues.slice(0,1)}).suggestions.map(s=>s.kind),['check'],'no review needed');
+ assert.equal(reviewSuggestions(review,{issues:[...issues,issues[0]]}).suggestions.filter(s=>s.kind==='check').length,2,'deduped');
+ assert.equal(historyLabel({typed:'',fixes:2,checks:2}),'Fixed the flagged checks');
+ assert.equal(historyLabel({typed:'',fixes:3,checks:2}),'Applied 3 suggested fixes');
+ const {finishStatus}=gen;
+ assert.equal(finishStatus(2,true),'2 design checks need a look. They are listed under Suggested fixes.');
+ assert.equal(finishStatus(1,false),'1 design check needs a look. It is listed under Suggested fixes.');
+ assert.equal(finishStatus(0,true),'Finished. Every check passed.');assert.equal(finishStatus(0,false),'Ready for your feedback.');
+});
+
 test('Retry is offered only when the review could not see the requested change',()=>{
  const seen=reviewSuggestions({...review,revision:{status:'visible',evidence:'Done.'}},{request:'Add a door'});
  assert.equal(seen.suggestions.some(s=>s.kind==='retry'),false);
- for(const status of ['missing','uncertain']){const {suggestions}=reviewSuggestions({...review,revision:{status,evidence:'The door is faint.'}},{request:'Add a door'});assert.equal(suggestions[0].label,'Retry: Add a door');assert.equal(isRetryItem(suggestions[0].text),true);}
+ for(const status of ['missing','uncertain']){const {suggestions}=reviewSuggestions({...review,revision:{status,evidence:'The door is faint.'}},{request:'Add a door'});assert.equal(suggestions[0].tag,'Retry');assert.equal(suggestions[0].label,'Add a door','the tag says Retry; the label does not repeat it');assert.equal(isRetryItem(suggestions[0].text),true);}
  assert.equal(reviewSuggestions({...review,revision:{status:'missing',evidence:''}}).suggestions.some(s=>s.kind==='retry'),false,'no request, nothing to retry');
 });
 
@@ -77,37 +92,55 @@ test('the thinking panel reads as prose: no schema fragments or markdown markers
  assert.equal(plainThought('**Planning** the awning as stepped plates. {"kind":"box"} keeps the "sh": front clear.'),'Planning the awning as stepped plates. keeps the front clear.');
 });
 
-test('review suggestions render as tickable checklist rows with Simplified … — Improve',()=>{
+test('review suggestions render as tickable checklist rows; a Simplified row is one checkbox, not a link',()=>{
  const {suggestions,looksRight}=reviewSuggestions(review,{notes:['Windows implied by colour']});
  const html=renderToStaticMarkup(h(chips.default,{suggestions,looksRight,approved:[suggestions[0].text],onToggle:()=>{}}));
  assert.match(html,/<h3 id="review-suggestions-title">Suggested fixes<\/h3>/);
- assert.match(html,/Looks right:<\/strong> Red awning · Corner café front/);
+ assert.match(html,/Already there:<\/strong> Red awning · Corner café front/,'not "Looks right", which the build rating uses');
  assert.match(html,/class="review-chip is-missing" aria-pressed="true"[^>]*>.*Front door/);
  assert.equal((html.match(/aria-pressed="false"/g)||[]).length,4,'five rows shown, one ticked');
  assert.match(html,/Show 1 more/);
  assert.equal(renderToStaticMarkup(h(chips.default,{suggestions:[],looksRight:[],approved:[],onToggle:()=>{}})),'');
  const all=renderToStaticMarkup(h(chips.default,{suggestions:suggestions.slice(-1),looksRight:[],approved:[],onToggle:()=>{}}));
- assert.match(all,/Windows implied by colour<em> — Improve<\/em>/);
+ assert.match(all,/<span class="review-chip-tag">Simplified<\/span><span class="review-chip-label">Windows implied by colour<\/span>/);
+ assert.doesNotMatch(all,/<em>|Improve<\/em>/);
+ const retry=reviewSuggestions({...review,revision:{status:'missing',evidence:''}},{request:'Make the people wave'}).suggestions.slice(0,1);
+ assert.doesNotMatch(renderToStaticMarkup(h(chips.default,{suggestions:retry,looksRight:[],approved:[],onToggle:()=>{}})),/Retry: /,'the tag is not repeated in the label');
 });
 
 test('the result card: request status, the component diff only when something changed, plain labels',()=>{
- const html=renderToStaticMarkup(h(result.default,{pieces:1234,size:'16.0 × 11.2 × 7.7 cm',request:'Add a door',revision:{status:'uncertain',evidence:'The door is faint.'},changes:'Changed: Awning · Added: Door',repairNote:'Auto-fixed 2 issues (+$0.09).',corrections:['Moved Person3 off the wall.']}));
+ const html=renderToStaticMarkup(h(result.default,{pieces:1234,size:'16.0 × 11.2 × 7.7 cm',request:'Add a door',typed:true,revision:{status:'uncertain',evidence:'The door is faint.'},changes:'Changed: Awning · Added: Door',repairNote:'Auto-fixed 2 issues (+$0.09).',corrections:['Moved Person3 off the wall.']}));
  assert.match(html,/1,234 pieces/);assert.match(html,/Your change<\/span>“Add a door”/);assert.match(html,/Hard to tell/);assert.match(html,/The door is faint\./);
  assert.match(html,/<p class="revision-changes">Changed: Awning · Added: Door<\/p>/);assert.match(html,/Auto-fixed 2 issues/);assert.match(html,/Fixed automatically \(1\)/);
  assert.doesNotMatch(html,/shape definitions/);
  const quiet=renderToStaticMarkup(h(result.default,{pieces:73,size:'x',revision:{status:'not_requested',evidence:''},changes:''}));
  assert.doesNotMatch(quiet,/revision-changes|revision-request|revision-note/);
- const done=renderToStaticMarkup(h(result.default,{pieces:73,size:'x',request:'Make it red',revision:{status:'visible',evidence:'Red now.'}}));
- assert.match(done,/is-visible/);assert.match(done,/Done/);assert.doesNotMatch(done,/Red now\./,'evidence only when it is not done');
+ // "Done" is the toolbar's and the viewer's word; the request badge says what the review saw.
+ const done=renderToStaticMarkup(h(result.default,{pieces:73,size:'x',request:'Make it red',typed:true,revision:{status:'visible',evidence:'Red now.'}}));
+ assert.match(done,/is-visible/);assert.match(done,/Visible<\/span>/);assert.doesNotMatch(done,/Done/);assert.doesNotMatch(done,/Red now\./,'evidence only when it is not visible');
+ // Only the owner's own words are quoted; a pass without words shows its plain label.
+ const label=renderToStaticMarkup(h(result.default,{pieces:73,size:'x',request:'Applied 2 suggested fixes',revision:{status:'visible',evidence:''}}));
+ assert.match(label,/Last pass<\/span>Applied 2 suggested fixes<\/p>/);assert.doesNotMatch(label,/“/);
 });
 
-test('the version strip: hidden for a single version, Restore is $0, Before/After against the previous one',()=>{
+test('the version strip: true colors by default, Highlight changes on request, Restore is $0, Before/After against the previous one',()=>{
  const versions=[{n:1,label:'First build',pieces:73},{n:2,label:'Make the awning taller',pieces:81},{n:3,label:'Add a door',pieces:107}];
- assert.equal(renderToStaticMarkup(h(strip.default,{versions:versions.slice(0,1),current:1,peek:null,changes:false,onPeek:()=>{},onRestore:()=>{}})),'');
- const idle=renderToStaticMarkup(h(strip.default,{versions,current:3,peek:null,changes:false,previous:2,onPeek:()=>{},onRestore:()=>{}}));
+ const props={compare:false,tint:false,onPeek:()=>{},onTint:()=>{},onRestore:()=>{}};
+ assert.equal(renderToStaticMarkup(h(strip.default,{...props,versions:versions.slice(0,1),current:1,peek:null})),'');
+ const idle=renderToStaticMarkup(h(strip.default,{...props,versions,current:3,peek:null,previous:2}));
  assert.match(idle,/aria-current="true"[^>]*>v3</);assert.match(idle,/Before<\/button><button[^>]*>After/);assert.doesNotMatch(idle,/Restore/);
- const peeking=renderToStaticMarkup(h(strip.default,{versions,current:3,peek:1,changes:true,previous:2,onPeek:()=>{},onRestore:()=>{}}));
+ // Label in name: each chip's accessible name starts with what it shows.
+ assert.match(idle,/aria-label="v3 \(current\): Add a door"[^>]*>v3</);assert.match(idle,/aria-label="v1: First build"/);
+ assert.match(idle,/class="revision-tint" aria-pressed="false"[^>]*>.*Highlight changes/);
+ const peeking=renderToStaticMarkup(h(strip.default,{...props,versions,current:3,peek:1,previous:2}));
  assert.match(peeking,/Restore v1 · \$0/);assert.match(peeking,/Back to v3/);assert.match(peeking,/First build/);
+ assert.doesNotMatch(peeking,/highlighted/,'a peek shows the version as it is');
+ assert.match(renderToStaticMarkup(h(strip.default,{...props,tint:true,versions,current:3,peek:1,previous:2})),/changes from v3 highlighted/);
+ const after=renderToStaticMarkup(h(strip.default,{...props,compare:true,versions,current:3,peek:null,previous:2}));
+ assert.match(after,/After<\/button>/);assert.match(after,/Showing v3, the current version\./);assert.doesNotMatch(after,/highlighted/);
+ // An unfinished draft on screen is no version: none is current, and even a single kept version can be restored.
+ const unfinished=renderToStaticMarkup(h(strip.default,{...props,versions:versions.slice(0,1),current:null,peek:1}));
+ assert.match(unfinished,/Restore v1 · \$0/);assert.match(unfinished,/Back to the draft/);assert.doesNotMatch(unfinished,/aria-current/);
 });
 
 test('the generator has one send button, no duplicate feedback controls, and a single Connect & build label',async()=>{
@@ -118,4 +151,11 @@ test('the generator has one send button, no duplicate feedback controls, and a s
  assert.match(src,/region\.sceneKey|sceneKey:revisionSceneKey\(liveScene\)/);
  assert.equal((src.match(/"Connect & build"/g)||[]).length,1);
  assert.match(src,/stopCostNotice\(stopHold\)/);
+ // The cost of stopping is announced with Stop itself.
+ assert.match(src,/className="creation-stop" aria-describedby=\{stopHold>0\?"stop-hold":undefined\}/);
+ // Send stays focusable while it cannot send, and the phone keyboard's return key says what it does.
+ assert.match(src,/className="button primary feedback-submit" aria-disabled=\{sendBlocked\|\|undefined\}/);assert.match(src,/enterKeyHint="enter"/);
+ // A missing key keeps the exact build it interrupted, not a flag.
+ assert.match(src,/deferRun\(reviewOnly\?null:\{fresh,submitted,retrying\}\)/);assert.match(src,/void run\(false,key,p\.fresh,p\.submitted,p\.retrying\)/);
+ assert.match(src,/Save & close/);assert.doesNotMatch(src,/>Done<ArrowRight/);
 });

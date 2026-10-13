@@ -78,6 +78,15 @@ export function addVersion(list:readonly DesignVersion[],entry:Omit<DesignVersio
 }
 /** Whether a version recompiles to this state: same scene, protected edits and locks. */
 export const sameVersion=(a:{scene:GeneratedScene;manual:ManualEdits;locked:readonly string[]},b:{scene:GeneratedScene;manual:ManualEdits;locked:readonly string[]})=>stable([normalizeScene(a.scene),a.manual,[...a.locked].sort()])===stable([normalizeScene(b.scene),b.manual,[...b.locked].sort()]);
+/**
+ * The version a shown state belongs to: the newest kept one that recompiles to it, or a new one. A pass stopped after
+ * its build was packed leaves that build on screen; it is kept here so the strip's current version is what is shown.
+ */
+export function keepVersion(list:readonly DesignVersion[],entry:Omit<DesignVersion,"n">):{list:DesignVersion[];n:number;added:boolean}{
+ const match=[...list].reverse().find(v=>sameVersion(v,entry));
+ if(match)return {list:[...list],n:match.n,added:false};
+ const next=addVersion(list,entry);return {list:next,n:next.at(-1)!.n,added:true};
+}
 /** The version shown before `n` (the one Before compares against). */
 export const previousVersion=(list:readonly DesignVersion[],n:number|null)=>{const at=list.findIndex(v=>v.n===n);return at>0?list[at-1]:undefined;};
 
