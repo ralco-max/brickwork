@@ -189,3 +189,10 @@ test('the built /s/:id page serves preview tags and the shared name, and missing
  assert.match(html,new RegExp(`Loading ${shared.pieceCount} pieces`));
  for(const path of ['/s/ZZZZZZZZZZ','/s/bad']){const missing=await visit(path);assert.equal(missing.status,404,path);assert.match(await missing.text(),/This shared creation isn’t here/);}
 });
+
+test('a shared hand-edited build keeps its "Your edition" mark and a sentence-safe description',()=>{
+ const data=project();data.edited=true;data.description='A harbor house with a red roof. '+'Extra detail sentence. '.repeat(30);
+ const shared=m.sanitizeSharedProject(data),stored=JSON.parse(shared.project);
+ assert.equal(stored.edited,true);
+ assert.ok(shared.description.length<=300);assert.match(shared.description,/[.!?…]$/);
+});

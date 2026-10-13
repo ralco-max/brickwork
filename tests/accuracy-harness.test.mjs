@@ -100,13 +100,15 @@ test('a whitespace-padded key still hits the cap row, and a key with whitespace 
  assert.equal(called,0);
 });
 
-test('the run fails loudly, with reports written, when the ledger settles spend the routes never reported',async()=>{
- // Out-of-bounds usage makes the app settle a full $10 hold and report nothing: the totals no longer reconcile.
+test('out-of-bounds provider usage settles a capped, reported charge instead of writing off the pool',async()=>{
+ // The app used to settle a full $10 hold and report nothing. It now charges the computed amount,
+ // capped at 3x the reservation, reports it, and fails only that request: the ledger still reconciles.
  const transport=async(url,init)=>{const response=await mockTransport(loadFixtures())(url,init);if(!url.endsWith('/responses')||formatName(JSON.parse(init.body))!=='brickwork_reference')return response;const data=await response.json();data.usage.output_tokens=10**6;return Response.json(data);};
- const err=await runAccuracy({mode:'live',key:'sk-test-mismatch',maxDollars:1,transport,render:false,out,stamp:'mismatch',cases:'design-3,design-4'}).then(()=>null,e=>e);
- assert.equal(err?.code,'LEDGER_MISMATCH');assert.ok(err.meta.ledgerMismatch.ledgerUSD>=1&&err.meta.ledgerMismatch.recordedUSD===0,JSON.stringify(err.meta.ledgerMismatch));
- assert.equal(readCSV(join(err.dir,'scorecard.csv')).length-1,2);assert.match(readFileSync(join(err.dir,'summary.md'),'utf8'),/Spend mismatch/);
- assert.equal(JSON.parse(readFileSync(join(err.dir,'results.json'),'utf8')).cases[0].row.errorCode,'BUDGET_ACCOUNTING');
+ const result=await runAccuracy({mode:'live',key:'sk-test-mismatch',maxDollars:1,transport,render:false,out,stamp:'overage',cases:'design-3,design-4'}).then(r=>({r}),e=>({e}));
+ assert.notEqual(result.e?.code,'LEDGER_MISMATCH',result.e?.message);
+ const dir=result.r?.dir||result.e?.dir,rows=JSON.parse(readFileSync(join(dir,'results.json'),'utf8')).cases;
+ assert.equal(rows[0].row.errorCode,'BUDGET_ACCOUNTING');
+ assert.ok(rows.every(c=>(c.detail?.usage||[]).reduce((n,u)=>n+u.cost,0)<1),'no case may be charged anything close to the $10 pool');
 });
 
 test('--record survives a design stream that dies mid-reply, and reports are saved after every case',async()=>{

@@ -205,9 +205,10 @@ test('a web lookup stopped mid-request pays for its input, the output estimate a
    return new Promise((_,reject)=>{init.signal.addEventListener('abort',()=>reject(new DOMException('The operation was aborted.','AbortError')),{once:true});t.mock.timers.tick(advance);stop.abort();});});
   await assert.rejects(researchSubject('the Washington Monument',key,BUDGET_MODEL,stop.signal,provider.fetch,provider.recordUsage),{name:'AbortError'});t.mock.timers.reset();
   const snapshot=await budgetSnapshot(db,await keyFingerprint(key)),base=counted+Buffer.byteLength(JSON.stringify(sent.text)),n=sent.max_tool_calls,hold=events[0].hold;
-  assert.equal(n,2);assert.equal(sent.max_output_tokens,2500);assert.equal(snapshot.held,0);assert.equal(hold,worstCaseHold(BUDGET_MODEL,base,2500,n));
+  assert.equal(n,2);assert.equal(sent.max_output_tokens,4000);assert.equal(snapshot.held,0);assert.equal(hold,worstCaseHold(BUDGET_MODEL,base,4000,n));
   // The base commit reserved one 30,000-token page allowance per lookup; a stop kept all of it.
-  const oldHold=((base+4096+30000)*2500+2500*10000+n*10000000)/1e9,log=logs.findLast(l=>l.event==='bricks_budget_estimated');
+  // Compare at the same output cap: research now allows 4,000 output tokens (incomplete replies were paid and discarded).
+  const oldHold=((base+4096+30000)*2500+sent.max_output_tokens*10000+n*10000000)/1e9,log=logs.findLast(l=>l.event==='bricks_budget_estimated');
   assert.ok(snapshot.spent<hold&&snapshot.spent<oldHold,`${snapshot.spent} vs ${hold} and ${oldHold}`);assert.equal(log.estimated,true);assert.equal(log.reservedSearchCalls,n);
   return {spent:snapshot.spent,base,searches:log.searchCalls};
  };
@@ -216,7 +217,7 @@ test('a web lookup stopped mid-request pays for its input, the output estimate a
  // Four seconds in, at most one quick search turn has run: its 25,000 page tokens and fee are added.
  let {spent,base,searches}=await run({counted:5000,advance:4000});assert.equal(searches,1);assert.ok(Math.abs(spent-((base+25000)*2500+2000*10000+10000000)/1e9)<1e-9,String(spent));
  // A minute in, both searches may have run, but their pages count only up to the old 30,000-token allowance.
- ({spent,base,searches}=await run({counted:12000,advance:60000}));assert.equal(searches,2);assert.ok(Math.abs(spent-((base+30000)*2500+2500*10000+2*10000000)/1e9)<1e-9,String(spent));
+ ({spent,base,searches}=await run({counted:12000,advance:60000}));assert.equal(searches,2);assert.ok(Math.abs(spent-((base+30000)*2500+4000*10000+2*10000000)/1e9)<1e-9,String(spent));
 });
 
 const drain=async events=>{for await(const event of events)void event;};

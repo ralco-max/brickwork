@@ -35,7 +35,7 @@ const BRIEF_SETTINGS=["size","detail","maxPieces","maxWidth","maxDepth","maxHeig
  */
 export function sanitizeSharedProject(raw:unknown){
  if(!isObject(raw)||raw.format!=="brickwork")throw Error("Share a Bricks project.");
- const data=structuredClone(pick(raw,["format","version","name","description","pieces","generation","design"]));
+ const data=structuredClone(pick(raw,["format","version","name","description","edited","pieces","generation","design"]));
  if(isObject(data.design)){
   const design=pick(data.design,["unfinished","reference","brief","manual","locked"]),name=typeof data.name==="string"?data.name.trim().slice(0,80):"";
   // Composition, details, style and sign wording are typed as well; lettering the model shows stays in its bricks.
@@ -50,7 +50,7 @@ export function sanitizeSharedProject(raw:unknown){
  const model=validateProject(data);
  const project=JSON.stringify(data);
  if(project.length>MAX_SHARE_PROJECT_CHARS)throw Error("This creation is too large to share as a link. Export the project file instead.");
- return {project,name:model.name.slice(0,120)||"Untitled creation",description:(model.description||"").slice(0,300),pieceCount:model.pieces.length};
+ return {project,name:model.name.slice(0,120)||"Untitled creation",description:clipSentence(model.description||"",300),pieceCount:model.pieces.length};
 }
 
 // A real 1200×630 JPEG, not just a well-formed data URL: anything else would be served as an image from this origin.

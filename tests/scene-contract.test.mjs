@@ -200,5 +200,8 @@ test('shared and imported projects with huge text validate quickly',()=>{
  assert.ok(share.out.description.length<=300);
  // A visitor opening the link re-validates the stored project on the main thread.
  const open=elapsed(()=>m.validateProject(JSON.parse(share.out.project)));assert.ok(open.ms<500,`validateProject: ${open.ms.toFixed(1)} ms`);
- assert.ok(open.out.description.length<=500);assert.ok(open.out.design.review.summary.length<=1500);assert.ok(open.out.design.review.improvements.every(i=>i.length<=500));
+ assert.ok(open.out.description.length<=500);assert.equal(open.out.design.review,undefined,'shares never carry the private review');
+ // An imported project file keeps its review, clipped, and still validates quickly.
+ const imported=elapsed(()=>m.validateProject(structuredClone(data)));assert.ok(imported.ms<500,`validateProject(import): ${imported.ms.toFixed(1)} ms`);
+ assert.ok(imported.out.design.review.summary.length<=1500);assert.ok(imported.out.design.review.improvements.every(i=>i.length<=500));
 });
