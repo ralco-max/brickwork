@@ -25,6 +25,8 @@ export function StudioPanel({open,onOpenChange,title,description,className,id,tr
   <SheetContent id={id} side="bottom" className={cn("mobile-studio-sheet",className)} data-studio-panel="mobile"
    {...(!description?{"aria-describedby":undefined}:{})}
    onOpenAutoFocus={()=>{returnFocus.current=document.activeElement instanceof HTMLElement?document.activeElement:null;}}
+   // A tap on a toast (its action, or a swipe away) is not a tap outside the sheet.
+   onInteractOutside={event=>{if(event.target instanceof Element&&event.target.closest("[data-sonner-toaster]"))event.preventDefault();}}
    onCloseAutoFocus={event=>{
     // A resize keeps the panel open inline; leave desktop focus where it is.
     if(!window.matchMedia(COMPACT_LAYOUT_QUERY).matches)return;

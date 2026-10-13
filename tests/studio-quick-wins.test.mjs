@@ -57,7 +57,7 @@ test('the generator offers one Connect & build label and keeps the paid repair o
  assert.match(src,/setErrorCode\("AI_NOT_CONNECTED"\)/);
 });
 
-test('landing HUD: caption under the title, Build details below the canvas, no edition badge on a preset',()=>{
+test('landing HUD: caption under the title, Build details below the canvas, no edition badge on a preset',async()=>{
  const html=renderToStaticMarkup(React.createElement(studio.default));
  const preset=generateRecipe('bridge','large');
  assert.ok(html.includes(`<p class="hud-caption">${preset.description}</p>`));
@@ -65,11 +65,22 @@ test('landing HUD: caption under the title, Build details below the canvas, no e
  assert.doesNotMatch(html,/hud-panel|<details class="hud-details"/);
  assert.match(html,/<button type="button" class="hud-pill hud-details-toggle "[^>]*aria-expanded="false" aria-controls="build-details"/);
  assert.doesNotMatch(html,/id="build-details"/,'the panel only renders when opened');
- // Replay and Reset camera no longer share an icon, and the hint does not repeat the camera help.
- const button=label=>html.match(new RegExp(`<button[^>]*aria-label="${label}"[^>]*>.*?</button>`))?.[0]||'';
- assert.match(button('Replay the assembly from the start'),/lucide-rotate-ccw/);
- assert.match(button('Reset camera'),/lucide-house/);assert.doesNotMatch(button('Reset camera'),/lucide-rotate-ccw/);
- assert.match(html,/Drag to orbit · Click to inspect/);
+ // Replay and Reset camera no longer share an icon; with Make a video they sit in a labelled ⋯ menu beside Play.
+ assert.match(html,/<button class="view-more" title="More view options" aria-label="More view options"/);
+ const studioSrc=await readFile(new URL('../app/studio.tsx',import.meta.url),'utf8');
+ assert.match(studioSrc,/<RotateCcw size=\{16\}\/>Replay the assembly<\/DropdownMenuItem>/);assert.match(studioSrc,/<House size=\{16\}\/>Reset camera<\/DropdownMenuItem>/);
+ // First run: a click on the demo opens nothing, so the hint promises nothing but orbiting.
+ assert.match(html,/Drag to orbit<\/span>/);assert.doesNotMatch(html,/Click to inspect/);
+ assert.match(studioSrc,/const stageUp=[^\n]*if\(compactLayout\|\|workspaceOpen\|\|viewing\|\|landing\|\|!start\)return;/);
+});
+
+test('one term per concept: tools named for what they hold, one verb for the brick editor, one LDraw label',async()=>{
+ const src=await readFile(new URL('../app/studio.tsx',import.meta.url),'utf8');
+ assert.match(src,/toolsName=recipeTools\?"Size & colors":"Parts & guide",panelName=recipeTools\?"Size & colors":"Size & cost"/);
+ assert.doesNotMatch(src,/"Settings"|>Settings<|"Close settings"|brick editor|Your design, your rules/);
+ assert.match(src,/\{editorOpen\?"Done editing":"Edit bricks"\}/);
+ assert.equal((src.match(/LDraw model \(\.ldr\)/g)||[]).length,2);assert.doesNotMatch(src,/LDraw model</);
+ assert.match(src,/\{costRangeLabel\(t\.id\)\} per build \(estimate\)/);
 });
 
 test('Your edition marks AI, converted and edited builds; an untouched preset stays unmarked after save, feature and share',async()=>{
