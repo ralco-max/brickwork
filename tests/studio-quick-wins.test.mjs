@@ -12,7 +12,7 @@ after(()=>vite.close());
 const [gen,studio,project,models,library,share]=await Promise.all([vite.ssrLoadModule('/app/generator.tsx'),vite.ssrLoadModule('/app/studio.tsx'),vite.ssrLoadModule('/lib/design-project.ts'),vite.ssrLoadModule('/lib/models.ts'),vite.ssrLoadModule('/lib/design-library.ts'),vite.ssrLoadModule('/lib/share.ts')]);
 const {defaultBrief}=project,{generateRecipe}=models;
 const {briefRecap,detailLabel,composerActions,flaggedCount,retryLabel,revealConnectionKey}=gen;
-const idle={busy:false,queued:false,changed:false,typed:false,scene:true,interrupted:false,error:false,flagged:0};
+const idle={busy:false,queued:false,typed:false,fixes:0};
 
 test('the brief recap uses display tier names and never model names',()=>{
  assert.equal(briefRecap(defaultBrief('A red bus')),'Main subject · Detailed · up to 600 pieces');
@@ -21,23 +21,14 @@ test('the brief recap uses display tier names and never model names',()=>{
  for(const quality of ['sol_low','sol_medium','better','best'])assert.doesNotMatch(briefRecap({...defaultBrief('x'),quality}),/detail detail|Sol|GPT|Astra|Better|Best/);
 });
 
-test('an empty composer never offers a paid run; fixes and continues are explicit, labelled actions',()=>{
+test('an empty composer never offers a paid run: it needs words or ticked fixes (more in feedback-composer.test)',()=>{
  const empty=composerActions(idle);
- assert.equal(empty.submit,'Revise build');assert.equal(empty.submitDisabled,true);assert.equal(empty.secondary,'');
- const flagged=composerActions({...idle,flagged:3});
- assert.equal(flagged.submitDisabled,true);assert.equal(flagged.secondary,'Fix 3 flagged issues');
- assert.equal(composerActions({...idle,flagged:1}).secondary,'Fix 1 flagged issue');
- // Typed text (even below the request threshold) or any real change hides the fix shortcut so it never sends a stray draft.
- assert.equal(composerActions({...idle,flagged:2,typed:true}).secondary,'');
- const typed=composerActions({...idle,flagged:2,typed:true,changed:true});assert.equal(typed.submitDisabled,false);assert.equal(typed.secondary,'');
- // A marked area or new photos are explicit requests even without text.
- assert.equal(composerActions({...idle,changed:true}).submitDisabled,false);
- assert.equal(composerActions({...idle,interrupted:true,flagged:4}).secondary,'Continue design');
- assert.equal(composerActions({...idle,interrupted:true,error:true}).secondary,'','the recovery panel already offers Continue design');
- assert.equal(composerActions({...idle,scene:false,flagged:2}).secondary,'');
- assert.deepEqual(composerActions({...idle,busy:true,flagged:2}),{submit:'Queue feedback',submitDisabled:true,secondary:''});
- assert.equal(composerActions({...idle,busy:true,queued:true,changed:true}).submit,'Update queued feedback');
- for(const state of [idle,{...idle,flagged:5},{...idle,interrupted:true},{...idle,busy:true}])assert.doesNotMatch(JSON.stringify(composerActions(state)),/Repair flagged checks/);
+ assert.equal(empty.submit,'Send');assert.equal(empty.submitDisabled,true);
+ assert.deepEqual(composerActions({...idle,fixes:3}),{submit:'Apply 3 fixes',submitDisabled:false});
+ assert.equal(composerActions({...idle,typed:true}).submitDisabled,false);
+ assert.deepEqual(composerActions({...idle,busy:true}),{submit:'Queue',submitDisabled:true});
+ assert.equal(composerActions({...idle,busy:true,queued:true,typed:true}).submit,'Replace queued');
+ for(const state of [idle,{...idle,fixes:5},{...idle,busy:true}])assert.doesNotMatch(JSON.stringify(composerActions(state)),/Repair flagged checks|Fix \d+ flagged/);
 });
 
 test('flagged issues count geometry checks plus concrete visual review concerns only',()=>{

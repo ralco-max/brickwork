@@ -17,3 +17,10 @@ export class FeedbackQueue<T>{
  restorePaused(previous:QueuedFeedback<T>){if(!this.pending)this.pending={...previous,status:"paused"};return this.pending;}
 }
 export function mayClearSubmittedFeedback(submittedVersion:number,currentVersion:number,reviewOnly:boolean){return !reviewOnly&&submittedVersion===currentVersion;}
+// The queue card shows one line for the next pass: what was typed, or what the pass will do without words.
+export function queuedLabel(v:{text:string;approved?:string[];region?:{components:string[]}},name=(component:string)=>component){
+ if(v.text.trim())return v.text.trim();
+ const n=v.approved?.length||0;if(n)return `Apply ${n} suggested fix${n===1?"":"es"}`;
+ if(v.region?.components.length)return `Change the ${v.region.components.slice(0,3).map(c=>name(c).toLowerCase()).join(", ")}`;
+ return "Update the build with the attached photos";
+}
