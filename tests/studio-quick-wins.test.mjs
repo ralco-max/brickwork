@@ -9,7 +9,8 @@ import {createServer} from 'vite';
 const root=fileURLToPath(new URL('..',import.meta.url));
 const vite=await createServer({appType:'custom',configFile:false,root,resolve:{alias:{'@':root}},server:{middlewareMode:true},logLevel:'error'});
 after(()=>vite.close());
-const [gen,studio,{defaultBrief},{generateRecipe}]=await Promise.all([vite.ssrLoadModule('/app/generator.tsx'),vite.ssrLoadModule('/app/studio.tsx'),vite.ssrLoadModule('/lib/design-project.ts'),vite.ssrLoadModule('/lib/models.ts')]);
+const [gen,studio,project,models,library,share]=await Promise.all([vite.ssrLoadModule('/app/generator.tsx'),vite.ssrLoadModule('/app/studio.tsx'),vite.ssrLoadModule('/lib/design-project.ts'),vite.ssrLoadModule('/lib/models.ts'),vite.ssrLoadModule('/lib/design-library.ts'),vite.ssrLoadModule('/lib/share.ts')]);
+const {defaultBrief}=project,{generateRecipe}=models;
 const {briefRecap,detailLabel,composerActions,flaggedCount,retryLabel,revealConnectionKey}=gen;
 const idle={busy:false,queued:false,changed:false,typed:false,scene:true,interrupted:false,error:false,flagged:0};
 
@@ -80,10 +81,27 @@ test('landing HUD: caption under the title, Build details below the canvas, no e
  assert.match(html,/Drag to orbit · Click to inspect/);
 });
 
-test('Your edition marks AI and edited builds, never untouched presets',()=>{
- assert.equal(studio.isYourEdition({source:'recipe'}),false);
- assert.equal(studio.isYourEdition({source:'recipe',generation:{shapes:[]}}),true);
- for(const source of ['custom','mosaic','mesh'])assert.equal(studio.isYourEdition({source}),true);
+test('Your edition marks AI, converted and edited builds; an untouched preset stays unmarked after save, feature and share',async()=>{
+ const {isYourEdition,projectJSON,editModel,emptyShopping}=project,{validateProject,mosaicFromPixels}=models;
+ assert.equal(isYourEdition({source:'recipe'}),false);
+ assert.equal(isYourEdition({source:'custom'}),false,'every reopened project is "custom", so source alone is not an edit');
+ assert.equal(isYourEdition({source:'recipe',generation:{shapes:[]}}),true);assert.equal(isYourEdition({source:'recipe',edited:true}),true);
+ for(const source of ['mosaic','mesh'])assert.equal(isYourEdition({source}),true);
+ // Designs drawer (Feature this build → reopen) and a share link both go through validateProject.
+ const reopen=m=>library.unpackDesign(library.packDesign({...m,libraryId:'d1'},'design'));
+ const shared=m=>validateProject(JSON.parse(share.sanitizeSharedProject(JSON.parse(projectJSON(m,emptyShopping()))).project));
+ const preset=generateRecipe('cat','small');
+ assert.equal(JSON.parse(projectJSON(preset,emptyShopping())).edited,undefined);
+ assert.equal(isYourEdition(reopen(preset)),false,'a featured untouched preset reopens without the badge');
+ assert.equal(isYourEdition(shared(preset)),false,'someone else\'s untouched preset opens without the badge');
+ // Make it yours, a painted brick and a photo mosaic are the user's, and stay so after saving and sharing.
+ const recoloured=studio.remakePreset('cat','small','blue','white'),painted=editModel(preset,preset.pieces.map((p,i)=>i?p:{...p,color:'red'})),mosaic=mosaicFromPixels(new Uint8ClampedArray(64).fill(255),4,4,'Snapshot');
+ assert.equal(recoloured.source,'recipe');assert.equal(recoloured.recipe,'cat','Make it yours keeps the preset controls');
+ for(const m of [recoloured,painted,mosaic]){assert.equal(isYourEdition(m),true);assert.equal(isYourEdition(reopen(m)),true);assert.equal(isYourEdition(shared(m)),true);}
+ // A saved design that falls back to its bricks alone (no version, scene or brief) keeps the mark.
+ assert.equal(isYourEdition(validateProject({...JSON.parse(projectJSON(painted,emptyShopping())),version:undefined})),true);
+ const src=await readFile(new URL('../app/studio.tsx',import.meta.url),'utf8');
+ assert.match(src,/const regenerate=[^\n]*remakePreset\(model\.recipe,/);assert.match(src,/const update=[^\n]*record\(remakePreset\("bridge",/);
 });
 
 test('the build guide starts at its first stage and the phone keeps the Create label',async()=>{

@@ -21,7 +21,7 @@ import {ThemeToggle} from "./theme";
 import ShareDialog,{useShareLink} from "./share-dialog";
 import {listDesigns,saveDesign,setDesignFeatured,deleteDesign,packDesign,unpackDesign,newDesignId} from "@/lib/design-library";
 import type {SavedDesign} from "@/lib/design-library";
-import {editModel,projectJSON,emptyShopping} from "@/lib/design-project";
+import {editModel,projectJSON,emptyShopping,isYourEdition} from "@/lib/design-project";
 import type {Quote} from "@/lib/design-project";
 import LegoShopping from "./lego-shopping";
 import type {BrickHit} from "./viewport";
@@ -41,8 +41,8 @@ import {catalogPart} from "@/lib/part-catalog";
 import {auditModel,partsCSV,ldrawFile,Config,COLORS,PARTS,InventoryRow} from "@/lib/bridge";
 
 const money=(v:number)=>new Intl.NumberFormat("en-US",{style:"currency",currency:"USD"}).format(v);
-// "Your edition" marks builds the user made or changed, never an untouched preset.
-export const isYourEdition=(m:Pick<BuildModel,"generation"|"source">)=>Boolean(m.generation)||m.source!=="recipe";
+// A preset recoloured or resized through Make it yours is the user's edition; the mark is saved with it.
+export const remakePreset:typeof generateRecipe=(...args)=>({...generateRecipe(...args),edited:true});
 function download(text:string,name:string,type="text/plain") {const url=URL.createObjectURL(new Blob([text],{type}));const a=document.createElement("a");a.href=url;a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(url),1500);toast.success(`${name} downloaded`);}
 export default function Studio({sharedId}:{sharedId?:string}={}){
  const compactLayout=useCompactLayout();
@@ -138,7 +138,7 @@ export default function Studio({sharedId}:{sharedId?:string}={}){
   return()=>{cancelled=true;};
   /* eslint-disable-next-line react-hooks/exhaustive-deps */
  },[sharedId]);
- const regenerate=(newDetail:Detail,color:ColorKey,accent:ColorKey)=>{if(!model.recipe)return;const next=generateRecipe(model.recipe,newDetail,color,accent);record(next);setDetail(newDetail);setPrimaryColor(color);setAccentColor(accent);setSelected(null);};
+ const regenerate=(newDetail:Detail,color:ColorKey,accent:ColorKey)=>{if(!model.recipe)return;const next=remakePreset(model.recipe,newDetail,color,accent);record(next);setDetail(newDetail);setPrimaryColor(color);setAccentColor(accent);setSelected(null);};
  const changedPieces=(pieces:Piece[])=>{try{record(editModel(currentProject(),pieces));setSelected(null);}catch(e){toast.error(e instanceof Error?e.message:"Could not apply this edit.");}};
  const place=(x:number,y:number,z:number)=>{if(!partColorAllowed(editPart,editColor)){toast.info("Choose one of this part’s catalog colors before placing it.");return;}try{changedPieces(addPiece(model.pieces,editPart,editColor,x,y,z,editRotation,editFace));setCoords({x,y,z});}catch(e){toast.error(e instanceof Error?e.message:"Couldn't place this brick.");}};
  const brickAction=(hit:BrickHit)=>{if(explode){toast.info("Assemble the model before editing bricks.");return;}const p=hit.piece;
@@ -162,7 +162,7 @@ export default function Studio({sharedId}:{sharedId?:string}={}){
  const toBuy=(r:InventoryRow)=>Math.max(0,r.quantity-(owned[r.key]||0));
  const estimate=model.inventory.reduce((s,r)=>s+r.quantity*unit(r),0),buyCount=model.inventory.reduce((s,r)=>s+toBuy(r),0);
  const chosen=model.inventory.find(r=>r.key===selected),colorCount=new Set(model.pieces.map(p=>p.color)).size;
- const update=(change:Partial<Config>)=>{const c={...config,...change};setConfig(c);record(generateRecipe("bridge",c.size==="compact"?"small":"medium",c.color,"white",c));setSelected(null);};
+ const update=(change:Partial<Config>)=>{const c={...config,...change};setConfig(c);record(remakePreset("bridge",c.size==="compact"?"small":"medium",c.color,"white",c));setSelected(null);};
  const exportCSV=()=>download(partsCSV(model.inventory,owned,priceOverrides),`${filename}-parts.csv`,"text/csv");
  const exportLDraw=()=>download(ldrawFile(model.pieces,model.name,modelStages),`${filename}.ldr`);
  const inspect=(row:InventoryRow)=>{setShowLoose(false);setEditMode("inspect");setSelected(row.key);setStage(model.stages.length-1);setTab("model");};
