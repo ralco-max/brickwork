@@ -6,6 +6,10 @@ import {componentLabel} from "./revision-history";
 // owner ticks it: a ticked chip's text goes to the designer as an approved item (FeedbackSnapshot.approved).
 export type SuggestionKind="retry"|"missing"|"unclear"|"check"|"fix"|"simplified";
 export type Suggestion={id:string;kind:SuggestionKind;tag:string;label:string;text:string};
+// Kinds that say something is wrong (a failed check, a missing or unclear feature, an unseen request). Fix and Simplified
+// chips are ideas: a build with only those has passed its checks.
+export const PROBLEM_KINDS:readonly SuggestionKind[]=["retry","missing","unclear","check"];
+export const suggestionsHeading=(list:readonly Pick<Suggestion,"kind">[])=>list.some(s=>PROBLEM_KINDS.includes(s.kind))?"Suggested fixes":"Ideas to improve";
 // Same wording as design-workflow's flaggedReviewItems, so a ticked chip and the retry path's flagged items dedupe.
 const flagged=(name:string,evidence:string)=>evidence.trim()?`${name}: ${evidence.trim()}`:name;
 export const RETRY_ITEM="Requested change not yet visible";
@@ -29,7 +33,8 @@ export function reviewSuggestions(review:VisualReview|null|undefined,s:{request?
  for(const i of s.issues||[])add("check","Check",i,i);
  const retried=out.find(o=>o.kind==="retry")?.label.replace(/…$/,"")||"";
  for(const i of review?.improvements||[])if(!retried||!i.startsWith(retried.slice(0,60)))add("fix","Fix",i,i);
- for(const n of s.notes||[])add("simplified","Simplified",n,`Improve this simplification: ${n}`);
+ // The builder's own simplifications, offered as the action a tick takes: more detail there.
+ for(const n of s.notes||[])add("simplified","Add detail",n,`Improve this simplification: ${n}`);
  return {suggestions:out,looksRight:[...new Set(looksRight)]};
 }
 
@@ -51,7 +56,7 @@ export function historyLabel(s:{typed:string;fixes?:number;checks?:number;retry?
  if(s.continuing)return "Continued the unfinished design";
  if(s.retry)return `Retried: ${clipSentence(s.retry,200)}`;
  if(s.fixes&&s.checks===s.fixes)return "Fixed the flagged checks";
- if(s.fixes)return `Applied ${s.fixes} suggested fix${s.fixes===1?"":"es"}`;
+ if(s.fixes)return `Applied ${s.fixes} suggested change${s.fixes===1?"":"s"}`;
  if(s.region)return "Changed the marked area";
  if(s.photos)return "Matched the new photos";
  if(s.sign)return "Updated the sign text";

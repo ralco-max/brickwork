@@ -1,20 +1,23 @@
 import {sql} from "drizzle-orm";
 import {check,index,integer,real,sqliteTable,text,uniqueIndex} from "drizzle-orm/sqlite-core";
 
-// Only an irreversible key fingerprint and accounting amounts are persisted.
+// Only an irreversible key fingerprint and accounting amounts are persisted. visitor_hash, on studio-key requests only,
+// is a daily-salted hash of the visitor's network, for the per-visitor daily allowance.
 export const aiSpend=sqliteTable("ai_spend",{
  id:text("id").primaryKey(),
  keyHash:text("key_hash").notNull(),
  reservedNanos:integer("reserved_nanos").notNull(),
  chargedNanos:integer("charged_nanos"),
  createdAt:integer("created_at").notNull(),
-},table=>[index("idx_ai_spend_key_hash").on(table.keyHash)]);
+ visitorHash:text("visitor_hash"),
+},table=>[index("idx_ai_spend_key_hash").on(table.keyHash),index("idx_ai_spend_visitor").on(table.visitorHash)]);
 
 // Public, unlisted share links. Reference photos, marked-area screenshots,
 // shopping data and the creator's typed words are stripped before storage;
 // creator_hash is a daily-salted IP hash used only for rate limiting and
 // duplicate detection. owner_hash is the SHA-256 of the owner token that can
-// delete the link (null on links made before owner tokens).
+// delete the link (null on links made before owner tokens). build_hash (the bricks alone) and image_hash let a
+// moderator's removal follow a renamed copy; bytes is the row's stored size, for the site-wide daily cap.
 export const shares=sqliteTable("shares",{
  id:text("id").primaryKey(),
  name:text("name").notNull(),
@@ -26,13 +29,16 @@ export const shares=sqliteTable("shares",{
  createdAt:integer("created_at").notNull(),
  ownerHash:text("owner_hash"),
  contentHash:text("content_hash"),
-},table=>[index("idx_shares_creator").on(table.creatorHash,table.createdAt),index("idx_shares_content").on(table.creatorHash,table.contentHash),index("idx_shares_content_hash").on(table.contentHash,table.createdAt)]);
+ buildHash:text("build_hash"),
+ imageHash:text("image_hash"),
+ bytes:integer("bytes"),
+},table=>[index("idx_shares_creator").on(table.creatorHash,table.createdAt),index("idx_shares_content").on(table.creatorHash,table.contentHash),index("idx_shares_content_hash").on(table.contentHash,table.createdAt),index("idx_shares_created").on(table.createdAt,table.bytes)]);
 
 // The opt-in public gallery: one narrow row per published share, so listing never reads a
 // share's project or image. Rows go with their share. Unpublishing only clears `listed`, so
 // moderation, reports, remixes and the first publish time survive a relist. Reports and remixes
 // are keyed by salted hashes only; an admin restore dismisses reports rather than deleting them,
-// so the same people cannot hide the build again.
+// so the same people cannot hide the build again. reviewed: an admin restored it, so reports alone no longer hide it.
 export const gallery=sqliteTable("gallery",{
  shareId:text("share_id").primaryKey().references(()=>shares.id,{onDelete:"cascade"}),
  name:text("name").notNull(),
@@ -44,6 +50,7 @@ export const gallery=sqliteTable("gallery",{
  reports:integer("reports").notNull().default(0),
  hidden:integer("hidden").notNull().default(0),
  listed:integer("listed").notNull().default(1),
+ reviewed:integer("reviewed").notNull().default(0),
 },table=>[index("idx_gallery_recent").on(table.hidden,table.listed,table.publishedAt,table.shareId),index("idx_gallery_remixed").on(table.hidden,table.listed,table.remixes,table.publishedAt,table.shareId),check("gallery_hidden",sql`${table.hidden} IN (0,1)`),check("gallery_listed",sql`${table.listed} IN (0,1)`)]);
 export const galleryReports=sqliteTable("gallery_reports",{
  shareId:text("share_id").notNull().references(()=>shares.id,{onDelete:"cascade"}),
@@ -63,9 +70,11 @@ export const galleryActions=sqliteTable("gallery_actions",{
  visitorHash:text("visitor_hash").notNull(),
  createdAt:integer("created_at").notNull(),
 },table=>[index("idx_gallery_actions").on(table.kind,table.visitorHash,table.createdAt),index("idx_gallery_actions_created").on(table.createdAt),check("gallery_actions_kind",sql`${table.kind} IN ('publish','report')`)]);
-// Moderation keyed by content, not by link, and without a foreign key, so it outlives the link:
-// deleting a hidden or removed build and sharing it again does not clear it. "hidden" lets the
-// owner list it, hidden; "removed" (an admin unpublish) refuses it. Only an admin restore lifts it.
+// Moderation keyed by content, not by link, and without a foreign key, so it outlives the link (an admin's decision is
+// also keyed by the build's bricks and its image, prefixed "build:" and "image:", so a renamed copy is caught too):
+// deleting a hidden or removed build and sharing it again does not clear it. "hidden" (an admin hide) lets the
+// owner list it, hidden; "removed" (an admin unpublish) refuses it. Only an admin restore lifts it. Reports
+// write no row here: their hide stays on the listing until an admin looks.
 export const galleryBlocks=sqliteTable("gallery_blocks",{
  contentHash:text("content_hash").primaryKey(),
  shareId:text("share_id").notNull(),

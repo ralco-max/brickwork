@@ -6,15 +6,19 @@ import "./gallery/community.css";
 export type BuildVerdict="good"|"needs_work";
 export const RATING_REASONS=["Wrong shape","Wrong colors","Missing details","Falls apart","Other"] as const;
 export type RatingReason=typeof RATING_REASONS[number];
-/** What the rated build was, as /api/feedback accepts it. Never the prompt, photos or share link. */
-export type RatedBuild={subjectKind?:string;pieceCount?:number;model?:string;costUsd?:number};
+/**
+ * What the rated build was, as /api/feedback accepts it. Never the prompt, photos or share link. receipts: the signed
+ * receipts of the run's paid calls; the server takes the model, tier and cost from them, not from model and costUsd.
+ */
+export type RatedBuild={subjectKind?:string;pieceCount?:number;model?:string;costUsd?:number;receipts?:readonly string[]};
 
 /** The request body: chosen reasons in a fixed order, then the optional note after "Other", clipped to 280 characters. */
 export function feedbackBody(verdict:BuildVerdict,reasons:readonly RatingReason[]=[],note="",build:RatedBuild={}){
  const chosen=RATING_REASONS.filter(r=>reasons.includes(r)),extra=note.replace(/\s+/g," ").trim();
  const reason=verdict==="needs_work"?[...chosen.filter(r=>r!=="Other"||!extra),...(chosen.includes("Other")&&extra?[`Other: ${extra}`]:[])].join(", ").slice(0,280):"";
  const pieceCount=Number.isInteger(build.pieceCount)&&build.pieceCount!>=0?build.pieceCount:undefined,costUsd=Number.isFinite(build.costUsd)&&build.costUsd!>=0?Math.round(build.costUsd!*10_000)/10_000:undefined;
- return {verdict,...(reason?{reason}:{}),...(build.subjectKind?{subjectKind:build.subjectKind}:{}),...(pieceCount!==undefined?{pieceCount}:{}),...(build.model?{model:build.model}:{}),...(costUsd!==undefined?{costUsd}:{})};
+ const receipts=(build.receipts||[]).filter(r=>typeof r==="string"&&r.length>0&&r.length<=600).slice(-12);
+ return {verdict,...(reason?{reason}:{}),...(build.subjectKind?{subjectKind:build.subjectKind}:{}),...(pieceCount!==undefined?{pieceCount}:{}),...(build.model?{model:build.model}:{}),...(costUsd!==undefined?{costUsd}:{}),...(receipts.length?{receipts}:{})};
 }
 
 export async function sendBuildFeedback(body:ReturnType<typeof feedbackBody>,fetcher:typeof fetch=fetch){

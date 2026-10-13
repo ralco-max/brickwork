@@ -42,13 +42,14 @@ export function moderateName(raw:unknown):NameCheck{
 
 /**
  * The network a visitor's address belongs to, for limits and report counting: an IPv4 address as
- * is, an IPv6 one cut to its first `bits` (one home or phone is handed a whole /64, often a /56 or
- * /48, so every address in it is the same visitor). IPv4-mapped addresses read as IPv4; anything
- * unparseable is kept whole, and a missing address is "local".
+ * is (or cut to its first `v4bits`), an IPv6 one cut to its first `bits` (one home or phone is handed a
+ * whole /64, often a /56 or /48, so every address in it is the same visitor). IPv4-mapped addresses read
+ * as IPv4; anything unparseable is kept whole, and a missing address is "local".
  */
-export function networkOf(ip:string|null|undefined,bits=64){
+export function networkOf(ip:string|null|undefined,bits=64,v4bits=32){
  const raw=String(ip??"").trim().toLowerCase().replace(/%.*$/,"");
- if(!raw.includes(":"))return raw||"local";
+ const v4=(n:number[])=>v4bits>=32?n.join("."):`${n.map((x,i)=>x&0xff<<Math.max(0,8*(i+1)-v4bits)&0xff).join(".")}/${v4bits}`;
+ if(!raw.includes(":")){const m=/^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/.exec(raw);return m&&m.slice(1).every(x=>+x<256)?v4(m.slice(1).map(Number)):raw||"local";}
  // A dotted tail (::ffff:1.2.3.4, 64:ff9b::1.2.3.4) is the last two groups.
  const text=raw.replace(/(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/,(_,a,b,c,d)=>`${(+a<<8|+b).toString(16)}:${(+c<<8|+d).toString(16)}`);
  const halves=text.split("::");if(halves.length>2)return raw;
@@ -56,7 +57,7 @@ export function networkOf(ip:string|null|undefined,bits=64){
  const groups=halves.length===2?[...left,...Array(Math.max(0,8-left.length-right.length)).fill("0"),...right]:left;
  if(groups.length!==8||!groups.every(g=>/^[0-9a-f]{1,4}$/.test(g)))return raw;
  const n=groups.map(g=>parseInt(g,16));
- if(n.slice(0,5).every(x=>x===0)&&n[5]===0xffff)return [n[6]>>8,n[6]&255,n[7]>>8,n[7]&255].join(".");
+ if(n.slice(0,5).every(x=>x===0)&&n[5]===0xffff)return v4([n[6]>>8,n[6]&255,n[7]>>8,n[7]&255]);
  const kept=n.slice(0,Math.ceil(bits/16)).map((x,i)=>(x&0xffff<<Math.max(0,16*(i+1)-bits)&0xffff).toString(16));
  return `${kept.join(":")}::/${bits}`;
 }

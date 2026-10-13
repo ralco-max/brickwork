@@ -24,7 +24,7 @@ test('the brief recap uses display tier names and never model names',()=>{
 test('an empty composer never offers a paid run: it needs words or ticked fixes (more in feedback-composer.test)',()=>{
  const empty=composerActions(idle);
  assert.equal(empty.submit,'Send');assert.equal(empty.submitDisabled,true);
- assert.deepEqual(composerActions({...idle,fixes:3}),{submit:'Apply 3 fixes',submitDisabled:false});
+ assert.deepEqual(composerActions({...idle,fixes:3}),{submit:'Apply 3 changes',submitDisabled:false});
  assert.equal(composerActions({...idle,typed:true}).submitDisabled,false);
  assert.deepEqual(composerActions({...idle,busy:true}),{submit:'Queue',submitDisabled:true});
  assert.equal(composerActions({...idle,busy:true,queued:true,typed:true}).submit,'Replace queued');

@@ -2,7 +2,8 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import {createRequire} from 'node:module';
 import {build} from 'esbuild';
-const bundle=await build({stdin:{contents:'export * from "./lib/design-library";export * from "./lib/models";export {projectJSON,emptyShopping} from "./lib/design-project";',resolveDir:process.cwd(),loader:'ts'},bundle:true,platform:'node',format:'esm',write:false,logLevel:'error'});
+import {createHash} from 'node:crypto';
+const bundle=await build({stdin:{contents:'export * from "./lib/design-library";export * from "./lib/models";export {projectJSON,emptyShopping,defaultBrief,emptyManual} from "./lib/design-project";export {compileScene} from "./lib/generated-scene";export {sanitizeSharedProject} from "./lib/share";',resolveDir:process.cwd(),loader:'ts'},bundle:true,platform:'node',format:'esm',write:false,logLevel:'error'});
 const m=await import('data:text/javascript;base64,'+Buffer.from(bundle.outputFiles[0].text).toString('base64'));
 test('a design packs to a project file and unpacks with its id, name and bricks intact',()=>{
  const model={...m.generateRecipe('lighthouse','small'),libraryId:'abc',name:'My light',source:'custom'};
@@ -225,4 +226,27 @@ test('My builds is a visual grid: pinned and recent apart, one Open per card, th
  assert.equal(loaded.exports.render({...props,designs:[],deleted:null}).includes('design-undo-button'),false);
  // Refine with AI is offered only for builds that have an AI scene.
  assert.equal(loaded.exports.isAIDesign(savedFixture('plain')),false);assert.equal(loaded.exports.isAIDesign({...savedFixture('ai'),project:JSON.stringify({generation:{shapes:[]}},null,2)}),true);
+});
+
+test('a re-share after a private-only change finds the same link: links are keyed by the content the server stores',async t=>{
+ useMemoryStorage(t);
+ const box=(id,position,size,color)=>({id,component:id,label:id,kind:'box',operation:'add',color,position,size,end:{x:0,y:0,z:0},radius:1,repeat:{count:1,offset:{x:0,y:0,z:0}}});
+ const scene={name:'Harbor house',description:'A small house by the water.',dimensions:{x:12,y:12,z:10},shapes:[box('Base',{x:0,y:0,z:0},{x:12,y:2,z:10},'gray'),box('House',{x:2,y:2,z:2},{x:8,y:9,z:6},'red')]};
+ const review={summary:'A house.',recognizable:true,features:[],improvements:['Add a chimney.']};
+ const model={...m.compileScene(scene,{smooth:true}),generation:scene,design:{brief:m.defaultBrief('A small house'),manual:m.emptyManual(),locked:[],revisions:[],review}},hash=await m.shareProjectHash(model);
+ // Review again, a new kept version or a history entry changes only what a share leaves out.
+ for(const design of [{...model.design,review:{...review,summary:'Reviewed again: still a house.'}},{...model.design,reviewStale:true},{...model.design,revisions:[{request:'My words',summary:'Done.',at:'2026-10-12T00:00:00.000Z'}]},{...model.design,brief:{...model.design.brief,idea:'my house at 42 Oak Lane'}}])
+  assert.equal(await m.shareProjectHash({...model,design}),hash,'the same shared content keeps its link and owner token');
+ assert.notEqual(await m.shareProjectHash({...model,name:'Harbor house at dusk'}),hash,'a change that is shared is a new link');
+ const server=createHash('sha256').update(m.sanitizeSharedProject(JSON.parse(m.projectJSON(model,m.emptyShopping()))).project).digest('hex');
+ assert.equal(hash,server,'the same key the server dedupes and the gallery compares by');
+ // A build's links are found by its id, newest first, with the tokens this browser holds; a repeat keeps the build.
+ const link=(shareId,createdAt,extra={})=>({projectHash:shareId.padEnd(64,'0'),shareId,url:`https://bricks.test/s/${shareId}`,createdAt,...extra});
+ await m.rememberSharedLink(link('OldLink001','2026-10-01T00:00:00.000Z',{ownerToken:'t1',designId:'cafe'}));
+ await m.rememberSharedLink(link('NewLink002','2026-10-05T00:00:00.000Z',{ownerToken:'t2',designId:'cafe'}));
+ await m.rememberSharedLink(link('NoToken003','2026-10-06T00:00:00.000Z',{designId:'cafe'}));
+ await m.rememberSharedLink(link('Elsewhere4','2026-10-07T00:00:00.000Z',{ownerToken:'t4',designId:'other'}));
+ assert.deepEqual((await m.linksForDesign('cafe')).map(l=>[l.shareId,l.ownerToken]),[['NewLink002','t2'],['OldLink001','t1']]);
+ await m.rememberSharedLink({...link('OldLink001','2026-10-01T00:00:00.000Z'),projectHash:'e'.repeat(64)});
+ assert.equal((await m.findSharedLink('e'.repeat(64))).designId,'cafe');
 });

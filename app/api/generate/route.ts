@@ -1,7 +1,8 @@
 import {z} from "zod";
 import {revisionRegionSchema,MAX_REVISION_REGION_IMAGE_LENGTH} from "@/lib/revision-region";
-import {aiSettings,requireBudgetDb} from "@/lib/ai-settings";
-import {budgetedProvider,designModelFor,longDesignRun} from "@/lib/ai-budget";
+import {aiSettings,requireBudgetDb,studioRequestAllowed,visitorAllowance} from "@/lib/ai-settings";
+import {withReceipt} from "@/lib/receipts";
+import {budgetedProvider,designModelFor,designTier,longDesignRun} from "@/lib/ai-budget";
 import {generationFailure} from "@/lib/generation-errors";
 import {generateScene,MAX_RENDERS,MAX_RENDER_LENGTH} from "@/lib/generation-provider";
 import {validateScene} from "@/lib/generated-scene";
@@ -17,6 +18,7 @@ export async function GET(request:Request){return Response.json({configured:aiSe
 export async function POST(request:Request){
  const origin=request.headers.get("origin");if(origin&&origin!==new URL(request.url).origin)return Response.json({error:"Open Bricks in its own tab to generate a model."},{status:403});
  let config;try{config=aiSettings(request);}catch(error){const failure=generationFailure(error);return Response.json({error:failure.message,code:failure.code},{status:400});}const {key,model}=config;
+ if(!studioRequestAllowed(request,config.studio))return Response.json({error:"Open Bricks in its own tab to use the studio AI.",code:"AI_ORIGIN"},{status:403});
  if(!key)return Response.json({error:"Connect AI once to generate custom builds.",code:"AI_NOT_CONNECTED"},{status:503});
  if(key.length>512||/[\r\n]/.test(key))return Response.json({error:"Enter a valid API key."},{status:400});
  let input;
@@ -29,8 +31,8 @@ export async function POST(request:Request){
  const reference=input.research;if(reference?.searchable&&(reference.identity!==undefined||reference.contextAdequate!==undefined)&&!referenceReady(reference,collectReferencePhotos(input.reference,input.photos).length))return Response.json({error:referenceClarification(reference),code:"REFERENCE_UNCLEAR"},{status:400});
  return eventResponse(request,async(signal,send)=>{
   send({type:"status",message:"Connecting to your builder…"});
-  const provider=budgetedProvider(requireBudgetDb(config.db),key,budget=>send({type:"budget",budget}),fetch,usage=>{console.info(JSON.stringify({event:"bricks_ai_usage",stage:"design",...usage}));send({type:"usage",usage});},config.period);
-  const chosen=designModelFor(input.brief?.quality,model,config.studio);
+  const chosen=designModelFor(input.brief?.quality,model,config.studio),sign=withReceipt(config.receiptKey,"design",designTier(input.brief?.quality,chosen));
+  const provider=budgetedProvider(requireBudgetDb(config.db),key,budget=>send({type:"budget",budget}),fetch,async usage=>{console.info(JSON.stringify({event:"bricks_ai_usage",stage:"design",...usage}));send({type:"usage",usage:await sign(usage)});},config.period,await visitorAllowance(request,config));
   for await(const event of generateScene(input,key,chosen,signal,provider.fetch,provider.recordUsage))send(event);
  },{timeoutMs:longDesignRun(input.brief?.quality)?420000:240000});
 }

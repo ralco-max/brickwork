@@ -27,3 +27,5 @@
 .build-rating.is-done{display:flex;align-items:center;gap:8px;font-size:14px;color:var(--ok-ink);background:var(--ok-bg);border-color:transparent}
 @media(pointer:coarse){.build-rating-chip,.build-rating-verdicts .button,.build-rating-send,.build-rating-note{min-height:44px}}
 @media(max-width:420px){.build-rating-verdicts{width:100%}.build-rating-verdicts .button{flex:1}.build-rating-send{flex:1 1 100%}}
+/* The creator viewing their own link lists or unlists it under the viewer actions. */
+.viewer-card>.gallery-publish{flex:1 1 100%;max-width:640px}

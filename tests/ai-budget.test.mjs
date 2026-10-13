@@ -6,8 +6,8 @@ import {join} from 'node:path';
 import {build} from 'esbuild';
 import {budgetDb} from './helpers/budget-db.mjs';
 
-const bundle=await build({stdin:{contents:'export {compactScene} from "./lib/generated-scene";export * from "./lib/ai-budget";export * from "./lib/generation-stream";export * from "./lib/generation-provider";export {defaultBrief} from "./lib/design-project";export {researchSubject} from "./lib/design-research";export {foundationScene} from "./lib/live-arrivals";export {env as testEnv} from "cloudflare:workers";export {POST as generatePOST} from "./app/api/generate/route";export {POST as reviewPOST} from "./app/api/review/route";export {GET as budgetGET} from "./app/api/budget/route";',resolveDir:process.cwd(),loader:'ts'},bundle:true,platform:'node',format:'esm',write:false,plugins:[{name:'fixture-env',setup(b){b.onResolve({filter:/^cloudflare:workers$/},()=>({path:'env',namespace:'fixture'}));b.onLoad({filter:/.*/,namespace:'fixture'},()=>({contents:'export const env={};',loader:'js'}));}}]});
-const {BUDGET_NANOS,BUDGET_MODEL,researchSubject,worstCaseHold,stopCostNotice,longDesignRun,keyFingerprint,budgetSnapshot,reserveBudget,tokenCost,budgetedProvider,readEvents,generateScene,defaultBrief,foundationScene,testEnv,generatePOST,reviewPOST,budgetGET,compactScene}=await import('data:text/javascript;base64,'+Buffer.from(bundle.outputFiles[0].text).toString('base64'));
+const bundle=await build({stdin:{contents:'export {studioVisitor,visitorAllowanceNanos,STUDIO_VISITOR_DAILY_USD} from "./lib/ai-settings";export {compactScene} from "./lib/generated-scene";export * from "./lib/ai-budget";export * from "./lib/generation-stream";export * from "./lib/generation-provider";export {defaultBrief} from "./lib/design-project";export {researchSubject} from "./lib/design-research";export {foundationScene} from "./lib/live-arrivals";export {env as testEnv} from "cloudflare:workers";export {POST as generatePOST} from "./app/api/generate/route";export {POST as reviewPOST} from "./app/api/review/route";export {GET as budgetGET} from "./app/api/budget/route";',resolveDir:process.cwd(),loader:'ts'},bundle:true,platform:'node',format:'esm',write:false,plugins:[{name:'fixture-env',setup(b){b.onResolve({filter:/^cloudflare:workers$/},()=>({path:'env',namespace:'fixture'}));b.onLoad({filter:/.*/,namespace:'fixture'},()=>({contents:'export const env={};',loader:'js'}));}}]});
+const {studioVisitor,visitorAllowanceNanos,STUDIO_VISITOR_DAILY_USD,ratedModel,designTier,BUDGET_NANOS,BUDGET_MODEL,researchSubject,worstCaseHold,stopCostNotice,longDesignRun,keyFingerprint,budgetSnapshot,reserveBudget,tokenCost,budgetedProvider,readEvents,generateScene,defaultBrief,foundationScene,testEnv,generatePOST,reviewPOST,budgetGET,compactScene}=await import('data:text/javascript;base64,'+Buffer.from(bundle.outputFiles[0].text).toString('base64'));
 const url='https://api.openai.com/v1/responses',key='fixture-personal-api-key-123',signal=()=>new AbortController().signal;
 const payload=(extra={})=>({method:'POST',signal:signal(),headers:{Authorization:`Bearer ${key}`},body:JSON.stringify({model:BUDGET_MODEL,input:'A castle',max_output_tokens:32000,...extra})});
 const collect=async response=>{const result=[];for await(const event of readEvents(response.body))result.push(event);return result;};
@@ -92,7 +92,7 @@ test('the shared studio key never runs the pricier legacy designers; a personal 
  const scene=foundationScene(defaultBrief('A castle')),models=[];
  t.mock.method(globalThis,'fetch',async(u,init)=>{if(u.endsWith('/input_tokens'))return Response.json({input_tokens:1000});models.push(JSON.parse(init.body).model);
   return new Response([{type:'response.output_text.delta',delta:JSON.stringify(compactScene(scene))},{type:'response.completed',response:{status:'completed',usage:{input_tokens:1000,output_tokens:1000}}}].map(e=>'data: '+JSON.stringify(e)+'\n\n').join(''));});
- const post=(quality,headers={})=>generatePOST(new Request('https://brickwork.test/api/generate',{method:'POST',headers,body:JSON.stringify({prompt:'A castle',detail:'medium',brief:{...defaultBrief('A castle'),quality}})}));
+ const post=(quality,headers={origin:'https://brickwork.test'})=>generatePOST(new Request('https://brickwork.test/api/generate',{method:'POST',headers,body:JSON.stringify({prompt:'A castle',detail:'medium',brief:{...defaultBrief('A castle'),quality}})}));
  for(const quality of ['best','better','standard'])await collect(await post(quality));
  await collect(await post('sol_low'));
  assert.deepEqual(models,['gpt-6.1-sol','gpt-6.1-sol','gpt-6.1-sol','gpt-6.1-sol']);
@@ -139,8 +139,9 @@ test('the best-quality model is priced at its own rates and unknown models are r
 });
 
 test('studio reset preserves old ledger and personal-key budget; new period is stable',async t=>{
- const {db,sqlite}=budgetDb();t.after(()=>{sqlite.close();delete testEnv.DB;delete testEnv.OPENAI_API_KEY;delete testEnv.STUDIO_BUDGET_PERIOD;});
- testEnv.DB=db;testEnv.OPENAI_API_KEY='studio';testEnv.STUDIO_BUDGET_PERIOD='reset-2026-10-11';
+ const {db,sqlite}=budgetDb();t.after(()=>{sqlite.close();delete testEnv.DB;delete testEnv.OPENAI_API_KEY;delete testEnv.STUDIO_BUDGET_PERIOD;delete testEnv.STUDIO_VISITOR_DAILY_USD;});
+ // The whole pool, as the owner sees it with the per-visitor allowance turned off.
+ testEnv.DB=db;testEnv.OPENAI_API_KEY='studio';testEnv.STUDIO_BUDGET_PERIOD='reset-2026-10-11';testEnv.STUDIO_VISITOR_DAILY_USD='off';
  await reserveBudget(db,await keyFingerprint('studio'),9e9);await reserveBudget(db,await keyFingerprint(key),2e9);
  const snapshot=async headers=>(await (await budgetGET(new Request('https://brickwork.test/api/budget',{headers}))).json()).budget;
  assert.equal((await snapshot()).remaining,10);assert.equal((await snapshot({'x-brickwork-api-key':key})).remaining,8);
@@ -271,4 +272,42 @@ test('a refused stream the caller abandons settles an estimate, while a stream t
  const spent=snapshot.spent,dropped=budgetedProvider(db,key,()=>{},async u=>u.endsWith('/input_tokens')?Response.json({input_tokens:1000}):new Response(sse([{type:'response.output_text.delta',delta:'{"n":"Castle"'}])));
  await assert.rejects(drain(generateScene({prompt:'castle',detail:'medium'},key,BUDGET_MODEL,signal(),dropped.fetch,dropped.recordUsage)),{code:'CONNECTION_LOST'});
  await dropped.settleAbandoned();snapshot=await budgetSnapshot(db,hash);assert.equal(snapshot.spent,spent);assert.ok(snapshot.held>.28&&snapshot.held<.32,String(snapshot.held));
+});
+
+test('the studio key gives each visitor a daily allowance, so no one visitor or script can drain the shared pool',async t=>{
+ const {db,sqlite}=budgetDb();t.after(()=>{sqlite.close();delete testEnv.DB;delete testEnv.OPENAI_API_KEY;delete testEnv.STUDIO_BUDGET_PERIOD;});
+ testEnv.DB=db;testEnv.OPENAI_API_KEY='studio-secret';testEnv.STUDIO_BUDGET_PERIOD='reset-2026-10-11';
+ const scene=foundationScene(defaultBrief('A castle'));let upstream=0;
+ t.mock.method(globalThis,'fetch',async(u,init)=>{if(u.endsWith('/input_tokens'))return Response.json({input_tokens:1000});upstream++;const max=JSON.parse(init.body).max_output_tokens;
+  return new Response([{type:'response.output_text.delta',delta:JSON.stringify(compactScene(scene))},{type:'response.completed',response:{status:'completed',usage:{input_tokens:1000,output_tokens:max}}}].map(e=>'data: '+JSON.stringify(e)+'\n\n').join(''));});
+ const post=(ip,headers={origin:'https://brickwork.test'})=>generatePOST(new Request('https://brickwork.test/api/generate',{method:'POST',headers:{'cf-connecting-ip':ip,...headers},body:JSON.stringify({prompt:'A castle',detail:'large',brief:{...defaultBrief('A castle'),quality:'sol_medium'}})}));
+ // A script with neither an Origin nor Sec-Fetch-Site: same-origin is refused before anything is reserved; a personal key is its holder's business.
+ for(const headers of [{},{'sec-fetch-site':'cross-site'},{origin:'https://evil.test'}])assert.equal((await post('203.0.113.7',headers)).status,403);
+ assert.equal(upstream,0);assert.equal(sqlite.prepare('SELECT COUNT(*) AS n FROM ai_spend').get().n,0);
+ assert.equal((await post('203.0.113.7',{'sec-fetch-site':'same-origin'})).status,200,'a same-origin fetch passes without an Origin');
+ // One visitor spends at most their allowance, however many requests they send at once, from any address in their /24.
+ const results=await Promise.all(Array.from({length:12},(_,i)=>post(`203.0.113.${i+1}`).then(collect)));
+ const codes=results.map(events=>events.at(-1).type==='complete'?'complete':events.at(-1).code);
+ assert.ok(codes.includes('BUDGET_LIMIT'),JSON.stringify(codes));assert.match(results.find(e=>e.at(-1).code==='BUDGET_LIMIT').at(-1).message,/today's \$1\.00 of studio AI/);
+ const studio=await keyFingerprint('studio-secret','reset-2026-10-11'),pool=await budgetSnapshot(db,studio);
+ assert.ok(pool.spent+pool.held<=STUDIO_VISITOR_DAILY_USD+1e-9,`one visitor drew ${pool.spent+pool.held}`);assert.ok(pool.remaining>=10-STUDIO_VISITOR_DAILY_USD-1e-9);
+ // Another visitor still builds, and sees their own allowance, never the shared pool.
+ assert.equal((await collect(await post('198.51.100.22'))).at(-1).type,'complete');
+ const mine=(await (await budgetGET(new Request('https://brickwork.test/api/budget',{headers:{'cf-connecting-ip':'198.51.100.22'}}))).json()).budget;
+ assert.equal(mine.allowance,true);assert.equal(mine.limit,STUDIO_VISITOR_DAILY_USD);assert.ok(mine.spent>0&&mine.remaining<STUDIO_VISITOR_DAILY_USD);
+ assert.equal((await budgetSnapshot(db,await keyFingerprint(key))).limit,10,'a personal key keeps its own $10 pool');
+ // Visitors are hashed networks, salted by period and day; the allowance is configurable or off.
+ assert.equal(await studioVisitor(new Request('https://x.test',{headers:{'cf-connecting-ip':'2001:db8:7:1::1'}}),'p'),await studioVisitor(new Request('https://x.test',{headers:{'cf-connecting-ip':'2001:db8:7:ff::9'}}),'p'));
+ assert.notEqual(await studioVisitor(new Request('https://x.test',{headers:{'cf-connecting-ip':'203.0.113.1'}}),'p'),await studioVisitor(new Request('https://x.test',{headers:{'cf-connecting-ip':'203.0.114.1'}}),'p'));
+ assert.doesNotMatch(JSON.stringify(sqlite.prepare('SELECT * FROM ai_spend').all()),/203\.0\.113|198\.51/);
+ assert.equal(visitorAllowanceNanos(undefined),1e9);assert.equal(visitorAllowanceNanos('0.5'),5e8);assert.equal(visitorAllowanceNanos('off'),undefined);assert.equal(visitorAllowanceNanos('junk'),1e9);
+});
+
+test('a rating names the model and tier the design actually ran',()=>{
+ assert.equal(ratedModel([{stage:'research',model:'gpt-6.1-sol'},{stage:'design',model:'gpt-6.1-sol'},{stage:'review',model:'gpt-6.1-sol'}],'sol_medium'),'gpt-6.1-sol:sol_medium');
+ assert.equal(ratedModel([{stage:'design',model:'gpt-6.1-sol'}],'sol_low'),'gpt-6.1-sol:sol_low','Everyday and Careful stay apart');
+ assert.equal(ratedModel([{stage:'design',model:'gpt-6.1-sol'}],'best'),'gpt-6.1-sol:sol_low','a legacy tier the studio key ran on Sol is not reported as Astra');
+ assert.equal(ratedModel([{stage:'design',model:'gpt-6-astra'}],'best'),'gpt-6-astra:best');
+ assert.equal(ratedModel([{stage:'review',model:'gpt-6.1-sol'}],'best','gpt-6.1-sol'),'gpt-6.1-sol:sol_low','a review-only pass names the last design call');
+ assert.equal(designTier(undefined,'gpt-6.1-sol'),'sol_low');
 });

@@ -7,7 +7,7 @@ import type {DesignBrief} from "./design-project";
 export type Quality=NonNullable<DesignBrief["quality"]>;
 type Call={model:string;input:number;output:number;searches?:number};
 const LOOKUP:Call={model:"gpt-6.1-sol",input:17_400,output:1_200,searches:1},REVIEW:Call={model:"gpt-6.1-sol",input:8_500,output:2_300};
-const DESIGN={input:13_700,output:14_000},CAREFUL_REASONING=12_000,REPAIR={input:22_300,output:6_000};
+const DESIGN={input:13_700,output:14_000},CAREFUL_REASONING=12_000,REPAIR={input:22_300,output:6_000},REVISION={input:16_000,output:5_000};
 const SEARCH_USD=.01;
 const callUsd=(c:Call)=>tokenCost(c.input,c.output,0,PRICED_MODELS[c.model])/1e9+(c.searches||0)*SEARCH_USD;
 const designCall=(q:Quality,extra=0):Call=>({model:QUALITY_MODELS[q],input:DESIGN.input,output:DESIGN.output+extra});
@@ -19,12 +19,18 @@ export function buildCostUsd(quality:Quality="sol_low"){
 /** One automatic repair when a first build has a clear problem: a design pass on the tier's own model, then the re-check. */
 export const repairCostUsd=(quality:Quality="sol_low")=>callUsd({model:QUALITY_MODELS[quality],input:REPAIR.input,output:REPAIR.output+(quality==="sol_medium"?CAREFUL_REASONING:0)})+callUsd(REVIEW);
 
+/** One send from the composer: a revision pass on the tier's model (only changed shapes come back), then its check. */
+export const revisionCostUsd=(quality:Quality="sol_low")=>callUsd({model:QUALITY_MODELS[quality],input:REVISION.input,output:REVISION.output+(quality==="sol_medium"?CAREFUL_REASONING:0)})+callUsd(REVIEW);
+/** Review again: the visual check alone. */
+export const reviewCostUsd=()=>callUsd(REVIEW);
 // Shown as a range: a second lookup, a longer scene or a repair moves the real figure.
 const nickel=(usd:number)=>Math.max(.05,Math.round(usd*20)/20);
 export function costRange(quality:Quality="sol_low"):[number,number]{const typical=buildCostUsd(quality);return [nickel(typical*.75),nickel(typical*1.5)];}
 const usd=(v:number)=>`$${v.toFixed(2)}`;
 export const costRangeLabel=(quality:Quality="sol_low")=>{const [low,high]=costRange(quality);return `≈ ${usd(low)}–${usd(high).slice(1)}`;};
 export const repairCostLabel=(quality:Quality="sol_low")=>`≈ +${usd(nickel(repairCostUsd(quality)))}`;
+export const revisionCostLabel=(quality:Quality="sol_low")=>`≈ ${usd(nickel(revisionCostUsd(quality)))}`;
+export const reviewCostLabel=()=>`≈ ${usd(nickel(reviewCostUsd()))}`;
 
 // The tiers people choose between. Legacy designers stay valid in saved briefs but are offered only under
 // Advanced, and only on a personal key.

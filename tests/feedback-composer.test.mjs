@@ -30,11 +30,13 @@ test('failed design checks are tickable too, with or without a review, and a pas
  assert.deepEqual(reviewSuggestions(null,{issues:issues.slice(0,1)}).suggestions.map(s=>s.kind),['check'],'no review needed');
  assert.equal(reviewSuggestions(review,{issues:[...issues,issues[0]]}).suggestions.filter(s=>s.kind==='check').length,2,'deduped');
  assert.equal(historyLabel({typed:'',fixes:2,checks:2}),'Fixed the flagged checks');
- assert.equal(historyLabel({typed:'',fixes:3,checks:2}),'Applied 3 suggested fixes');
+ assert.equal(historyLabel({typed:'',fixes:3,checks:2}),'Applied 3 suggested changes');
  const {finishStatus}=gen;
  assert.equal(finishStatus(2,true),'2 design checks need a look. They are listed under Suggested fixes.');
  assert.equal(finishStatus(1,false),'1 design check needs a look. It is listed under Suggested fixes.');
- assert.equal(finishStatus(0,true),'Finished. Every check passed.');assert.equal(finishStatus(0,false),'Ready for your feedback.');
+ assert.equal(finishStatus(0,true),'Built and checked. Every check passed.');assert.equal(finishStatus(0,false),'Ready for your feedback.');
+ // A build that passed with ideas beside it says nothing needs fixing, so the optional ideas never read as fixes.
+ assert.equal(finishStatus(0,true,3),'Built and checked: nothing needs fixing. The ideas to improve are optional.');
 });
 
 test('Retry is offered only when the review could not see the requested change',()=>{
@@ -64,8 +66,8 @@ test('only ticked suggestions reach the designer; unticked improvements are neve
 test('the composer never offers a paid run without words or ticked fixes',()=>{
  const {composerActions}=gen;
  assert.deepEqual(composerActions({busy:false,queued:false,typed:false,fixes:0}),{submit:'Send',submitDisabled:true});
- assert.deepEqual(composerActions({busy:false,queued:false,typed:false,fixes:2}),{submit:'Apply 2 fixes',submitDisabled:false});
- assert.equal(composerActions({busy:false,queued:false,typed:false,fixes:1}).submit,'Apply 1 fix');
+ assert.deepEqual(composerActions({busy:false,queued:false,typed:false,fixes:2}),{submit:'Apply 2 changes',submitDisabled:false});
+ assert.equal(composerActions({busy:false,queued:false,typed:false,fixes:1}).submit,'Apply 1 change');
  assert.deepEqual(composerActions({busy:false,queued:false,typed:true,fixes:2}),{submit:'Send',submitDisabled:false});
  assert.deepEqual(composerActions({busy:true,queued:false,typed:true,fixes:0}),{submit:'Queue',submitDisabled:false});
  assert.equal(composerActions({busy:true,queued:true,typed:true,fixes:0}).submit,'Replace queued');
@@ -79,12 +81,12 @@ test('quick changes name the tapped parts; history shows exactly what was typed 
  assert.equal(quickRequest('color',['Roof']),'Change the color of the roof to ');
  assert.equal(quickRequest('detail',['Cafe']),'Add more detail to the cafe.');
  assert.equal(historyLabel({typed:'  make the roof RED  '}),'make the roof RED');
- assert.equal(historyLabel({typed:'',fixes:2}),'Applied 2 suggested fixes');assert.equal(historyLabel({typed:'',fixes:1}),'Applied 1 suggested fix');
+ assert.equal(historyLabel({typed:'',fixes:2}),'Applied 2 suggested changes');assert.equal(historyLabel({typed:'',fixes:1}),'Applied 1 suggested change');
  assert.equal(historyLabel({typed:'',retry:'Add a door'}),'Retried: Add a door');assert.equal(historyLabel({typed:'',restored:3}),'Went back to v3');
  assert.equal(historyLabel({typed:''}),'Fixed the flagged checks');
  for(const label of [historyLabel({typed:'',sign:true}),historyLabel({typed:'',continuing:true}),historyLabel({typed:'',photos:true})])assert.doesNotMatch(label,/Sol|GPT|Astra|gpt-/);
  assert.equal(queue.queuedLabel({text:'Make the people wave'}),'Make the people wave');
- assert.equal(queue.queuedLabel({text:'',approved:['a','b']}),'Apply 2 suggested fixes');
+ assert.equal(queue.queuedLabel({text:'',approved:['a','b']}),'Apply 2 suggested changes');
  assert.equal(queue.queuedLabel({text:'',region:{components:['VaultBands']}},c=>c==='VaultBands'?'Vault bands':c),'Change the vault bands');
 });
 
@@ -102,7 +104,8 @@ test('review suggestions render as tickable checklist rows; a Simplified row is 
  assert.match(html,/Show 1 more/);
  assert.equal(renderToStaticMarkup(h(chips.default,{suggestions:[],looksRight:[],approved:[],onToggle:()=>{}})),'');
  const all=renderToStaticMarkup(h(chips.default,{suggestions:suggestions.slice(-1),looksRight:[],approved:[],onToggle:()=>{}}));
- assert.match(all,/<span class="review-chip-tag">Simplified<\/span><span class="review-chip-label">Windows implied by colour<\/span>/);
+ assert.match(all,/<span class="review-chip-tag">Add detail<\/span><span class="review-chip-label">Windows implied by colour<\/span>/,'a simplification is offered as the action a tick takes');
+ assert.match(all,/<h3 id="review-suggestions-title">Ideas to improve<\/h3>/,'with only ideas, nothing reads as a fix');
  assert.doesNotMatch(all,/<em>|Improve<\/em>/);
  const retry=reviewSuggestions({...review,revision:{status:'missing',evidence:''}},{request:'Make the people wave'}).suggestions.slice(0,1);
  assert.doesNotMatch(renderToStaticMarkup(h(chips.default,{suggestions:retry,looksRight:[],approved:[],onToggle:()=>{}})),/Retry: /,'the tag is not repeated in the label');
@@ -168,4 +171,22 @@ test('a retried chip-only fix is offered once, in plain words',()=>{
  assert.ok(retry&&!/approved fixes/i.test(retry.label),retry?.label);
  assert.equal(suggestions.filter(s=>s.kind==='fix'&&s.text===fix).length,0,'the same fix must not appear twice');
  assert.ok(suggestions.some(s=>s.kind==='fix'&&/window/.test(s.text)));
+});
+
+test('a passed build’s ideas never read as fixes, and every paid send shows its price before it is pressed',async()=>{
+ const passed={...review,features:review.features.map(f=>({...f,status:'visible'})),rubric:[],improvements:['Step the awning','Cut two window openings']};
+ assert.equal(gen.visualPassed(passed),true);
+ const {suggestions}=reviewSuggestions(passed,{notes:['Roof simplified to stepped plates']});
+ assert.deepEqual(suggestions.map(s=>s.tag),['Fix','Fix','Add detail']);assert.equal(suggest.suggestionsHeading(suggestions),'Ideas to improve');
+ assert.equal(suggest.suggestionsHeading([...suggestions,{kind:'check'}]),'Suggested fixes','a failed check is a fix');
+ const {composerActions}=gen;
+ assert.deepEqual(composerActions({busy:false,queued:false,typed:false,fixes:1,cost:'≈ $0.10'}),{submit:'Apply 1 change · ≈ $0.10',submitDisabled:false});
+ assert.equal(composerActions({busy:false,queued:false,typed:true,fixes:0,cost:'≈ $0.10'}).submit,'Send · ≈ $0.10');
+ assert.equal(composerActions({busy:false,queued:false,typed:false,fixes:0,cost:'≈ $0.10'}).submit,'Send','a disabled send names no price');
+ const cost=await vite.ssrLoadModule('/lib/cost-estimate.ts');
+ assert.match(cost.revisionCostLabel('sol_low'),/^≈ \$0\.\d\d$/);assert.ok(cost.revisionCostUsd('sol_low')<cost.revisionCostUsd('sol_medium'));
+ assert.ok(cost.revisionCostUsd('sol_low')<cost.buildCostUsd('sol_low'),'a revision costs less than a first build');assert.ok(cost.reviewCostUsd()<cost.revisionCostUsd('sol_low'));
+ const src=await readFile(new URL('../app/generator.tsx',import.meta.url),'utf8');
+ assert.match(src,/cost:scene\?sendCost:undefined/);assert.match(src,/Review again<span className="menu-cost">\{reviewCostLabel\(\)\}<\/span>/);assert.match(src,/Rebuild bigger…<span className="menu-cost">\{costRangeLabel\(quality\)\}<\/span>/);
+ assert.match(src,/Each send is one AI revision, \$\{sendCost\.replace/);
 });

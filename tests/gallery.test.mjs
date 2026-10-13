@@ -7,6 +7,8 @@ import {renderToStaticMarkup} from 'react-dom/server';
 import {createServer} from 'vite';
 import {build} from 'esbuild';
 import {budgetDb} from './helpers/budget-db.mjs';
+import {createHash} from 'node:crypto';
+import {readFileSync} from 'node:fs';
 
 const bundle=await build({stdin:{contents:'export * from "./lib/gallery";export {cleanText,foldForMatch,moderateName,networkOf,MAX_GALLERY_NAME} from "./lib/moderation";export {compileScene} from "./lib/generated-scene";export {generateRecipe} from "./lib/models";export {projectJSON,emptyShopping,defaultBrief,emptyManual,referenceKey} from "./lib/design-project";export {POST as sharePOST} from "./app/api/share/route";export {GET as shareGET,DELETE as shareDELETE} from "./app/api/share/[id]/route";export {GET as listGET,POST as publishPOST} from "./app/api/gallery/route";export {GET as statusGET,DELETE as unpublishDELETE,PATCH as moderatePATCH} from "./app/api/gallery/[id]/route";export {POST as reportPOST} from "./app/api/gallery/[id]/report/route";export {POST as remixPOST} from "./app/api/gallery/[id]/remix/route";export {env as testEnv} from "cloudflare:workers";',resolveDir:process.cwd(),loader:'ts'},bundle:true,platform:'node',format:'esm',write:false,plugins:[{name:'fixture-env',setup(b){b.onResolve({filter:/^cloudflare:workers$/},()=>({path:'env',namespace:'fixture'}));b.onLoad({filter:/.*/,namespace:'fixture'},()=>({contents:'export const env={};',loader:'js'}));}}]});
 const m=await import('data:text/javascript;base64,'+Buffer.from(bundle.outputFiles[0].text).toString('base64'));
@@ -15,16 +17,19 @@ const root=fileURLToPath(new URL('..',import.meta.url));
 const vite=await createServer({appType:'custom',configFile:false,root,resolve:{alias:{'@':root}},server:{middlewareMode:true},logLevel:'error'});
 after(()=>vite.close());
 
-function jpeg(width=1200,height=630){
+function jpeg(width=1200,height=630,comment=''){
  const app0=[0xff,0xe0,0,16,0x4a,0x46,0x49,0x46,0,1,1,0,0,1,0,1,0,0],dqt=[0xff,0xdb,0,67,0,...Array(64).fill(1)];
- const sof=[0xff,0xc0,0,17,8,height>>8,height&255,width>>8,width&255,3,1,0x22,0,2,0x11,1,3,0x11,1];
- return Buffer.from([0xff,0xd8,...app0,...dqt,...sof,0xff,0xd9]);
+ const sof=[0xff,0xc0,0,17,8,height>>8,height&255,width>>8,width&255,3,1,0x22,0,2,0x11,1,3,0x11,1],com=comment?[0xff,0xfe,(comment.length+2)>>8,(comment.length+2)&255,...Buffer.from(comment)]:[];
+ return Buffer.from([0xff,0xd8,...com,...app0,...dqt,...sof,0xff,0xd9]);
 }
-const image='data:image/jpeg;base64,'+jpeg().toString('base64');
+// A build's preview, like a real render: the same bricks give the same picture, different bricks a different one.
+const imageFor=data=>'data:image/jpeg;base64,'+jpeg(1200,630,createHash('sha1').update(JSON.stringify(data.pieces??data)).digest('hex')).toString('base64');
+// Each distinct name is a distinct build (a small tag brick on the roof marks it); the same name is the same build.
+const tags=new Map(),tagOf=name=>{if(!tags.has(name))tags.set(name,tags.size);return tags.get(name);};
 // A designed build (it carries its AI scene), so the gallery accepts it.
 function project(name='Harbor house'){
- const box=(id,position,size,color)=>({id,component:id,label:id,kind:'box',operation:'add',color,position,size,end:{x:0,y:0,z:0},radius:1,repeat:{count:1,offset:{x:0,y:0,z:0}}});
- const scene={name,description:'A small house by the water.',dimensions:{x:12,y:12,z:10},shapes:[box('Base',{x:0,y:0,z:0},{x:12,y:2,z:10},'gray'),box('House',{x:2,y:2,z:2},{x:8,y:9,z:6},'red')]};
+ const box=(id,position,size,color)=>({id,component:id,label:id,kind:'box',operation:'add',color,position,size,end:{x:0,y:0,z:0},radius:1,repeat:{count:1,offset:{x:0,y:0,z:0}}}),i=tagOf(name);
+ const scene={name,description:'A small house by the water.',dimensions:{x:12,y:12,z:10},shapes:[box('Base',{x:0,y:0,z:0},{x:12,y:2,z:10},'gray'),box('House',{x:2,y:2,z:2},{x:8,y:9,z:6},'red'),box('Tag',{x:2+i%8,y:11,z:2+Math.floor(i/8)%6},{x:1,y:1,z:1},['white','yellow','black'][Math.floor(i/48)%3])]};
  const model={...m.compileScene(scene,{hollow:false,smooth:true}),generation:scene};
  const data=JSON.parse(m.projectJSON(model,m.emptyShopping()));
  const brief=m.defaultBrief('A small house');
@@ -35,7 +40,7 @@ const IP='203.0.113.7';
 const req=(path,{method='GET',headers={},body,ip=IP}={})=>new Request(`https://bricks.test${path}`,{method,headers:{'cf-connecting-ip':ip,...(body===undefined?{}:{'content-type':'application/json'}),...headers},body:body===undefined?undefined:typeof body==='string'?body:JSON.stringify(body)});
 const auth=token=>token===undefined?{}:{authorization:`Bearer ${token}`};
 const params=id=>({params:Promise.resolve({id})});
-async function share(data=project(),ip=IP){const response=await m.sharePOST(req('/api/share',{method:'POST',body:{project:data,image},ip}));assert.ok(response.ok,`share failed: ${response.status}`);return response.json();}
+async function share(data=project(),ip=IP,picture=imageFor(data)){const response=await m.sharePOST(req('/api/share',{method:'POST',body:{project:data,image:picture},ip}));assert.ok(response.ok,`share failed: ${response.status}`);return response.json();}
 const publish=(shareId,token,{headers={},...options}={})=>m.publishPOST(req('/api/gallery',{method:'POST',body:{shareId},headers:{...auth(token),...headers},...options}));
 const unpublish=(id,token,{headers={},...options}={})=>m.unpublishDELETE(req(`/api/gallery/${id}`,{method:'DELETE',headers:{...auth(token),...headers},...options}),params(id));
 const moderate=(id,token,body)=>m.moderatePATCH(req(`/api/gallery/${id}`,{method:'PATCH',headers:auth(token),body}),params(id));
@@ -84,7 +89,7 @@ test('publishing needs the link’s owner token and puts a narrow row in the gal
  const again=await publish(id,ownerToken);assert.equal(again.status,200,'publishing twice is harmless');
  assert.equal(sqlite.prepare('SELECT COUNT(*) AS n FROM gallery').get().n,1);
  const row=sqlite.prepare('SELECT * FROM gallery').get();
- assert.deepEqual(Object.keys(row).sort(),['content_hash','hidden','listed','name','piece_count','published_at','publisher_hash','remixes','reports','share_id']);
+ assert.deepEqual(Object.keys(row).sort(),['content_hash','hidden','listed','name','piece_count','published_at','publisher_hash','remixes','reports','reviewed','share_id']);
  assert.equal(row.content_hash,sqlite.prepare('SELECT content_hash FROM shares WHERE id = ?').get(id).content_hash);
  assert.deepEqual(await status(id),{published:true,hidden:false,removed:false});
  // Links from before owner tokens have no owner, so they cannot be published.
@@ -107,12 +112,12 @@ test('untouched presets, blocked names and duplicate content stay out of the gal
  // A friend opening an unlisted link and re-sharing it unchanged cannot list the creator's build for them.
  const original=await share(project('Grandma’s porch')),reshared=await share(project('Grandma’s porch'),'198.51.100.3');
  sqlite.prepare('UPDATE shares SET created_at = created_at - 60000 WHERE id = ?').run(original.id);
- const copied=await publish(reshared.id,reshared.ownerToken,{ip:'198.51.100.3'});assert.equal(copied.status,409);assert.match((await copied.json()).error,/unchanged copy/);
+ const copied=await publish(reshared.id,reshared.ownerToken,{ip:'198.51.100.3'});assert.equal(copied.status,409);assert.match((await copied.json()).error,/shared before this one/);
  assert.equal((await publish(original.id,original.ownerToken)).status,201,'the first link’s creator still can');
  const plan=sqlite.prepare('EXPLAIN QUERY PLAN SELECT id FROM shares WHERE content_hash = ? AND created_at < ? AND id <> ? LIMIT 1').all().map(r=>r.detail).join(' ');assert.match(plan,/idx_shares_content_hash/);
 });
 
-test('a visitor can publish five builds an hour, and an IPv6 /64 is one visitor',async t=>{
+test('a visitor can publish five builds an hour, and an IPv6 /48 is one visitor',async t=>{
  setup(t);
  const links=[];for(let i=1;i<=6;i++)links.push(await share(project(`Build number ${i}`)));
  for(const link of links.slice(0,5))assert.equal((await publish(link.id,link.ownerToken)).status,201);
@@ -120,6 +125,19 @@ test('a visitor can publish five builds an hour, and an IPv6 /64 is one visitor'
  assert.equal((await publish(links[5].id,links[5].ownerToken,{ip:'198.51.100.9'})).status,201,'the limit is per visitor');
  const v6=[];for(let i=1;i<=6;i++)v6.push(await share(project(`Six four build ${i}`),`2001:db8:5:6::${i}`));
  for(const [i,link] of v6.entries())assert.equal((await publish(link.id,link.ownerToken,{ip:`2001:db8:5:6::${i+1}`})).status,i<5?201:429,`IPv6 publish ${i+1}`);
+ // A whole /48 (a free tunnel allocation holds 65,536 /64s) is one publisher too.
+ const tunnel=[];for(let i=1;i<=6;i++)tunnel.push(await share(project(`Tunnel build ${i}`),`2001:db8:77:${i}::1`));
+ assert.deepEqual(await Promise.all(tunnel.map(async(link,i)=>(await publish(link.id,link.ownerToken,{ip:`2001:db8:77:${i+1}::1`})).status)).then(s=>s.sort()),[201,201,201,201,201,429]);
+});
+
+test('no number of addresses floods the gallery: new listings are capped site-wide each hour',async t=>{
+ const {sqlite}=setup(t);
+ const add=sqlite.prepare("INSERT INTO gallery_actions (kind, visitor_hash, created_at) VALUES ('publish', ?, ?)");
+ for(let i=0;i<m.SITE_PUBLISHES_PER_HOUR;i++)add.run(`flooder-${i}`,Date.now()-1000);
+ const link=await share(project('Quiet cottage'),'198.51.100.77'),busy=await publish(link.id,link.ownerToken,{ip:'198.51.100.77'});
+ assert.equal(busy.status,429);assert.match((await busy.json()).error,/a lot of new builds/);assert.equal((await list()).body.items.length,0);
+ sqlite.prepare('UPDATE gallery_actions SET created_at = created_at - 3600000').run();
+ assert.equal((await publish(link.id,link.ownerToken,{ip:'198.51.100.77'})).status,201,'an hour on, listing opens again');
 });
 
 test('cycling publish and unpublish is rate-limited and never bumps a build back to the top',async t=>{
@@ -232,15 +250,18 @@ test('the list is served from the edge cache when there is one',async t=>{
 });
 
 test('three different reporters hide a build; repeats count once and unpublishing does not clear them',async t=>{
- const {sqlite}=setup(t);
+ const {db,sqlite}=setup(t);
  const {id,ownerToken}=await share();await publish(id,ownerToken);
  assert.equal((await report('ZZZZZZZZZZ')).status,404);assert.equal((await report(id,IP,{origin:'https://evil.test'})).status,403);
  const first=await report(id,'192.0.2.1');assert.equal(first.status,202);assert.equal(first.headers.get('cache-control'),'no-store');
  for(let i=0;i<4;i++)assert.equal((await report(id,'192.0.2.1')).status,202,'a repeat report is accepted quietly');
- await report(id,'192.0.2.2');
+ for(const ip of ['192.0.2.2','192.0.2.200'])assert.equal((await report(id,ip)).status,202);
+ assert.equal(sqlite.prepare('SELECT reports FROM gallery').get().reports,1,'neighbouring IPv4 addresses (one /24) are one reporter');
+ await report(id,'198.51.100.2');
  assert.equal(sqlite.prepare('SELECT reports FROM gallery').get().reports,2);assert.equal((await list()).body.items.length,1);
- await report(id,'192.0.2.3');
+ await report(id,'203.0.113.3');
  assert.deepEqual({...sqlite.prepare('SELECT reports,hidden FROM gallery').get()},{reports:3,hidden:1});
+ assert.equal(sqlite.prepare('SELECT COUNT(*) AS n FROM gallery_blocks').get().n,0,'a hide by reports is no block on the build: only an admin’s decision is');
  assert.equal((await list()).body.items.length,0,'hidden builds leave the list');assert.deepEqual(await status(id),{published:true,hidden:true,removed:false});
  assert.equal((await remix(id,'192.0.2.50')).status,200);assert.equal(sqlite.prepare('SELECT remixes FROM gallery').get().remixes,0,'hidden builds collect no remixes');
  assert.equal((await unpublish(id,ownerToken)).status,204);
@@ -251,13 +272,13 @@ test('three different reporters hide a build; repeats count once and unpublishin
  m.testEnv.GALLERY_ADMIN_TOKEN='gallery-admin-secret';
  assert.equal((await moderate(id,'gallery-admin-secret',{hidden:'no'})).status,400);assert.equal((await moderate('ZZZZZZZZZZ','gallery-admin-secret',{hidden:false})).status,404);
  assert.equal((await moderate(id,'gallery-admin-secret',{hidden:false})).status,200);
- assert.deepEqual({...sqlite.prepare('SELECT reports,hidden FROM gallery').get()},{reports:0,hidden:0});assert.deepEqual(sqlite.prepare('SELECT dismissed FROM gallery_reports').all().map(r=>r.dismissed),[1,1,1]);
+ assert.deepEqual({...sqlite.prepare('SELECT reports,hidden,reviewed FROM gallery').get()},{reports:0,hidden:0,reviewed:1});assert.deepEqual(sqlite.prepare('SELECT dismissed FROM gallery_reports').all().map(r=>r.dismissed),[1,1,1]);
  assert.equal((await list()).body.items.length,1);
- for(const ip of ['192.0.2.1','192.0.2.2','192.0.2.3'])assert.equal((await report(id,ip)).status,202);
+ for(const ip of ['192.0.2.1','198.51.100.2','203.0.113.3'])assert.equal((await report(id,ip)).status,202);
  assert.equal((await list()).body.items.length,1,'the same three reporters cannot hide it again');assert.equal(sqlite.prepare('SELECT reports FROM gallery').get().reports,0);
- for(const ip of ['192.0.2.4','192.0.2.5','192.0.2.6'])await report(id,ip);
- assert.equal((await list()).body.items.length,0,'three new reporters can');
- assert.equal((await moderate(id,'gallery-admin-secret',{hidden:false})).status,200);assert.equal((await list()).body.items.length,1);
+ for(const ip of ['192.0.4.4','192.0.5.5','192.0.6.6'])assert.equal((await report(id,ip)).status,202);
+ assert.equal((await list()).body.items.length,1,'once an admin has restored it, fresh addresses cannot hide it again either');
+ assert.deepEqual((await m.feedbackSummary(db)).gallery.reported,[{id,name:'Harbor house',reports:3}],'their reports wait for the admin');
  assert.equal((await moderate(id,'gallery-admin-secret',{hidden:true})).status,200);assert.equal((await list()).body.items.length,0,'the admin can hide a build directly');
 });
 
@@ -350,4 +371,62 @@ test('the built /gallery page server-renders published builds with link-preview 
  assert.doesNotMatch(html,/<meta[^>]*\/api\/share\//,'no build image in the link preview');
  assert.ok(html.indexOf('Tiny red bus')<html.indexOf('Harbor'),'newest first');
  const remixed=await page('/gallery?sort=remixed');assert.match(remixed.html,/aria-current="page"[^>]*>Most remixed/);
+});
+
+test('an admin removal also refuses a renamed or re-described copy, and the same picture on other bricks',async t=>{
+ setup(t);const admin='gallery-admin-secret';m.testEnv.GALLERY_ADMIN_TOKEN=admin;
+ const removed=project('Totally normal castle'),a=await share(removed);assert.equal((await publish(a.id,a.ownerToken)).status,201);
+ assert.equal((await unpublish(a.id,admin)).status,204);
+ // One keystroke in the name, or a new caption: the same bricks, so the removal still applies.
+ const copies=[];
+ for(const copy of [{...removed,name:'Totally normal castle!'},{...removed,description:'Nothing to see here.'}]){
+  const link=await share(copy,'198.51.100.61');assert.notEqual(link.id,a.id);copies.push(link);
+  const refused=await publish(link.id,link.ownerToken,{ip:'198.51.100.61'});assert.equal(refused.status,403,copy.name);assert.match((await refused.json()).error,/moderator/);
+ }
+ // The removed picture uploaded with different bricks is refused too.
+ const other=project('Garden shed'),reused=await share(other,'198.51.100.62',imageFor(removed));
+ assert.equal((await publish(reused.id,reused.ownerToken,{ip:'198.51.100.62'})).status,403);
+ // Different bricks with their own picture are not caught, and a restore lifts the copies' block as well.
+ const fine=await share(project('Potting shed'),'198.51.100.63');assert.equal((await publish(fine.id,fine.ownerToken,{ip:'198.51.100.63'})).status,201);
+ const renamed=copies[0];
+ assert.equal((await moderate(renamed.id,admin,{hidden:false})).status,200);assert.equal((await publish(renamed.id,renamed.ownerToken,{ip:'198.51.100.61'})).status,201);
+});
+
+test('sharing a refined build again can take over its gallery entry, with its remixes and any hide',async t=>{
+ const {sqlite}=setup(t);
+ const first=await share(project('Corner café'));assert.equal((await publish(first.id,first.ownerToken)).status,201);
+ sqlite.prepare('UPDATE gallery SET remixes = 4 WHERE share_id = ?').run(first.id);
+ const refined=await share(project('Corner café, refined'));
+ const post=(body,token)=>m.publishPOST(req('/api/gallery',{method:'POST',headers:auth(token),body}));
+ assert.equal((await post({shareId:refined.id,replaces:{shareId:first.id,ownerToken:'not-the-token'}},refined.ownerToken)).status,403,'only the earlier link’s owner can replace it');
+ assert.equal((await status(refined.id)).published,false,'and a refused replace lists nothing');
+ const replaced=await post({shareId:refined.id,replaces:{shareId:first.id,ownerToken:first.ownerToken}},refined.ownerToken);
+ assert.equal(replaced.status,201);const item=await replaced.json();assert.equal(item.remixes,4);assert.equal(item.replaced,first.id);
+ assert.deepEqual((await list()).body.items.map(i=>i.id),[refined.id],'one card for the build, not two');
+ assert.deepEqual(await status(first.id),{published:false,hidden:false,removed:false});
+ assert.equal(sqlite.prepare('SELECT remixes FROM gallery WHERE share_id = ?').get(first.id).remixes,0,'remixes move once');
+ // A version of a build hidden by moderation comes in hidden.
+ const second=await share(project('Corner café, again'));sqlite.prepare('UPDATE gallery SET hidden = 1 WHERE share_id = ?').run(refined.id);
+ const again=await post({shareId:second.id,replaces:{shareId:refined.id,ownerToken:refined.ownerToken}},second.ownerToken);assert.equal(again.status,201);assert.equal((await again.json()).hidden,true);
+});
+
+test('the owner’s summary pages through every hidden build',async t=>{
+ const {db,sqlite}=setup(t);
+ seed(sqlite,Array.from({length:m.HIDDEN_PAGE+7},(_,i)=>({id:itemId(i),name:`Hidden ${i}`,at:1000+i,hidden:true})));
+ const first=await m.feedbackSummary(db);assert.equal(first.gallery.hidden,m.HIDDEN_PAGE+7);assert.equal(first.gallery.hiddenItems.length,m.HIDDEN_PAGE);assert.equal(first.gallery.nextHiddenOffset,m.HIDDEN_PAGE);
+ const rest=await m.feedbackSummary(db,30,Date.now(),first.gallery.nextHiddenOffset);assert.equal(rest.gallery.hiddenItems.length,7);assert.equal(rest.gallery.nextHiddenOffset,null);
+ assert.equal(new Set([...first.gallery.hiddenItems,...rest.gallery.hiddenItems].map(i=>i.id)).size,m.HIDDEN_PAGE+7);
+});
+
+test('a build’s gallery entry follows it: a re-share offers to update it, deleting offers to remove it, and the owner’s link can unlist it',async()=>{
+ const dialog=await vite.ssrLoadModule('/app/share-dialog.tsx');
+ const calls=[];const fetcher=async(url,init={})=>{calls.push({url,init});return url.startsWith('/api/gallery/')&&!init.method?Response.json({published:url.endsWith('OldLink001'),hidden:false,removed:false}):Response.json({hidden:false},{status:201});};
+ assert.deepEqual(await dialog.setGalleryListing('NewLink002','t2',true,fetcher,{shareId:'OldLink001',ownerToken:'t1'}),{published:true,hidden:false});
+ assert.deepEqual(JSON.parse(calls[0].init.body),{shareId:'NewLink002',replaces:{shareId:'OldLink001',ownerToken:'t1'}},'the new link takes the listed one’s place');
+ assert.deepEqual((await dialog.listedLinks([{shareId:'OldLink001',ownerToken:'t1'},{shareId:'Unlisted03',ownerToken:'t3'}],fetcher)).map(l=>l.shareId),['OldLink001']);
+ const toggle=readFileSync(new URL('../app/share-dialog.tsx',import.meta.url),'utf8'),studio=readFileSync(new URL('../app/studio.tsx',import.meta.url),'utf8');
+ assert.match(toggle,/replacing\?"Update the gallery entry":"Show in the public gallery"/);assert.match(toggle,/setGalleryListing\(shareId,ownerToken,show,fetch,show&&previous\?previous:undefined\)/);
+ assert.match(studio,/shareLink\.start\(model,\{owned,elementIds,priceOverrides,quotes\},libraryId\.current\)/,'a share knows which build it came from');
+ assert.match(studio,/void offerGalleryRemoval\(saved\)/);assert.match(studio,/label:"Remove from gallery"/);
+ assert.match(studio,/sharedId&&sharedOwnerToken&&!sharedLoading&&<GalleryToggle shareId=\{sharedId\} ownerToken=\{sharedOwnerToken\}/,'the creator’s own link can be listed or unlisted from the viewer');
 });

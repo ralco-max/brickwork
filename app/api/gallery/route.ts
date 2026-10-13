@@ -24,7 +24,8 @@ export async function GET(request:Request){
  return response;
 }
 
-const publishBody=z.object({shareId:z.string().regex(SHARE_ID)}).strict();
+// replaces: an earlier listed version of the same build and its owner token; the new link takes its place.
+const publishBody=z.object({shareId:z.string().regex(SHARE_ID),replaces:z.object({shareId:z.string().regex(SHARE_ID),ownerToken:z.string().min(1).max(200)}).strict().optional()}).strict();
 
 export async function POST(request:Request){
  if(!sameOrigin(request))return fail("Open Bricks in its own tab to publish.",403);
@@ -32,7 +33,7 @@ export async function POST(request:Request){
  if(!token)return Response.json({error:"Send this link's owner token to publish it."},{status:401,headers:{...NO_STORE,"WWW-Authenticate":"Bearer"}});
  let body;try{body=publishBody.parse(await readJson(request,MAX_GALLERY_BODY_BYTES));}catch{return fail("Send the link to publish as {shareId}.",400);}
  const db=(env as unknown as GalleryEnv).DB;if(!db)return fail("The gallery is temporarily unavailable.",503);
- let result;try{result=await publishShare(db,body.shareId,token,await visitorHash(request));}
+ let result;try{result=await publishShare(db,body.shareId,token,await visitorHash(request),Date.now(),body.replaces?{shareId:body.replaces.shareId,token:body.replaces.ownerToken}:undefined);}
  catch{console.error(JSON.stringify({event:"bricks_gallery_failed",op:"publish"}));return fail("The gallery is temporarily unavailable. Try again in a moment.",503);}
  switch(result.status){
   case "missing":return fail("This shared creation was not found.",404);
@@ -41,8 +42,9 @@ export async function POST(request:Request){
   case "preset":return fail("Change this preset or design your own build to show it in the gallery.",422);
   case "blocked":return fail(result.message,422);
   case "duplicate":return fail("This build is already in the gallery under another link.",409);
-  case "copy":return fail("This is an unchanged copy of someone else’s shared build. Make a change to remix it, then show your version.",409);
+  case "copy":return fail("This build matches a link that was shared before this one, and only that link can be shown in the gallery. If it’s yours, show it from the browser that created that link; to show a remix, make a change first.",409);
   case "limited":return fail("You've published a lot this hour. Try again a little later.",429);
+  case "busy":return Response.json({error:"The gallery is taking a lot of new builds right now. Try again in a little while."},{status:429,headers:{...NO_STORE,"Retry-After":"600"}});
  }
- return Response.json({...result.item,hidden:result.hidden},{status:result.status==="published"?201:200,headers:NO_STORE});
+ return Response.json({...result.item,hidden:result.hidden,...(result.replaced?{replaced:result.replaced}:{})},{status:result.status==="published"?201:200,headers:NO_STORE});
 }

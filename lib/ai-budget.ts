@@ -17,6 +17,15 @@ export function designModelFor(quality:keyof typeof QUALITY_MODELS|undefined,fal
  if(!quality)return fallback;if(studio&&!(STUDIO_QUALITIES as readonly string[]).includes(quality))return QUALITY_MODELS.sol_medium;
  return QUALITY_MODELS[quality];
 }
+// The tier a design call actually ran. Sol's two tiers differ only in reasoning effort (generation-provider), so a legacy
+// tier the studio key runs on Sol is Everyday; other models are their own tier.
+export const designTier=(quality:string|undefined,model:string)=>model===QUALITY_MODELS.sol_low?quality==="sol_medium"?"sol_medium":"sol_low":quality||"standard";
+// What a rating names: the model the last design call ran (from its usage, not the brief) and its tier, so Everyday and
+// Careful stay apart in the owner's ratings.
+export function ratedModel(usage:readonly {stage:string;model:string}[],quality?:string,fallback?:string){
+ const model=usage.filter(u=>u.stage==="design").at(-1)?.model||fallback||QUALITY_MODELS[(quality||"sol_low") as keyof typeof QUALITY_MODELS]||BUDGET_MODEL;
+ return `${model}:${designTier(quality,model)}`;
+}
 // Higher-effort runs get the longer stream timeout; low-effort defaults do not.
 export const longDesignRun=(quality?:string)=>quality==="better"||quality==="best"||quality==="sol_medium";
 const INPUT=2000,CACHED_INPUT=100,OUTPUT=10000;
@@ -31,21 +40,30 @@ const REASONING_FLOOR:Record<string,number>={none:500,minimal:500,low:2000,mediu
 type Statement={bind:(...values:(string|number|null)[])=>Statement;run:()=>Promise<{meta:{changes?:number}}>;
  first:<T>()=>Promise<T|null>};
 export type BudgetDatabase={prepare:(sql:string)=>Statement};
-export type RequestUsage={cost:number;model:string;inputTokens:number;outputTokens:number;searchCalls:number;cachedTokens:number;cacheWriteTokens:number;reasoningTokens:number};
+// receipt: the server-signed record of this call (lib/receipts.ts), which a build rating cites.
+export type RequestUsage={cost:number;model:string;inputTokens:number;outputTokens:number;searchCalls:number;cachedTokens:number;cacheWriteTokens:number;reasoningTokens:number;receipt?:string};
 // hold is set only on the report sent when a request is reserved: that request's ceiling, which is also the most a Stop can charge.
-export type BudgetSnapshot={limit:number;spent:number;held:number;remaining:number;hold?:number};
+// allowance: the figures are this visitor's daily allowance on the shared studio key, not the key's whole pool.
+export type BudgetSnapshot={limit:number;spent:number;held:number;remaining:number;hold?:number;allowance?:boolean};
+// A studio-key visitor's daily allowance: a salted hash of their network for today and the most it may spend, in nanodollars.
+export type VisitorAllowance={hash:string;limit:number};
 type Usage={input_tokens:number;output_tokens:number;input_tokens_details?:{cached_tokens?:number;cache_write_tokens?:number};output_tokens_details?:{reasoning_tokens?:number}};
 const unavailable=()=>new GenerationError("Spending checks are temporarily unavailable. Further AI requests are paused. Your draft is kept.","BUDGET_UNAVAILABLE");
+const allowanceUsed=(visitor:VisitorAllowance)=>new GenerationError(`You've used today's $${(visitor.limit/1e9).toFixed(2)} of studio AI. Your design is kept. Add your own OpenAI key to keep building now, or come back tomorrow.`,"BUDGET_LIMIT");
+const SPEND="SELECT COALESCE(SUM(charged_nanos),0) AS spent, COALESCE(SUM(CASE WHEN charged_nanos IS NULL THEN reserved_nanos ELSE 0 END),0) AS held FROM ai_spend WHERE";
 
 export async function keyFingerprint(key:string,period="v1"){
  const digest=await crypto.subtle.digest("SHA-256",new TextEncoder().encode(`brickwork-budget-${period}:${key}`));
  return Array.from(new Uint8Array(digest),b=>b.toString(16).padStart(2,"0")).join("");
 }
-export async function budgetSnapshot(db:BudgetDatabase,keyHash:string):Promise<BudgetSnapshot>{
+/** The key's $10 pool; for a studio visitor, their allowance today, never more than what the pool has left. */
+export async function budgetSnapshot(db:BudgetDatabase,keyHash:string,visitor?:VisitorAllowance):Promise<BudgetSnapshot>{
  try{
-  const row=await db.prepare("SELECT COALESCE(SUM(charged_nanos),0) AS spent, COALESCE(SUM(CASE WHEN charged_nanos IS NULL THEN reserved_nanos ELSE 0 END),0) AS held FROM ai_spend WHERE key_hash = ?").bind(keyHash).first<{spent:number;held:number}>();
-  if(!row||![row.spent,row.held].every(n=>Number.isSafeInteger(n)&&n>=0))throw unavailable();
-  return {limit:10,spent:row.spent/1e9,held:row.held/1e9,remaining:Math.max(0,(BUDGET_NANOS-row.spent-row.held)/1e9)};
+  const read=async(column:"key_hash"|"visitor_hash",value:string)=>{const row=await db.prepare(`${SPEND} ${column} = ?`).bind(value).first<{spent:number;held:number}>();if(!row||![row.spent,row.held].every(n=>Number.isSafeInteger(n)&&n>=0))throw unavailable();return row;};
+  const pool=await read("key_hash",keyHash),left=BUDGET_NANOS-pool.spent-pool.held;
+  if(!visitor)return {limit:10,spent:pool.spent/1e9,held:pool.held/1e9,remaining:Math.max(0,left/1e9)};
+  const mine=await read("visitor_hash",visitor.hash);
+  return {limit:visitor.limit/1e9,spent:mine.spent/1e9,held:mine.held/1e9,remaining:Math.max(0,Math.min(left,visitor.limit-mine.spent-mine.held)/1e9),allowance:true};
  }catch{throw unavailable();}
 }
 // Cache writes are normally a subset of input_tokens. If a provider reports
@@ -57,17 +75,20 @@ export function tokenCost(input:number,output:number,cached=0,rates:{input:numbe
  const total=billedInputTokens(input,cached,written),long=total>272000;
  return ((total-cached-written)*rates.input+written*(rates.write??rates.input))*(long?2:1)+cached*rates.cached*(long?2:1)+output*rates.output*(long?1.5:1);
 }
-export async function reserveBudget(db:BudgetDatabase,keyHash:string,amount:number){
+export async function reserveBudget(db:BudgetDatabase,keyHash:string,amount:number,visitor?:VisitorAllowance){
  if(!Number.isSafeInteger(amount)||amount<=0)throw unavailable();
- const id=crypto.randomUUID();let changes=0;
+ const id=crypto.randomUUID(),mine=visitor?.hash??null;let changes=0;
  try{
-  // One atomic SQLite write including the balance check. Parallel tabs cannot
-  // reserve the same remaining funds. Unresolved reservations never expire.
-  const result=await db.prepare("INSERT INTO ai_spend (id,key_hash,reserved_nanos,created_at) SELECT ?,?,?,? WHERE ? + (SELECT COALESCE(SUM(COALESCE(charged_nanos,reserved_nanos)),0) FROM ai_spend WHERE key_hash = ?) <= ?")
-   .bind(id,keyHash,amount,Date.now(),amount,keyHash,BUDGET_NANOS).run();
+  // One atomic SQLite write including the balance checks: the key's pool and, on the studio key, the visitor's
+  // allowance (held requests count, so parallel requests are capped too). Unresolved reservations never expire.
+  const result=await db.prepare("INSERT INTO ai_spend (id,key_hash,reserved_nanos,created_at,visitor_hash) SELECT ?,?,?,?,? WHERE ? + (SELECT COALESCE(SUM(COALESCE(charged_nanos,reserved_nanos)),0) FROM ai_spend WHERE key_hash = ?) <= ? AND (? IS NULL OR ? + (SELECT COALESCE(SUM(COALESCE(charged_nanos,reserved_nanos)),0) FROM ai_spend WHERE visitor_hash = ?) <= ?)")
+   .bind(id,keyHash,amount,Date.now(),mine,amount,keyHash,BUDGET_NANOS,mine,amount,mine,visitor?.limit??0).run();
   changes=result.meta.changes??0;
  }catch{throw unavailable();}
- if(changes!==1)throw new GenerationError("This request would exceed your $10 Bricks budget. Your design is kept; you can still edit it in the studio.","BUDGET_LIMIT");
+ if(changes!==1){
+  if(visitor&&(await budgetSnapshot(db,keyHash)).remaining*1e9>=amount)throw allowanceUsed(visitor);
+  throw new GenerationError("This request would exceed your $10 Bricks budget. Your design is kept; you can still edit it in the studio.","BUDGET_LIMIT");
+ }
  return id;
 }
 async function settle(db:BudgetDatabase,id:string,amount:number){
@@ -86,12 +107,12 @@ export const stopCostNotice=(usd:number)=>`Stopping uses up to $${(Math.ceil(Mat
 
 // Providers pass their exact outgoing payload through this guard. The client
 // cannot supply a balance, raise the limit, or bypass review/repair accounting.
-export function budgetedProvider(db:BudgetDatabase,key:string,notify:(budget:BudgetSnapshot)=>void,fetcher:typeof fetch=fetch,onUsage?:(usage:RequestUsage)=>void,period="v1"){
+export function budgetedProvider(db:BudgetDatabase,key:string,notify:(budget:BudgetSnapshot)=>void,fetcher:typeof fetch=fetch,onUsage?:(usage:RequestUsage)=>void|Promise<void>,period="v1",visitor?:VisitorAllowance){
  // idle → sent (paid request issued) → done (body ended or usage unreadable: exact usage or the hold) → closed (settled once).
  let phase:"idle"|"sent"|"done"|"closed"="idle",requestModel="",sentAt=0,deltas=0,bytes=0,abandoned:Promise<void>|undefined;
  let reservation:{id:string;amount:number;base:number;input:number;maxOutput:number;searchCalls:number;effort:string;rates:{input:number;cached:number;output:number;write?:number}}|undefined;
  const fingerprint=keyFingerprint(key,period),encoder=new TextEncoder();
- const report=async(hold?:number)=>{const snapshot=await budgetSnapshot(db,await fingerprint);notify(hold===undefined?snapshot:{...snapshot,hold});};
+ const report=async(hold?:number)=>{const snapshot=await budgetSnapshot(db,await fingerprint,visitor);notify(hold===undefined?snapshot:{...snapshot,hold});};
  // A request stopped after it was sent (Stop, closed dialog, disconnect, timeout, or a caller
  // abandoning the stream) settles an estimate instead of keeping its ceiling forever: counted input
  // plus output = max(2x the streamed text tokens, the effort floor, elapsed time at a high rate),
@@ -115,7 +136,8 @@ export function budgetedProvider(db:BudgetDatabase,key:string,notify:(budget:Bud
   const rates=PRICED_MODELS[body.model];requestModel=String(body.model);
   if(!rates||!Number.isSafeInteger(body.max_output_tokens)||body.max_output_tokens<1||body.max_output_tokens>32000||(body.tools&&!search))throw new GenerationError("The spending limit needs verified pricing for this model. No AI request was started.","BUDGET_MODEL");
   const keyHash=await fingerprint;
-  if((await budgetSnapshot(db,keyHash)).remaining<=0)throw new GenerationError("Your $10 Bricks budget is used. Your design is kept and the studio is still available.","BUDGET_LIMIT");
+  const before=await budgetSnapshot(db,keyHash,visitor);
+  if(before.remaining<=0)throw visitor&&(await budgetSnapshot(db,keyHash)).remaining>0?allowanceUsed(visitor):new GenerationError("Your $10 Bricks budget is used. Your design is kept and the studio is still available.","BUDGET_LIMIT");
   // Count text and image inputs before generation. Conservatively include the
   // output schema's UTF-8 byte length and a formatting margin separately;
   // input_tokens does not expose the Responses text.format parameter.
@@ -129,7 +151,7 @@ export function budgetedProvider(db:BudgetDatabase,key:string,notify:(budget:Bud
   const searchCalls=search?Math.min(5,Math.max(1,Number(body.max_tool_calls)||3)):0;
   const base=counted.input_tokens+encoder.encode(JSON.stringify(body.text??{})).length,input=reservedInput(base,searchCalls);
   if(input>1_000_000)throw new GenerationError("This design is too large to budget safely. Shorten the brief or lower the detail level.","BUDGET_INPUT");
-  const amount=holdNanos(rates,input,body.max_output_tokens,searchCalls),id=await reserveBudget(db,keyHash,amount);
+  const amount=holdNanos(rates,input,body.max_output_tokens,searchCalls),id=await reserveBudget(db,keyHash,amount,visitor);
   reservation={id,amount,base,input,maxOutput:body.max_output_tokens,searchCalls,effort:String(body.reasoning?.effort??"medium"),rates};
   await report(amount/1e9);
   // An HTTP error reply means nothing was generated, so release it. A stop after sending settles
@@ -177,7 +199,7 @@ export function budgetedProvider(db:BudgetDatabase,key:string,notify:(budget:Bud
   await report();
   const reasoning=usage.output_tokens_details?.reasoning_tokens;
   const reasoningTokens=typeof reasoning==="number"&&Number.isSafeInteger(reasoning)&&reasoning>=0&&reasoning<=usage.output_tokens?reasoning:0;
-  onUsage?.({cost:charged/1e9,model:requestModel,inputTokens:usage.input_tokens,outputTokens:usage.output_tokens,searchCalls:calls,cachedTokens:cached,cacheWriteTokens:written,reasoningTokens});
+  await onUsage?.({cost:charged/1e9,model:requestModel,inputTokens:usage.input_tokens,outputTokens:usage.output_tokens,searchCalls:calls,cachedTokens:cached,cacheWriteTokens:written,reasoningTokens});
   if(over)throw new GenerationError("AI usage went over this request's expected limit, so it was stopped and charged what it used. Your draft is kept and the rest of your budget is still available.","BUDGET_ACCOUNTING");
  };
  return {fetch:guardedFetch,recordUsage,settleAbandoned};

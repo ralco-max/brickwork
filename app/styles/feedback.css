@@ -214,3 +214,5 @@
  .revision-strip-tools{margin-left:0}
 }
 @media(prefers-reduced-motion:reduce){.review-chip{transition:none}}
+/* What a paid More-menu step typically costs, set to the right of its label. */
+.menu-cost{margin-left:auto;padding-left:14px;font-size:12px;font-variant-numeric:tabular-nums;color:var(--muted-foreground)}

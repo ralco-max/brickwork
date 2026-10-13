@@ -1,8 +1,9 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import {build} from 'esbuild';
+import {readFileSync} from 'node:fs';
 const bundle=await build({entryPoints:['lib/feedback-queue.ts'],bundle:true,platform:'node',format:'esm',write:false});
-const {FeedbackQueue,mayClearSubmittedFeedback}=await import('data:text/javascript;base64,'+Buffer.from(bundle.outputFiles[0].text).toString('base64'));
+const {FeedbackQueue,mayClearSubmittedFeedback,retryFailed}=await import('data:text/javascript;base64,'+Buffer.from(bundle.outputFiles[0].text).toString('base64'));
 const snapshot=(text='Add the SKYMARK sign',version=1)=>({text,version,references:{photos:['photo-front','photo-side'],identityHint:'My apartment building'}});
 
 test('feedback waits for its whole active run and can start only once',()=>{
@@ -65,4 +66,21 @@ test('failed queued region edits retain the exact capture without replacing a ne
  queue.resume();queue.takeReady();const newer={...snapshot('Shorten this tower',2),region:{...region('scene-v1-new'),components:['Tower']}};queue.submit(newer,32);queue.restorePaused(submitted);
  assert.deepEqual(queue.pending.value,newer);queue.settle(32,'failed');assert.equal(queue.pending.status,'paused');assert.equal(queue.pending.value.region.sceneKey,'scene-v1-new');
  assert.equal(mayClearSubmittedFeedback(submitted.value.version,newer.version,false),false,'an old completion must not clear a newer drawn region');
+});
+
+test('Try again after a failed queued pass re-runs that request, not the cleared composer, and drops its paused card',()=>{
+ // Queued while a pass ran (the composer was cleared), started, then failed before any shape arrived.
+ const queue=new FeedbackQueue(),value=snapshot('Make the roof dark green');queue.submit(value,40);queue.settle(40,'completed');
+ const started=queue.takeReady();queue.restorePaused(started);assert.equal(queue.pending.status,'paused');
+ assert.deepEqual(retryFailed(queue,started.value,{reviewOnly:false,interrupted:false}),{submitted:value},'the failed request runs again');
+ assert.equal(queue.pending,null,'and its card no longer offers to run it a second time');
+ // A kept partial finishes with Continue, and a built design retries its review: neither swaps in the snapshot, both drop the card.
+ for(const state of [{reviewOnly:false,interrupted:true},{reviewOnly:true,interrupted:false}]){queue.restorePaused(started);assert.deepEqual(retryFailed(queue,started.value,state),{});assert.equal(queue.pending,null);}
+ // Newer feedback queued meanwhile is never dropped, and a direct send (no failed snapshot) retries the composer as before.
+ const newer=snapshot('Add a chimney',2);queue.submit(newer,41);assert.deepEqual(retryFailed(queue,started.value,{reviewOnly:false,interrupted:false}),{submitted:value});assert.deepEqual(queue.pending.value,newer);
+ assert.deepEqual(retryFailed(queue,null,{reviewOnly:false,interrupted:false}),{});assert.deepEqual(queue.pending.value,newer);
+ // The generator keeps the failed queued or panel snapshot and retries through retryFailed.
+ const gen=readFileSync(new URL('../app/generator.tsx',import.meta.url),'utf8');
+ assert.match(gen,/restoreComposer\(runFeedback\);else if\(submitted&&!reviewOnly\)failedSubmission\.current=submitted;/);
+ assert.match(gen,/const \{submitted\}=retryFailed\(feedbackQueue\.current,failed,\{reviewOnly,interrupted\}\);syncQueue\(\);\n  void run\(reviewOnly,undefined,undefined,submitted,true\);/);
 });

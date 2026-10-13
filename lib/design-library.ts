@@ -2,6 +2,7 @@ import {projectJSON,emptyShopping,contextSchema,migrateCaption} from "./design-p
 import type {ShoppingState} from "./design-project";
 import {validateProject,finishModel} from "./models";
 import {validateScene,compileScene} from "./generated-scene";
+import {sanitizeSharedProject} from "./share";
 import type {BuildModel} from "./models";
 
 // Designs and in-progress drafts are kept in this browser so backing out of the
@@ -106,10 +107,18 @@ export async function saveUnlessPristine(saved:SavedDesign,pristine:{current:Pri
 
 // Links this browser created, keyed by the shared content, so re-sharing an unchanged
 // creation reuses its link after a reload. The owner token, sent once, can delete the link.
-export type SharedLink={projectHash:string;shareId:string;url:string;ownerToken?:string;createdAt:string};
+// designId: the build in My builds the link was made from, so its gallery entry can follow it.
+export type SharedLink={projectHash:string;shareId:string;url:string;ownerToken?:string;createdAt:string;designId?:string};
+/**
+ * The key a link is remembered by: a hash of exactly what the link holds, the project as the server sanitizes and stores
+ * it (its content hash). What a share leaves out (the review, versions, history, brief wording, shopping) can change
+ * without making a new link, so the creator keeps the link and owner token they already have, rather than getting a
+ * second link to the same content that the gallery would refuse as a copy of the first.
+ */
 export async function shareProjectHash(model:BuildModel){
- // Shopping never leaves the device, so it does not make a creation a different share.
- const digest=await crypto.subtle.digest("SHA-256",new TextEncoder().encode(projectJSON(model,emptyShopping())));
+ const full=projectJSON(model,emptyShopping());let shared=full;
+ try{shared=sanitizeSharedProject(JSON.parse(full)).project;}catch{/* the server says why it cannot be shared */}
+ const digest=await crypto.subtle.digest("SHA-256",new TextEncoder().encode(shared));
  return Array.from(new Uint8Array(digest),b=>b.toString(16).padStart(2,"0")).join("");
 }
 export async function listSharedLinks():Promise<SharedLink[]>{
@@ -119,9 +128,13 @@ export async function findSharedLink(projectHash:string):Promise<SharedLink|unde
  try{return await run("readonly",store=>store.get(projectHash) as IDBRequest<SharedLink|undefined>,SHARES)||undefined;}catch{return undefined;}
 }
 export async function rememberSharedLink(link:SharedLink):Promise<boolean>{
- // A repeat share of the same content comes back without a token; keep the one already held for that link.
- const ownerToken=link.ownerToken||(await listSharedLinks()).find(l=>l.shareId===link.shareId&&l.ownerToken)?.ownerToken;
- try{await run("readwrite",store=>store.put({...link,...(ownerToken?{ownerToken}:{})}),SHARES);return true;}catch{return false;}
+ // A repeat share of the same content comes back without a token; keep the one already held for that link, and the build it came from.
+ const held=(await listSharedLinks()).filter(l=>l.shareId===link.shareId),ownerToken=link.ownerToken||held.find(l=>l.ownerToken)?.ownerToken,designId=link.designId||held.find(l=>l.designId)?.designId;
+ try{await run("readwrite",store=>store.put({...link,...(ownerToken?{ownerToken}:{}),...(designId?{designId}:{})}),SHARES);return true;}catch{return false;}
+}
+/** Links made from one build that this browser can still manage (it holds their owner tokens), newest first. */
+export async function linksForDesign(designId:string):Promise<(SharedLink&{ownerToken:string})[]>{
+ return (await listSharedLinks()).filter((l):l is SharedLink&{ownerToken:string}=>l.designId===designId&&typeof l.ownerToken==="string"&&l.ownerToken.length>0).sort((a,b)=>b.createdAt.localeCompare(a.createdAt));
 }
 export async function forgetSharedLink(shareId:string):Promise<void>{
  for(const link of (await listSharedLinks()).filter(l=>l.shareId===shareId))try{await run("readwrite",store=>store.delete(link.projectHash),SHARES);}catch{/* already gone */}
