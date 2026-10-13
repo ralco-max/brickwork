@@ -23,7 +23,7 @@ import SignInput from "./sign-input";
 import {signMetrics} from "@/lib/brick-lettering";
 import ReferenceInputs,{type ReferenceInputValue} from "./reference-inputs";
 import {collectReferencePhotos} from "@/lib/reference-photos";
-import {normalizeScene,componentBudget} from "@/lib/generated-scene";
+import {normalizeScene,componentBudget,splitCaption} from "@/lib/generated-scene";
 import {PreviewQueue,foundationScene,type ArrivalMode} from "@/lib/live-arrivals";
 import {readEvents} from "@/lib/generation-stream";
 import {canKeepPartial,continuationPrompt} from "@/lib/generation-recovery";
@@ -225,7 +225,7 @@ export default function Generator({open,onOpenChange,initialPrompt,initialPhotos
    lastComplete.current=best;partialDraft.current=null;setInterrupted(false);setDraft(best.model);setScene(best.scene);setReview(best.review);if(mayClearSubmittedFeedback(runComposerVersion,composerVersion.current,reviewOnly)){setPrompt(best.review?"":runPrompt);setRegion(best.review?undefined:runRegion);}setPhase("done");persist(best.model,best.scene,best.review,b,best.reference);
    const checks=designChecks(best.model,b,best.reference?.sheet?.target),visualOK=best.review?.recognizable&&best.review.features.every(f=>f.status==="visible")&&(!best.review.revision||["visible","not_requested"].includes(best.review.revision.status));
    setStatus(checks.pass&&visualOK?"Finished. Every digital check passed.":"Draft ready. Review the flagged issues before refining.");
-   const summary=best.review?.summary||best.scene.description;setMessages(m=>[...m,{role:"builder",text:summary}]);
+   const summary=splitCaption(best.scene.description).description||best.review?.summary||"";setMessages(m=>[...m,{role:"builder",text:summary}]);
    if(!reviewOnly)revisions.current=[...revisions.current,{request:text,summary:summary.slice(0,1000),at:new Date().toISOString()}].slice(-50);
    persist(best.model,best.scene,best.review,b,best.reference);applied=true;completedSuccessfully=Boolean(best.review);
   }catch(e){

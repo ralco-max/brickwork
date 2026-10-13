@@ -99,7 +99,7 @@ test('creating, reading and previewing a share round-trips through D1',async t=>
  assert.equal(preview.headers.get('cache-control'),'public, max-age=3600','previews of deleted links must expire, so they are not immutable');
  assert.equal((await m.projectGET(new Request('https://bricks.test/api/share/ZZZZZZZZZZ'),params('ZZZZZZZZZZ'))).status,404);
  assert.equal((await m.imageGET(new Request('https://bricks.test/api/share/x'),params('../../x'))).status,404);
- const summary=await m.readShareSummary(m.testEnv.DB,id);assert.match(m.shareDescription(summary),/pieces\. Built with Bricks\.$/);
+ const summary=await m.readShareSummary(m.testEnv.DB,id);assert.match(m.shareDescription(summary),/^\d[\d,]*-piece brick model · A small house by the water\.$/);
 });
 
 test('sharing the same creation again returns its existing link without a new row or token',async t=>{

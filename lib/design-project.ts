@@ -9,7 +9,8 @@ import {COLORS,PARTS,auditModel} from "./bridge";
 import type {Piece} from "./bridge";
 import {finishModel,intersects} from "./models";
 import type {BuildModel,VoxelMap} from "./models";
-import {validateScene,sceneVoxels,compileScene,looseByComponent,expandShapes} from "./generated-scene";
+import {validateScene,sceneVoxels,compileScene,looseByComponent,expandShapes,splitCaption,CAPTION_MAX} from "./generated-scene";
+import {clipSentence} from "./utils";
 import {simulateClutch} from "./clutch";
 import {catalogPart} from "./part-catalog";
 import {forEachPieceCell,pieceCellOffsets,partDimensions} from "./part-spatial";
@@ -32,8 +33,9 @@ const boxSchema=z.object({x:z.number().int().min(0).max(192),y:z.number().int().
 const manualBrick=boxSchema.extend({id:z.number().int(),part:z.string(),color:z.string(),rotated:z.boolean(),stage:z.number().int(),face:z.enum(["px","nx","pz","nz"]).optional(),support:z.boolean().optional(),legs:z.string().optional(),skin:z.string().optional()}).refine(p=>Object.hasOwn(PARTS,p.part)&&Object.hasOwn(COLORS,p.color)&&[p.legs,p.skin].every(c=>c===undefined||p.part==="minifig"&&Object.hasOwn(COLORS,c))&&p.x+p.w<=192&&p.y+p.h<=240&&p.z+p.d<=192).refine(p=>{if(!Object.hasOwn(PARTS,p.part))return false;const t=partDimensions(p.part,p.rotated,p.face),c=catalogPart(p.part);return p.w===t.w&&p.d===t.d&&p.h===t.h&&p.rotated===t.rotated&&(!c||c.colors.includes(p.color as Piece["color"]));});
 const eraseSchema=boxSchema.extend({cells:z.array(z.tuple([z.number().int().min(0),z.number().int().min(0),z.number().int().min(0)])).min(1).max(8192).optional()}).refine(p=>!p.cells||p.cells.every(([x,y,z])=>x<p.w&&y<p.h&&z<p.d));
 export const manualSchema=z.object({erase:z.array(eraseSchema).max(32000),bricks:z.array(manualBrick).max(16000)});
-// The judge sometimes writes long; long text is trimmed, never a reason to lose the review.
-const clip=(n:number)=>z.string().transform(v=>v.slice(0,n));
+// The judge sometimes writes long; long text is trimmed at a sentence or word, never a reason to lose the review.
+// Imported and shared files reach this too, so the input is bounded before any sentence work.
+const clip=(n:number)=>z.string().transform(v=>v.length<=n?v:clipSentence(v.slice(0,n*4),n));
 const reviewSchema=z.object({composition:z.object({status:z.enum(["matches","mismatch","uncertain","not_applicable"]),evidence:clip(1000)}).optional(),revision:z.object({status:z.enum(["visible","missing","uncertain","not_requested"]),evidence:clip(500)}).optional(),summary:clip(1500),recognizable:z.boolean(),features:z.array(z.object({feature:z.string().max(160),status:z.enum(["visible","missing","uncertain"]),evidence:clip(500)})).max(12),improvements:z.array(clip(500)).max(8),thinking:clip(4000).optional()});
 export {reviewSchema};
 export const contextSchema=z.object({unfinished:z.boolean().optional(),reviewRequest:z.string().max(2000).optional(),reviewRegion:revisionRegionSchema.optional(),reference:z.object({sheet:referenceSheetSchema.optional(),photo:referencePhotoSchema.optional(),photos:referencePhotosSchema.optional(),identityHint:z.string().max(300).optional(),briefKey:z.string().max(5000)}).refine(r=>collectReferencePhotos(r.photo,r.photos).length<=MAX_REFERENCE_PHOTOS,"Use at most four reference photos.").optional(),brief:briefSchema,manual:manualSchema,locked:z.array(z.string().max(80)).max(240),revisions:z.array(z.object({request:z.string().max(2000),summary:z.string().max(1000),at:z.string().max(40)})).max(50),review:reviewSchema.optional(),reviewStale:z.boolean().optional()});
@@ -54,6 +56,19 @@ export function applyManual(voxels:VoxelMap,manual:ManualEdits){
  for(const p of manual.erase){if(p.cells){for(const [x,y,z] of p.cells)voxels.delete(`${p.x+x},${p.y+y},${p.z+z}`);}else for(let x=p.x;x<p.x+p.w;x++)for(let y=p.y;y<p.y+p.h;y++)for(let z=p.z;z<p.z+p.d;z++)voxels.delete(`${x},${y},${z}`);}
  for(const p of manual.bricks)forEachPieceCell(p,(x,y,z)=>voxels.delete(`${x},${y},${z}`));
  return voxels;
+}
+// Saves from before the caption/notes split carry up to 500 chars of builder caveats in the
+// description, often cut mid-word. On load the leading whole sentences stay the caption, the rest
+// become private scene notes (never shown), and history entries that repeated the old text show
+// the caption. Idempotent, so every load path can apply it.
+export function migrateCaption<M extends Pick<BuildModel,"description"|"generation"|"design">>(model:M):M{
+ const scene=model.generation,legacy=scene&&!scene.notes?.length&&scene.description.length>CAPTION_MAX?scene.description:undefined;
+ if(!legacy&&model.description.length<=CAPTION_MAX)return model;
+ const caption=(text:string)=>text.length>CAPTION_MAX?splitCaption(text).description:text,split=legacy===undefined?undefined:splitCaption(legacy);
+ const settle=(s:string)=>s===legacy||s.length>CAPTION_MAX&&!/[.!?…]["'”’)\]]*$/.test(s)?splitCaption(s).description:s;
+ return {...model,description:caption(model.description),
+  ...(scene&&split?{generation:{...scene,description:split.description,...(split.notes.length?{notes:split.notes}:{})}}:{}),
+  ...(split&&model.design?{design:{...model.design,revisions:model.design.revisions.map(r=>({...r,summary:settle(r.summary)}))}}:{})};
 }
 export function projectJSON(model:BuildModel,shopping:ShoppingState){return JSON.stringify({format:"brickwork",version:3,name:model.name,description:model.description,pieces:model.pieces,generation:model.generation,design:model.design,shopping},null,2);}
 export function readProjectMetadata(data:Record<string,unknown>,pieces:Piece[]):Partial<BuildModel>{

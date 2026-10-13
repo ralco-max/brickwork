@@ -1,4 +1,4 @@
-import {projectJSON,emptyShopping,contextSchema} from "./design-project";
+import {projectJSON,emptyShopping,contextSchema,migrateCaption} from "./design-project";
 import type {ShoppingState} from "./design-project";
 import {validateProject,finishModel} from "./models";
 import {validateScene,compileScene} from "./generated-scene";
@@ -29,7 +29,7 @@ export function unpackDesign(saved:SavedDesign):BuildModel{
    model=finishModel(rebuilt.pieces,{name:String(data.name||saved.name),description:String(data.description||rebuilt.description),source:"custom",generation,design:design?{...design,reviewStale:true}:undefined,detail:design?.brief.size});
   }catch{model=validateProject({...data,version:undefined,generation:undefined,design:undefined});}
  }
- return {...model,name:saved.name,libraryId:saved.id};
+ return migrateCaption({...model,name:saved.name,libraryId:saved.id});
 }
 
 function open():Promise<IDBDatabase>{

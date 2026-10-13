@@ -1,5 +1,6 @@
 import type {GeneratedScene} from "./generated-scene";
-import {readProjectMetadata} from "./design-project";
+import {readProjectMetadata,migrateCaption} from "./design-project";
+import {clipSentence} from "./utils";
 import type {DesignContext,ShoppingState} from "./design-project";
 import {COLORS,PARTS,STAGES,auditModel,LEGACY_PARTS} from "./bridge";
 import {EXPANDED_PARTS} from "./part-catalog";
@@ -184,7 +185,7 @@ export function validateProject(raw:unknown):BuildModel{
   return {id,part:p.part,color:p.color,x:p.x,y:p.y,z:p.z,...dimensions,stage:0,...figure,...(p.support===true?{support:true}:{})};
  });
  const occupied=new Set<string>();for(const p of pieces)forEachPieceCell(p,(x,y,z)=>{const k=voxelKey(x,y,z);if(occupied.has(k))throw Error("The project has overlapping pieces. Repair the file before importing.");occupied.add(k);if(occupied.size>350000)throw Error("The project is too complex. Import a smaller version.");});
- return finishModel(pieces,{name:typeof data.name==="string"?data.name.slice(0,80):"Imported project",description:typeof data.description==="string"?data.description.slice(0,500):"Your editable Bricks project",source:"custom",...readProjectMetadata(data,pieces)});
+ return migrateCaption(finishModel(pieces,{name:typeof data.name==="string"?data.name.slice(0,80):"Imported project",description:typeof data.description==="string"?clipSentence(data.description.slice(0,2000),500):"Your editable Bricks project",source:"custom",...readProjectMetadata(data,pieces)}));
 }
 export function supportLoosePieces(input:Piece[]):{pieces:Piece[];added:number}{
  let pieces=input.map((p,id)=>({...p,id})),added=0;
