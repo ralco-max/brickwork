@@ -78,7 +78,18 @@ test('landing HUD: caption under the title, Build details below the canvas, no e
  assert.match(html,/<button class="view-more" title="More view options" aria-label="More view options"/);
  const studioSrc=await readFile(new URL('../app/studio.tsx',import.meta.url),'utf8');
  assert.match(studioSrc,/<RotateCcw size=\{16\}\/>Replay the assembly<\/DropdownMenuItem>/);assert.match(studioSrc,/<House size=\{16\}\/>Reset camera<\/DropdownMenuItem>/);
- assert.match(html,/Drag to orbit · Click to inspect/);
+ // First run: a click on the demo opens nothing, so the hint promises nothing but orbiting.
+ assert.match(html,/Drag to orbit<\/span>/);assert.doesNotMatch(html,/Click to inspect/);
+ assert.match(studioSrc,/const stageUp=[^\n]*if\(compactLayout\|\|workspaceOpen\|\|viewing\|\|landing\|\|!start\)return;/);
+});
+
+test('one term per concept: tools named for what they hold, one verb for the brick editor, one LDraw label',async()=>{
+ const src=await readFile(new URL('../app/studio.tsx',import.meta.url),'utf8');
+ assert.match(src,/toolsName=recipeTools\?"Size & colors":"Parts & guide",panelName=recipeTools\?"Size & colors":"Size & cost"/);
+ assert.doesNotMatch(src,/"Settings"|>Settings<|"Close settings"|brick editor|Your design, your rules/);
+ assert.match(src,/\{editorOpen\?"Done editing":"Edit bricks"\}/);
+ assert.equal((src.match(/LDraw model \(\.ldr\)/g)||[]).length,2);assert.doesNotMatch(src,/LDraw model</);
+ assert.match(src,/\{costRangeLabel\(t\.id\)\} per build \(estimate\)/);
 });
 
 test('Your edition marks AI, converted and edited builds; an untouched preset stays unmarked after save, feature and share',async()=>{

@@ -46,10 +46,23 @@ test('cost estimates: Everyday is cheaper than Careful, both near the audited fi
  assert.ok(m.buildCostUsd('best')>2*careful);assert.ok(m.buildCostUsd('standard')<m.buildCostUsd('better'));
  for(const q of ['sol_low','sol_medium','best']){const [low,high]=m.costRange(q),typical=m.buildCostUsd(q);assert.ok(low<typical&&typical<high,q);assert.equal(Math.round(low*20),low*20);}
  assert.match(m.costRangeLabel('sol_low'),/^≈ \$0\.\d\d–0\.\d\d$/);
- assert.equal(m.repairCostLabel(),'≈ +$0.10');
+ // A repair is a design pass on the chosen tier's model plus the re-check, so its price follows the tier.
+ assert.equal(m.repairCostLabel(),'≈ +$0.15');assert.equal(m.repairCostLabel('sol_low'),'≈ +$0.15');
+ assert.equal(m.repairCostLabel('sol_medium'),'≈ +$0.25');assert.equal(m.repairCostLabel('best'),'≈ +$0.55');
+ assert.ok(m.repairCostUsd('sol_low')<m.repairCostUsd('sol_medium')&&m.repairCostUsd('sol_medium')<m.repairCostUsd('best'));
+ assert.ok(m.repairCostUsd('sol_low')<everyday,'a repair costs less than the build it fixes');
  assert.deepEqual(m.OUTCOME_TIERS.map(t=>[t.id,t.name]),[['sol_low','Everyday'],['sol_medium','Careful']]);
  assert.equal(m.isLegacyTier('best'),true);assert.equal(m.isLegacyTier('sol_medium'),false);assert.equal(m.isLegacyTier(undefined),false);
  assert.equal(m.tierName(undefined),'Everyday');assert.equal(m.tierName('best'),'Best');
+});
+
+test('a remixed share gets the matching outcome tier, never a hidden legacy designer',()=>{
+ assert.deepEqual(['standard','better','best',undefined,'sol_low','sol_medium'].map(m.studioTier),['sol_low','sol_medium','sol_medium','sol_low','sol_low','sol_medium']);
+ const brief={...m.defaultBrief('A red bus'),quality:'best'},shared={name:'Bus',design:{brief,manual:{},locked:[],revisions:[]}};
+ const remixed=m.withStudioTier(shared);
+ assert.equal(remixed.design.brief.quality,'sol_medium');assert.equal(remixed.design.brief.idea,'A red bus');assert.equal(remixed.name,'Bus');
+ assert.equal(shared.design.brief.quality,'best','the original is not mutated');
+ for(const kept of [{name:'Plain'},{name:'Everyday',design:{brief:{...brief,quality:'sol_low'}}},{name:'Careful',design:{brief:{...brief,quality:'sol_medium'}}},{name:'Default',design:{brief:{...brief,quality:undefined}}}])assert.equal(m.withStudioTier(kept),kept);
 });
 
 test('buildability: one plain verdict with the details behind it',()=>{

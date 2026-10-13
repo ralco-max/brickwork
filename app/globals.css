@@ -759,7 +759,8 @@ h1,.landing-film-caption h1,.project-heading h1,[data-slot=dialog-title]{text-wr
 .command-bar .idea-attachments>p[id$="-help"]{display:none}
 .quick-create.is-dragging::after{content:"Drop photos to add them";position:absolute;inset:-6px;z-index:3;display:grid;place-items:center;border:2px dashed var(--primary);border-radius:16px;background:var(--accent-soft);color:var(--accent-deep);font-weight:600;pointer-events:none}
 .idea-drop-hint{font-size:13px;color:var(--ink-3)}
-.command-bar .idea-attachment-count[aria-label^="0 of"]{display:none}
+/* "0 / 4 photos" is visual noise on the bar, but the count stays in the accessibility tree so its live update is heard. */
+.command-bar .idea-attachment-count[aria-label^="0 of"]{position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%);white-space:nowrap}
 @media(pointer:coarse){.idea-drop-hint{display:none}}
 .quick-create-ideas{margin-top:0}
 .quick-create-ideas>button:last-child{background:var(--surface);border-color:var(--surface-2)}
@@ -789,6 +790,10 @@ button.buildability-chip{cursor:pointer}button.buildability-chip:hover{border-co
 .canvas-host:has(>canvas:focus-visible) .camera-navigation .camera-pan{position:static;width:44px;height:44px;min-height:44px;overflow:visible;clip-path:none}
 .canvas-host:has(>canvas:focus-visible) .camera-navigation>.camera-pad-label{position:static;width:auto;height:auto;overflow:visible;clip-path:none}
 .canvas-host:has(>canvas:focus-visible) .camera-navigation .camera-fit{border-left:1px solid var(--line);border-radius:0 7px 7px 0}
+/* Explore model on a touch screen keeps the pad too: it is the one-finger way to move the view (WCAG 2.5.1). */
+.canvas-host[data-touch-active=true] .camera-navigation .camera-pan{position:static;width:44px;height:44px;min-height:44px;overflow:visible;clip-path:none}
+.canvas-host[data-touch-active=true] .camera-navigation>.camera-pad-label{position:static;width:auto;height:auto;overflow:visible;clip-path:none}
+.canvas-host[data-touch-active=true] .camera-navigation .camera-fit{border-left:1px solid var(--line);border-radius:0 7px 7px 0}
 .view-menu{min-width:240px}
 /* Parts list: the buildability verdict, with the digital audit behind it. */
 .buildability-details{margin-bottom:22px;border:1px solid var(--surface-2);border-radius:10px;background:var(--surface)}
@@ -814,6 +819,8 @@ button.buildability-chip{cursor:pointer}button.buildability-chip:hover{border-co
 .viewer-meta{font-size:13px;color:var(--ink-3)}
 .viewer-actions{display:flex;flex-wrap:wrap;gap:8px}
 .viewer-actions .button{min-height:44px;gap:8px}
+/* The viewer's main action carries white text, so it takes a deeper orange than the brand fill (5.2:1). */
+.viewer-actions .button.primary{background:#c2410c;border-color:#c2410c}.viewer-actions .button.primary:hover:not(:disabled){background:#9a3412;border-color:#9a3412}
 /* My builds: a visual grid; one click opens a card, the rest is in its ⋯ menu. */
 .designs-drawer .design-section{display:grid;gap:9px}
 .design-section-title{display:flex;align-items:baseline;flex-wrap:wrap;gap:4px 8px;margin:0;font-size:11px;font-weight:600;letter-spacing:.12em;text-transform:uppercase;color:var(--ink-3)}
@@ -835,15 +842,19 @@ button.buildability-chip{cursor:pointer}button.buildability-chip:hover{border-co
 .design-card-menu:hover{color:var(--ink);border-color:var(--line-strong)}
 .drawer-gallery-link{display:inline-flex;align-items:center;gap:8px;padding:12px 2px 2px;border-top:1px solid var(--surface-2);font-size:13px;font-weight:550;color:var(--ink-2);text-decoration:none}
 .drawer-gallery-link:hover{color:var(--accent-deep)}
+.design-card.is-deleted .design-thumb{gap:8px;place-content:center;justify-items:center;border-style:dashed;background:var(--surface-2);color:var(--ink-3);font-family:inherit;font-size:12.5px;font-weight:500}
+.design-undo-button{display:inline-flex;align-items:center;gap:6px;min-height:36px;padding:0 14px;border:1px solid var(--line-strong);border-radius:999px;background:var(--surface);color:var(--ink);font:inherit;font-size:13px;font-weight:600}
+.design-undo-button:hover{border-color:var(--ink-3)}.design-undo-button:focus-visible{outline:2px solid var(--primary);outline-offset:2px}
+.design-card.is-deleted .design-card-text{color:var(--ink-3)}.design-card.is-deleted .design-card-text strong{color:var(--ink-3);text-decoration:line-through}
+/* A toast's action stays tappable while a modal sheet has turned pointer events off on the page. */
+[data-sonner-toast]:not([data-visible=false]){pointer-events:auto}
 @media(max-width:1024px){
  .studio .stage-hud .hud-meta{display:flex;font-size:10px}
- .studio .stage-hud .hud-actions{display:flex;flex-wrap:nowrap;width:calc(100% + 24px);margin:0 -12px;padding:0 12px;overflow-x:auto;scrollbar-width:none}
- .studio .stage-hud .hud-actions::-webkit-scrollbar{display:none}
- .studio .hud-pill{flex:none;width:auto;white-space:nowrap;padding:0 14px;border-radius:999px}
+ .studio .hud-pill{white-space:nowrap;padding:0 10px;border-radius:999px}
  .viewer-card{flex-direction:column;align-items:stretch;gap:14px;padding:16px 14px 18px}.viewer-text{flex:none;max-width:none}
  .viewer-actions{display:grid;grid-template-columns:1fr 1fr}.viewer-actions .button.primary{grid-column:1/-1}
  .viewer-caption{font-size:14px}
- .design-grid{gap:14px 12px}.design-card-menu{width:40px;height:40px;top:4px;right:4px}
+ .design-grid{gap:14px 12px}.design-card-menu{width:40px;height:40px;top:4px;right:4px}.design-undo-button{min-height:44px}
  .idea-attachment-actions .brief-chip{min-height:44px}
  .quick-create-pitch{font-size:.9rem}
  .quick-create-ideas{gap:6px}.quick-create-ideas>span{flex-basis:100%}.quick-create-ideas>button{min-height:40px;padding:6px 10px;gap:8px;font-size:13px}

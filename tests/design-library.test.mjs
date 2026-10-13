@@ -192,7 +192,7 @@ test('recently viewed shares are a separate small list that tolerates broken sto
 });
 
 test('My builds is a visual grid: pinned and recent apart, one Open per card, the rest in a ⋯ menu, no landmarks',async()=>{
- const rendered=await build({stdin:{contents:'import React from "react";import {renderToStaticMarkup} from "react-dom/server";import DesignsDrawer,{isAIDesign} from "./app/designs-drawer";export {isAIDesign};export const render=(props)=>renderToStaticMarkup(<DesignsDrawer {...props}/>);',resolveDir:process.cwd(),loader:'tsx'},bundle:true,platform:'node',format:'cjs',write:false,logLevel:'error'});
+ const rendered=await build({stdin:{contents:'import React from "react";import {renderToStaticMarkup} from "react-dom/server";import DesignsDrawer,{isAIDesign,withDeleted} from "./app/designs-drawer";export {isAIDesign,withDeleted};export const render=(props)=>renderToStaticMarkup(<DesignsDrawer {...props}/>);',resolveDir:process.cwd(),loader:'tsx'},bundle:true,platform:'node',format:'cjs',write:false,logLevel:'error'});
  const loaded={exports:{}};new Function('require','module','exports',rendered.outputFiles[0].text)(createRequire(import.meta.url),loaded,loaded.exports);
  const noop=()=>{},props={open:true,onClose:noop,onOpenSaved:noop,onContinueSaved:noop,onShopSaved:noop,onDeleteSaved:noop,onFeatureSaved:noop};
  const html=loaded.exports.render({...props,designs:[{...savedFixture('favorite'),featured:true},savedFixture('recent'),{...savedFixture('pictured'),thumbnail:'data:image/jpeg;base64,AAAA'}]});
@@ -201,13 +201,28 @@ test('My builds is a visual grid: pinned and recent apart, one Open per card, th
  assert.match(recent,/Build recent/);assert.doesNotMatch(recent,/Build favorite/);
  // One click target per card; pin, refine, pieces and delete wait in its menu.
  assert.equal((html.match(/class="design-card-open"/g)||[]).length,3);assert.equal((html.match(/aria-label="More for Build /g)||[]).length,3);
- for(const name of ['favorite','recent'])assert.match(html,new RegExp(`aria-label="Open Build ${name}"`));
+ for(const name of ['favorite','recent'])assert.match(html,new RegExp(`aria-label="Open Build ${name}" aria-describedby="design-meta-${name}"`));
+ // The visible piece count and status are announced too, not replaced by the Open label.
+ assert.match(html,/<small id="design-meta-recent">1 pieces · /);
  assert.doesNotMatch(html,/>Feature<|>Continue with AI<|>Delete<|aria-label="Delete /);
  // A stored picture shows; a build without one gets its initial on a tinted tile.
  assert.match(html,/<img src="data:image\/jpeg;base64,AAAA"/);assert.match(html,/--thumb-hue:\d+/);assert.match(html,/<span aria-hidden="true">B<\/span>/);
  for(const name of ['Golden Gate','Neuschwanstein','Cape Hatteras','Saturn V'])assert.ok(!html.includes(name),`${name} belongs to Presets`);
  assert.match(html,/href="\/gallery"/);
  const empty=loaded.exports.render({...props,designs:[]});assert.match(empty,/Nothing here yet/);assert.doesNotMatch(empty,/Pinned builds|Recent builds/);
+ // Delete leaves an Undo tile in the card's slot (no timed toast): same section, same place, described by name.
+ const {withDeleted}=loaded.exports,[a,b,c]=['a','b','c'].map(id=>savedFixture(id));
+ assert.deepEqual(withDeleted([a,c],{design:b,index:1}).map(d=>[d.id,Boolean(d.deleted)]),[['a',false],['b',true],['c',false]]);
+ assert.deepEqual(withDeleted([a,b,c],{design:b,index:1}).map(d=>d.id),['a','b','c'],'no ghost while the card is still listed');
+ assert.deepEqual(withDeleted([],{design:b,index:4}).map(d=>d.id),['b']);assert.equal(withDeleted([a],null).length,1);
+ const undoHtml=loaded.exports.render({...props,designs:[savedFixture('recent')],deleted:{design:{...savedFixture('gone'),featured:true},index:0}});
+ const pinnedUndo=undoHtml.slice(undoHtml.indexOf('aria-label="Pinned builds"'),undoHtml.indexOf('aria-label="Recent builds"'));
+ assert.match(pinnedUndo,/<button type="button" class="design-undo-button" aria-describedby="design-gone-gone design-name-gone">/);
+ assert.match(pinnedUndo,/<span id="design-gone-gone">Deleted<\/span>/);assert.match(pinnedUndo,/<strong id="design-name-gone" title="Build gone">Build gone<\/strong>/);
+ assert.doesNotMatch(pinnedUndo,/aria-label="Open Build gone"|More for Build gone/);
+ const lastUndo=loaded.exports.render({...props,designs:[],deleted:{design:savedFixture('only'),index:0}});
+ assert.match(lastUndo,/design-undo-button/);assert.doesNotMatch(lastUndo,/Nothing here yet/);
+ assert.equal(loaded.exports.render({...props,designs:[],deleted:null}).includes('design-undo-button'),false);
  // Refine with AI is offered only for builds that have an AI scene.
  assert.equal(loaded.exports.isAIDesign(savedFixture('plain')),false);assert.equal(loaded.exports.isAIDesign({...savedFixture('ai'),project:JSON.stringify({generation:{shapes:[]}},null,2)}),true);
 });
