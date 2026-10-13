@@ -43,7 +43,7 @@ const recordKey=z.string().max(40).refine(key=>{const [part,color,...extra]=key.
 const shoppingSchema=z.object({owned:z.record(recordKey,z.number().int().min(0).max(16000)),elementIds:z.record(recordKey,z.string().regex(/^\d{0,8}$/)),priceOverrides:z.record(recordKey,z.number().finite().min(0).max(10000)),quotes:z.record(recordKey,z.object({available:z.number().int().min(0).max(100000),unitPrice:z.number().finite().min(0).max(10000),url:z.string().url().max(1000).refine(s=>/^https:\/\//.test(s)),checkedAt:z.string().datetime()}))});
 const pieceKey=(p:Piece)=>`${p.part}:${p.color}:${p.x}:${p.y}:${p.z}:${p.rotated}:${p.face||(p.rotated?"px":"pz")}${p.legs||p.skin?`:${p.legs||""}:${p.skin||""}`:""}`;
 export function editModel(model:BuildModel,pieces:Piece[]):BuildModel{
- const meta={...model,recipe:undefined,bridgeConfig:undefined,source:"custom" as const};
+ const meta={...model,recipe:undefined,bridgeConfig:undefined,source:"custom" as const,edited:true};
  if(model.generation){const before=new Set(model.pieces.map(pieceKey)),after=new Set(pieces.map(pieceKey)),removed=model.pieces.filter(p=>!after.has(pieceKey(p))),added=pieces.filter(p=>!before.has(pieceKey(p)));
   const prior=model.design||{brief:defaultBrief(model.description||model.name),manual:emptyManual(),locked:[],revisions:[]};
   const erase=[...prior.manual.erase,...removed.map(p=>({x:p.x,y:p.y,z:p.z,w:p.w,h:p.h,d:p.d,...(catalogPart(p.part)?{cells:pieceCellOffsets(p).map(c=>[...c] as [number,number,number])}:{})}))];
@@ -70,8 +70,14 @@ export function migrateCaption<M extends Pick<BuildModel,"description"|"generati
   ...(scene&&split?{generation:{...scene,description:split.description,...(split.notes.length?{notes:split.notes}:{})}}:{}),
   ...(split&&model.design?{design:{...model.design,revisions:model.design.revisions.map(r=>({...r,summary:settle(r.summary)}))}}:{})};
 }
-export function projectJSON(model:BuildModel,shopping:ShoppingState){return JSON.stringify({format:"brickwork",version:3,name:model.name,description:model.description,pieces:model.pieces,generation:model.generation,design:model.design,shopping},null,2);}
-export function readProjectMetadata(data:Record<string,unknown>,pieces:Piece[]):Partial<BuildModel>{
+// "Your edition": AI-made, converted from the user's own file, or changed by hand. Source does not
+// survive a save (every reopened project is "custom"), so the project file carries the mark instead;
+// an untouched preset never has it, even after it is saved, featured or shared.
+export const isYourEdition=(m:Pick<BuildModel,"generation"|"source"|"edited">)=>Boolean(m.generation||m.edited)||m.source==="mosaic"||m.source==="mesh";
+export function projectJSON(model:BuildModel,shopping:ShoppingState){return JSON.stringify({format:"brickwork",version:3,name:model.name,description:model.description,edited:isYourEdition(model)||undefined,pieces:model.pieces,generation:model.generation,design:model.design,shopping},null,2);}
+// The mark is read for every version: a design reopened as its bricks alone is still the user's.
+export function readProjectMetadata(data:Record<string,unknown>,pieces:Piece[]):Partial<BuildModel>{return {...(data.edited===true?{edited:true}:{}),...readProjectContent(data,pieces)};}
+function readProjectContent(data:Record<string,unknown>,pieces:Piece[]):Partial<BuildModel>{
  if(data.version!==3)return {};
  if(data.format!=="brickwork")throw Error("This is not a Bricks project.");
  const generation=data.generation?validateScene(data.generation):undefined;
