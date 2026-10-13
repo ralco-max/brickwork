@@ -3,7 +3,7 @@ import {SIGN_FACES,signPixels,LetteringError} from "./brick-lettering";
 import {COLORS,PARTS} from "./bridge";
 import {partAllowsColor} from "./part-colors";
 import {SKIN_COLORS} from "./colors";
-import {partDimensions,pieceCells,bottomConnectorOffsets,topConnectorOffsets,piecesIntersect} from "./part-spatial";
+import {partDimensions,pieceCells,pieceClearance,bottomConnectorOffsets,topConnectorOffsets,piecesIntersect,cellsIntersect} from "./part-spatial";
 import {GenerationError} from "./generation-errors";
 import {finishModel,packVoxels,voxelKey,smoothTops} from "./models";
 import {carveSlopes} from "./slopes";
@@ -127,12 +127,14 @@ export function validateScene(raw:unknown,{fresh=false}:{fresh?:boolean}={}):Gen
  const scene=parsed.data;scene.shapes=scene.shapes.map(s=>{if(!isExplicit(s))return s;const p=explicitPiece(s);return {...s,size:{x:p.w,y:p.h,z:p.d},face:p.face||"pz"};});let evaluations=0;
  if(fresh)checkFreshColors(expandShapes(scene.shapes));
  const ids=scene.shapes.filter(s=>s.id).map(s=>s.id);if(new Set(ids).size!==ids.length)throw Error("The design has duplicate shape IDs.");
- const expanded=expandShapes(scene.shapes),reserved=new Set<string>(),wheels=expanded.filter(s=>s.kind==="wheel"&&s.operation==="add").map(wheelPiece);
+ const expanded=expandShapes(scene.shapes),reserved=new Set<string>(),handles=new Set<string>(),wheels=expanded.filter(s=>s.kind==="wheel"&&s.operation==="add").map(wheelPiece);
+ const blocked=()=>new GenerationError("A part or minifigure fills the space behind a door frame that its door's handle needs. Leave the cells behind a door frame empty.","INVALID_GEOMETRY");
  for(const s of expanded){
   const b=bounds(s,scene.dimensions);evaluations+=(b.x1-b.x0)*(b.y1-b.y0)*(b.z1-b.z0);if(evaluations>4000000)throw Error("This design is too complex. Reduce repeated details or large overlapping shapes.");
   if(isExplicit(s)){
    const p=explicitPiece(s);if(wheels.some(w=>piecesIntersect(p,w)))throw new GenerationError(s.kind==="minifig"?"A minifigure overlaps a wheel. Leave clearance for both real elements.":"A catalog part overlaps a wheel. Leave clearance for both real elements.","INVALID_GEOMETRY");
-   for(const [x,y,z] of pieceCells(p)){const key=voxelKey(x,y,z);if(reserved.has(key))throw new GenerationError(s.kind==="minifig"?"A minifigure overlaps another explicit part or minifigure. Give each figure its own 2 × 1 studs.":"Two catalog parts overlap. Move or remove one of the explicit parts.","INVALID_GEOMETRY");reserved.add(key);}
+   for(const [x,y,z] of pieceCells(p)){const key=voxelKey(x,y,z);if(reserved.has(key))throw new GenerationError(s.kind==="minifig"?"A minifigure overlaps another explicit part or minifigure. Give each figure its own 2 × 1 studs.":"Two catalog parts overlap. Move or remove one of the explicit parts.","INVALID_GEOMETRY");if(handles.has(key))throw blocked();reserved.add(key);}
+   for(const [x,y,z] of pieceClearance(p)){const key=voxelKey(x,y,z);if(reserved.has(key))throw blocked();handles.add(key);}
   }
  }
  return scene;
@@ -213,13 +215,15 @@ export function compileScene(raw:unknown,options:{manual?:ManualEdits;hollow?:bo
  if(!options.carveBase)for(const [key,owner] of owners)if(/^base$/i.test(owner)||+key.split(",")[1]<2)protect.add(key);
  const maskedErase=new Set<string>(),eraseBoxes=options.manual?.erase.filter(b=>!b.cells)||[];
  for(const b of options.manual?.erase||[])for(const [x,y,z] of b.cells||[])maskedErase.add(voxelKey(b.x+x,b.y+y,b.z+z));
- const erased=(p:Piece)=>options.manual&&([...pieceCells(p)].some(([x,y,z])=>maskedErase.has(voxelKey(x,y,z))||eraseBoxes.some(b=>x>=b.x&&x<b.x+b.w&&y>=b.y&&y<b.y+b.h&&z>=b.z&&z<b.z+b.d))||options.manual.bricks.some(b=>piecesIntersect(p,b)));
+ const erased=(p:Piece)=>options.manual&&([...pieceCells(p)].some(([x,y,z])=>maskedErase.has(voxelKey(x,y,z))||eraseBoxes.some(b=>x>=b.x&&x<b.x+b.w&&y>=b.y&&y<b.y+b.h&&z>=b.z&&z<b.z+b.d))||options.manual.bricks.some(b=>cellsIntersect(p,b)));
  // A real part is indivisible: erasing any occupied part cell removes that
  // element, while an edit in a window/arch opening leaves its frame intact.
  const kept:Piece[]=[],removed:Piece[]=[];for(const p of explicit)(erased(p)?removed:kept).push(p);
- const contextualManual=explicit.length?options.manual?.bricks||[]:[],retain=new Set<string>(),reserved=new Set<string>();
+ const contextualManual=explicit.length?options.manual?.bricks||[]:[],retain=new Set<string>(),reserved=new Set<string>(),pockets=new Set<string>();
  for(const p of [...kept,...contextualManual]){
   for(const [x,y,z] of pieceCells(p)){const key=voxelKey(x,y,z);reserved.add(key);retain.add(key);protect.add(key);}
+  // A hung door's handle stands proud of its frame: the wall behind it keeps a pocket, and its rim stays bricks.
+  for(const [x,y,z] of pieceClearance(p)){pockets.add(voxelKey(x,y,z));for(const [a,b,c] of [[1,0,0],[-1,0,0],[0,1,0],[0,-1,0],[0,0,1],[0,0,-1]])protect.add(voxelKey(x+a,y+b,z+c));}
   // A socket may be inside the part's bounding height, not at its minimum.
   for(const [x,y,z] of bottomConnectorOffsets(p)){const key=voxelKey(p.x+x,p.y+y-1,p.z+z);retain.add(key);protect.add(key);}
   for(const [x,y,z] of topConnectorOffsets(p)){const key=voxelKey(p.x+x,p.y+y,p.z+z);retain.add(key);protect.add(key);}
@@ -235,6 +239,7 @@ export function compileScene(raw:unknown,options:{manual?:ManualEdits;hollow?:bo
  if(options.manual)applyManual(voxels,options.manual);
  for(const p of removed)for(const [x,y,z] of pieceCells(p))voxels.delete(voxelKey(x,y,z));
  for(const p of contextualManual)for(const [x,y,z] of pieceCells(p))voxels.set(voxelKey(x,y,z),p.color);
+ for(const key of pockets)voxels.delete(key);
  // Include actual catalog occupancy in the connectivity pass. Small real
  // parts and their support cells must never be mistaken for voxel debris;
  // unattached elements remain visible for the support audit to reject.

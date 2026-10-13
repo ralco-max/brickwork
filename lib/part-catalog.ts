@@ -5,7 +5,9 @@ import type {ColorKey} from "./colors";
 export type CatalogCell=[number,number,number];
 /** Glass or a door that clips or hinges into its frame. It has no studs of its own, so the compiler places it
  * in the frame's box (from an LDraw shortcut or the shadow library's hinge snaps) and it is never placed alone. */
-export type FittedElement={part:string;name:string;colors:ColorKey[];default:ColorKey;price:number;ldraw:{position:CatalogCell;matrix:number[]};placement:string;mesh:string;thumbnail:string;sourcePart:string};
+// clearance: cells just outside the frame's box that the element's drawn studs reach (a door's handle), in the frame's
+// unrotated cells. They hold no body, so they are not occupancy, but no other piece may fill them.
+export type FittedElement={part:string;name:string;colors:ColorKey[];default:ColorKey;price:number;ldraw:{position:CatalogCell;matrix:number[]};placement:string;mesh:string;thumbnail:string;sourcePart:string;clearance?:CatalogCell[]};
 export type ExpandedPart={
  name:string;w:number;d:number;h:number;price:number;family:string;
  colors:ColorKey[];handedness?:"left"|"right";counterpart?:string;

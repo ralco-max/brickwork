@@ -1,5 +1,5 @@
 import {EXPANDED_PARTS,catalogPart,fittedColor} from "./part-catalog";
-import {forEachPieceCell,topConnectorOffsets,bottomConnectorOffsets} from "./part-spatial";
+import {forEachPieceCell,topConnectorOffsets,bottomConnectorOffsets,pieceClearanceOffsets} from "./part-spatial";
 import {MINIFIG,MINIFIG_SPEC,isMinifig,minifigColors,minifigPlacements} from "./minifig";
 import {COLORS} from "./colors";
 import type {ColorKey} from "./colors";
@@ -92,6 +92,8 @@ export function auditModel(pieces:Piece[]) {
  const occupied=new Map<string,number>();let overlaps=0;const parent=pieces.map((_,i)=>i);
  function root(i:number):number{while(parent[i]!==i){parent[i]=parent[parent[i]];i=parent[i];}return i;}const join=(a:number,b:number)=>{parent[root(a)]=root(b);};
  pieces.forEach((p,i)=>forEachPieceCell(p,(x,y,z)=>{const k=`${x},${y},${z}`;if(occupied.has(k))overlaps++;occupied.set(k,i);}));
+ // A hung door's handle stands proud of its frame: a piece filling that clearance clashes with it like an overlap.
+ pieces.forEach(p=>{for(const [x,y,z] of pieceClearanceOffsets(p))if(occupied.has(`${p.x+x},${p.y+y},${p.z+z}`))overlaps++;});
  const contacts=pieces.map(()=>0),bottom=pieces.map(()=>[] as number[]),sockets=new Map<string,number[]>();
  pieces.forEach((p,i)=>{for(const [x,y,z] of bottomConnectorOffsets(p)){const k=`${p.x+x},${p.y+y},${p.z+z}`,list=sockets.get(k)||[];list.push(i);sockets.set(k,list);}});
  pieces.forEach((p,i)=>{for(const [x,y,z] of topConnectorOffsets(p)){for(const other of sockets.get(`${p.x+x},${p.y+y},${p.z+z}`)||[]){if(other===i)continue;join(i,other);contacts[other]++;bottom[other].push(i);}}});

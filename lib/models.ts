@@ -6,7 +6,7 @@ import {COLORS,PARTS,STAGES,auditModel,LEGACY_PARTS} from "./bridge";
 import {EXPANDED_PARTS,fittedElement,fittedColor} from "./part-catalog";
 import {partColors,partAllowsColor} from "./part-colors";
 import {SOLID_COLORS} from "./colors";
-import {partDimensions,piecesIntersect,forEachPieceCell,topConnectorOffsets,bottomConnectorOffsets} from "./part-spatial";
+import {partDimensions,piecesIntersect,cellsIntersect,forEachPieceCell,pieceClearanceOffsets,topConnectorOffsets,bottomConnectorOffsets} from "./part-spatial";
 import type {ColorKey,Piece,InventoryRow,PartId,Config,Face} from "./bridge";
 import {goldenGate,neuschwanstein,capeHatteras,saturnV} from "./landmarks";
 
@@ -185,7 +185,8 @@ export function addPiece(pieces:Piece[],part:PartId,color:ColorKey,x:number,y:nu
  const p:Piece={id:pieces.length,part,color,x,y,z,...partDimensions(part,rotated,face),stage:5};
  if(![x,y,z].every(Number.isInteger)||Math.min(x,y,z)<0||x+p.w>192||z+p.d>192||y+p.h>240)throw Error("Place bricks within 192 × 192 studs and 240 plate layers.");
  if(pieces.length>=16000)throw Error("This design has reached the 16,000 piece limit.");
- if(pieces.some(other=>intersects(p,other)))throw Error("That space is occupied. Choose another stud or height.");
+ const clash=pieces.find(other=>intersects(p,other));
+ if(clash)throw Error(cellsIntersect(p,clash)?"That space is occupied. Choose another stud or height.":"A door's handle needs that space behind its frame. Choose another stud or height.");
  // Preserve the editor's smooth-surface guard, but only beneath actual sockets.
  // An arch's empty opening must not be mistaken for a bottom connection.
  const sockets=bottomConnectorOffsets(p);
@@ -220,7 +221,8 @@ export function supportLoosePieces(input:Piece[]):{pieces:Piece[];added:number}{
  for(let pass=0;pass<80;pass++){
   const audit=auditModel(pieces);if(!audit.disconnected.length)break;
   const occupied=new Map<string,Piece>(),studs=new Set<string>();
-  for(const p of pieces){forEachPieceCell(p,(x,y,z)=>occupied.set(voxelKey(x,y,z),p));for(const [x,y,z] of topConnectorOffsets(p))studs.add(voxelKey(p.x+x,p.y+y,p.z+z));}
+  // A door's handle cells count as taken, never studded, so no support column runs through them.
+  for(const p of pieces){forEachPieceCell(p,(x,y,z)=>occupied.set(voxelKey(x,y,z),p));for(const [x,y,z] of pieceClearanceOffsets(p))occupied.set(voxelKey(p.x+x,p.y+y,p.z+z),p);for(const [x,y,z] of topConnectorOffsets(p))studs.add(voxelKey(p.x+x,p.y+y,p.z+z));}
   let changed=false;
   for(const id of [...audit.disconnected].sort((a,b)=>pieces[a].y-pieces[b].y)){
    const p=pieces[id];if(p.y===0)continue;

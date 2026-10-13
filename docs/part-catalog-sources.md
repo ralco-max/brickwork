@@ -246,8 +246,14 @@ with `fitted` is compiled with its element in place instead:
 The element's mesh is compiled in the frame's placement box
 (`public/parts/ldraw/<frame>-<element>.json`), so it renders, turns, collides and exports
 with the frame. The frame's collision cells include it: a closed window or door fills its
-whole box. The door's stud handle stands 2.75 LDU proud of the frame face and is drawn,
-not collided. A piece's `fitted` field is the element's colour (default trans-clear, the
+whole box. The door's inner stud handle stands 2.75 LDU proud of the frame's inside face,
+so it is not body: the compiler records the cells outside the box that the element's drawn
+studs reach as the frame's `clearance` (for `60596`, the 2 x 2 cells at plates 8-9 just
+behind the frame). No other piece may fill them: placement and the overlap audit treat a
+piece there as a clash, a scene that puts a part or minifigure there is rejected (repair
+removes it), and when a wall is drawn behind a door the compiler leaves those cells empty.
+The prompt and the worked examples carve a hall behind each door instead, so the inward-
+opening door has room to swing. A piece's `fitted` field is the element's colour (default trans-clear, the
 element's most-made colour); scenes set it with a frame shape's `bg`. Inventories, CSV,
 BrickLink XML and LDraw exports list the element as its own part in its own colour. Like
 minifigures, frames follow LDraw's convention that a part's front faces -z: the glass of a

@@ -1,10 +1,11 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import {readFile} from 'node:fs/promises';
+import {readFileSync} from 'node:fs';
 import {build} from 'esbuild';
-const bundle=await build({stdin:{contents:['export {PARTS,ELEMENTS,COLORS,ldrawFile,auditModel,partsCSV,bricklinkXML} from "./lib/bridge";','export {partDimensions,pieceCellOffsets,topConnectorOffsets,bottomConnectorOffsets,piecesIntersect} from "./lib/part-spatial";',
- 'export {catalogPart,fittedElement,fittedColor,FITTED_ELEMENTS} from "./lib/part-catalog";','export {partColors} from "./lib/part-colors";','export {inventoryFor,validateProject,addPiece} from "./lib/models";',
- 'export {validateScene,compileScene,compactShape,expandCompactShape,catalogPiece} from "./lib/generated-scene";','export {repairScene} from "./lib/scene-repair";','export {projectJSON,emptyShopping,editModel} from "./lib/design-project";',
+const bundle=await build({stdin:{contents:['export {PARTS,ELEMENTS,COLORS,ldrawFile,auditModel,partsCSV,bricklinkXML} from "./lib/bridge";','export {partDimensions,pieceCellOffsets,topConnectorOffsets,bottomConnectorOffsets,piecesIntersect,cellsIntersect,pieceClearanceOffsets} from "./lib/part-spatial";',
+ 'export {catalogPart,fittedElement,fittedColor,FITTED_ELEMENTS} from "./lib/part-catalog";','export {partColors} from "./lib/part-colors";','export {inventoryFor,validateProject,addPiece} from "./lib/models";','export {defaultBrief,designChecks} from "./lib/design-project";',
+ 'export {validateScene,compileScene,compactShape,expandCompactShape,expandCompactHeader,compactShapeSchema,catalogPiece} from "./lib/generated-scene";','export {DESIGN_EXAMPLES} from "./lib/design-examples";','export {repairScene} from "./lib/scene-repair";','export {projectJSON,emptyShopping,editModel} from "./lib/design-project";',
  'export {buildGenerationPartCatalog} from "./lib/generation-parts";','export {DESIGN_INSTRUCTIONS} from "./lib/generation-provider";','export {paintPiece} from "./app/part-picker-data";','export {placeOnTopStud} from "./app/part-placement";',
  'export {preloadPartGeometries,exactPartGeometry,fittedPartGeometry} from "./lib/part-meshes";','export {resolveLegoElement} from "./lib/lego-elements";'].join(''),resolveDir:process.cwd(),loader:'ts'},bundle:true,platform:'node',format:'esm',write:false,logLevel:'error',alias:{'@':process.cwd()}});
 const m=await import('data:text/javascript;base64,'+Buffer.from(bundle.outputFiles[0].text).toString('base64'));
@@ -14,6 +15,7 @@ const sort=cells=>[...cells].map(c=>c.join(',')).sort();
 const piece=(part,x,y,z,face='pz',extra={})=>({id:0,part,color:m.catalogPart(part)?.colors.includes('white')?'white':m.partColors(part)[0],x,y,z,...m.partDimensions(part,face==='px'||face==='nx',face),stage:0,...extra});
 const box=(id,x,y,z,w,h,d,extra={})=>({id,component:id,label:id,kind:'box',operation:'add',color:'white',position:{x,y,z},size:{x:w,y:h,z:d},end:{x:0,y:0,z:0},radius:1,repeat:{count:1,offset:{x:0,y:0,z:0}},...extra});
 const partShape=(id,pid,x,y,z,extra={})=>box(id,x,y,z,1,1,1,{kind:'part',part:pid,face:'pz',...extra});
+const sheet=id=>JSON.parse(readFileSync(new URL(`./fixtures/accuracy/responses/${id}.json`,import.meta.url),'utf8')).research[0].sheet;
 const fetchPublic=async url=>({ok:true,status:200,json:async()=>JSON.parse(await readFile(new URL(`../public${url}`,import.meta.url),'utf8'))});
 
 test('window and door frames, grille tile and facade bricks compile to their real stud-grid sizes and connectors',()=>{
@@ -113,6 +115,64 @@ test('a frame keeps its glass or door colour through scenes, repair, painting an
  assert.equal(imported.pieces[plain].fitted,undefined);assert.equal(imported.pieces[frame].fitted,'pearlgold');
 });
 
+test('a hung door keeps the cells its handle reaches behind the frame clear, in every orientation',async()=>{
+ const door=m.fittedElement('60596'),p=m.catalogPart('60596');
+ assert.deepEqual(sort(door.clearance),sort([[2,8,1],[3,8,1],[2,9,1],[3,9,1]]),'the stud handle, 2.75 LDU behind the frame');
+ for(const id of ['60592','60593'])assert.equal(m.fittedElement(id).clearance,undefined,`${id}: glass stays inside its frame`);
+ // Every drawn vertex of the door outside the frame box lies in a clearance cell.
+ const mesh=JSON.parse(await readFile(new URL(`../public${door.mesh}`,import.meta.url),'utf8')),clear=new Set(door.clearance.map(c=>c.join(','))),size=[p.w,p.h,p.d];let outside=0;
+ for(let i=0;i<mesh.positions.length;i+=3){
+  const [x,y,z]=mesh.positions.slice(i,i+3),c=[x+p.w/2,(y+p.h*.2)/.4,z+p.d/2];if(c.every((v,k)=>v>=-1e-6&&v<=size[k]+1e-6))continue;outside++;
+  const near=c.map(v=>[...new Set([Math.floor(v-1e-6),Math.floor(v+1e-6)])]);
+  assert.ok(near[0].some(a=>near[1].some(b=>near[2].some(d=>clear.has(`${a},${b},${d}`)))),`door vertex ${x},${y},${z} is outside the clearance`);
+ }
+ assert.ok(outside>0,'the handle is drawn');
+ // It turns with the frame: always the row just inside the frame's inner face, at the handle's height.
+ const inward={pz:[0,1],px:[1,0],nz:[0,-1],nx:[-1,0]};
+ for(const face of FACES){
+  const frame=piece('60596',10,2,10,face),cells=m.pieceClearanceOffsets(frame),[dx,dz]=inward[face];assert.equal(cells.length,4);
+  for(const [x,y,z] of cells)assert.ok((y===8||y===9)&&(dx?x===(dx>0?frame.w:-1):z===(dz>0?frame.d:-1)),`${face}: ${x},${y},${z} behind the frame`);
+  const [x,y,z]=cells[0],plate={id:1,part:'3024',color:'white',x:frame.x+x,y:frame.y+y,z:frame.z+z,w:1,d:1,h:1,rotated:false,stage:0},beside={...plate,x:plate.x+dz*3,z:plate.z+dx*3};
+  assert.ok(m.piecesIntersect(frame,plate)&&m.piecesIntersect(plate,frame)&&!m.cellsIntersect(frame,plate),`${face}: a plate on the handle clashes`);assert.ok(!m.piecesIntersect(frame,beside),`${face}: one beside it does not`);
+  assert.equal(m.auditModel([frame,plate]).overlaps,1,`${face}: the audit counts it`);assert.equal(m.auditModel([frame,beside]).overlaps,0);
+  assert.throws(()=>m.addPiece([frame],'3024','white',plate.x,plate.y,plate.z),/door's handle needs that space/);
+  assert.throws(()=>m.addPiece([plate],'60596','white',frame.x,frame.y,frame.z,face==='px'||face==='nx',face),/door's handle needs that space/);
+ }
+});
+
+test('scenes leave the handle cells empty: walls get a pocket, parts there are rejected or removed',()=>{
+ // A front-wall door (face nz) in a solid wall: the wall behind it is not carved by the scene, so the compiler carves the pocket.
+ const shapes=[box('Base',0,0,0,12,2,8),box('Walls',1,2,1,10,18,4,{color:'tan'}),partShape('Door','60596',4,2,4,{color:'white',face:'nz',background:'brown'})];
+ const scene=m.validateScene({catalogVersion:1,name:'Doorway',description:'A door.',dimensions:{x:12,y:24,z:8},shapes},{fresh:true}),model=m.compileScene(scene);
+ const door=model.pieces.find(p=>p.part==='60596'),handle=new Set(m.pieceClearanceOffsets(door).map(([x,y,z])=>`${door.x+x},${door.y+y},${door.z+z}`));
+ assert.equal(handle.size,4);assert.ok([...handle].every(k=>+k.split(',')[2]===3),'just behind the front wall frame');
+ for(const p of model.pieces)for(const [x,y,z] of m.pieceCellOffsets(p))assert.ok(!handle.has(`${p.x+x},${p.y+y},${p.z+z}`),`${p.part} at ${p.x},${p.y},${p.z} fills the handle`);
+ assert.equal(m.auditModel(model.pieces).overlaps,0);
+ // An explicit part in those cells is an error for the designer, and repair removes it.
+ const blocked=[box('Base',0,0,0,12,2,8),partShape('Door','60596',4,2,4,{color:'white',face:'nz'}),partShape('Brick','3005',5,8,3,{color:'tan'})];
+ const raw={catalogVersion:1,name:'Doorway',description:'A door.',dimensions:{x:12,y:24,z:8},shapes:blocked};
+ assert.throws(()=>m.validateScene(raw),/space behind a door frame that its door's handle needs/);
+ assert.throws(()=>m.validateScene({...raw,shapes:[blocked[0],blocked[2],blocked[1]]}),/handle needs/,'in either order');
+ const repaired=m.repairScene(raw);assert.deepEqual(repaired.scene.shapes.map(s=>s.id),['Base','Door']);assert.ok(repaired.corrections.some(c=>/door handle of/.test(c)));
+ assert.doesNotThrow(()=>m.validateScene({...raw,shapes:[blocked[0],blocked[1],partShape('Brick','3005',5,8,2,{color:'tan'})]}),'a row further back is free');
+ assert.match(m.DESIGN_INSTRUCTIONS,/carve the wall behind a door frame open as a hall/);
+});
+
+test('the worked examples hang their doors into carved halls and pass the checks',()=>{
+ const brief={...m.defaultBrief('Worked example'),maxPieces:4000,maxWidth:80,maxDepth:80,maxHeight:160};
+ for(const id of ['cottage','minifigs']){
+  const example=m.DESIGN_EXAMPLES.find(e=>e.id===id),scene=m.validateScene({...m.expandCompactHeader(example.scene),shapes:example.scene.sh.map(s=>m.expandCompactShape(m.compactShapeSchema.parse(s)))},{fresh:true});
+  assert.ok(scene.shapes.some(s=>s.kind==='box'&&s.operation==='subtract'&&/door/i.test(s.label)),`${id}: a hall behind the door`);
+  const model=m.compileScene(scene,{smooth:true}),occupied=new Set(model.pieces.flatMap(p=>m.pieceCellOffsets(p).map(([x,y,z])=>`${p.x+x},${p.y+y},${p.z+z}`)));
+  for(const door of model.pieces.filter(p=>p.part==='60596')){
+   // A front-wall door faces nz, so its inside is the row at z-1: empty, so the handle has room and the door can open.
+   assert.equal(door.face,'nz');
+   for(let x=door.x;x<door.x+door.w;x++)for(let y=door.y;y<door.y+door.h;y++)assert.ok(!occupied.has(`${x},${y},${door.z-1}`),`${id}: ${x},${y},${door.z-1} behind the door is empty`);
+  }
+  const checks=m.designChecks({...model,generation:scene},brief);assert.deepEqual(checks.issues,[],id);assert.equal(checks.audit.overlaps,0);
+ }
+});
+
 test('briefs for shops, homes and stations shortlist real windows, doors and facade details',()=>{
  for(const prompt of ['A corner café with a striped awning','A four-storey apartment building','A small railway station with a platform canopy']){
   const ids=m.buildGenerationPartCatalog({prompt}).parts.map(p=>p.id);
@@ -122,5 +182,27 @@ test('briefs for shops, homes and stations shortlist real windows, doors and fac
  assert.deepEqual(frame.fitted,{id:'60601',name:'Glass for Window 1 x 2 x 2 Flat',colors:m.fittedElement('60592').colors,default:'transclear'});
  assert.ok(cafe.some(p=>['2412b','2877','98283','4216'].includes(p.id)),'a facade detail');
  assert.ok(!m.buildGenerationPartCatalog({prompt:'A red sports car with a low curved nose'}).parts.some(p=>p.family==='window'||p.family==='door'));
+ // A research sheet's kind names a building even when the idea does not; rail cars get the frames without the facade weights.
+ assert.ok(m.buildGenerationPartCatalog({prompt:'My place from this photo',research:sheet('photo-house')}).parts.some(p=>p.id==='60596'));
+ assert.ok(m.buildGenerationPartCatalog({prompt:'A steam train'}).parts.some(p=>p.family==='window'));
  assert.match(m.DESIGN_INSTRUCTIONS,/real window and door frames with their fitted glass or door/);assert.match(m.DESIGN_INSTRUCTIONS,/bg is that element's colour from fitted\.colors/);
+});
+
+test('vehicles, bridges, towers and rockets never get frames from free words in their research or prompt',()=>{
+ // Research sheets describe a car's "Two-window side profile" and roof-rack "cross bars", a bridge's "towers" and a
+ // rocket's launch "tower"; the prompts name doors, a light bar, a launch platform and a city.
+ const cases=[...['photo-vehicle','golden-gate-span','design-6-miniature-golden-gate','apollo-saturn-v'].map(id=>{const j=JSON.parse(readFileSync(new URL(`./fixtures/accuracy/responses/${id}.json`,import.meta.url),'utf8'));return {prompt:j.idea,brief:m.defaultBrief(j.idea),research:j.research[0].sheet};}),
+  ...['A red two-door sports car','A fire engine with roll-up doors','A city bus','A pickup truck with a light bar','A rocket on its launch platform','The Eiffel Tower'].map(prompt=>({prompt,brief:m.defaultBrief(prompt)}))];
+ for(const input of cases){
+  const result=m.buildGenerationPartCatalog(input),label=input.research?.subject||input.prompt;
+  assert.deepEqual(result.parts.filter(p=>p.family==='window'||p.family==='door'||p.fitted).map(p=>p.id),[],`${label}: no window or door frames`);
+  assert.ok(!m.fittedElement(result.placementExample.shape.pid),`${label}: the syntax example is not a frame`);
+ }
+ // The car keeps the shaping families it needs.
+ const car=m.buildGenerationPartCatalog(cases[0]).parts,count=f=>car.filter(p=>p.family===f).length;
+ assert.ok(count('curved')>=5&&count('wedge')>=6&&count('round')>=4&&count('wedge_plate')>=4,'curved, wedge, round and wedge plates are not displaced');
+ // A building's syntax example is not a frame either: its fixed pz face would teach a front-wall frame to face inward.
+ assert.ok(!m.fittedElement(m.buildGenerationPartCatalog({prompt:'A corner café with a striped awning'}).placementExample.shape.pid));
+ // A part ID asked for by name is still offered.
+ assert.ok(m.buildGenerationPartCatalog({prompt:'A red sports car using part 60592 as a side window'}).parts.some(p=>p.id==='60592'));
 });

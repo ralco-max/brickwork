@@ -35,10 +35,11 @@ export const DESIGN_EXAMPLES:DesignExample[]=[
   box("mirror-l","Cabin","Wing mirror rooted in the pillar","black",[11,15,2],[1,1,2]),
   box("mirror-r","Cabin","Wing mirror rooted in the pillar","black",[11,15,10],[1,1,2]),
  ]}},
- {id:"cottage",about:"A brick cottage: walls with real window frames (glazed) and a door frame with its door, a pitched roof built as stepped courses (one stud in per three plates) with eaves that overhang the walls by one stud, and a chimney.",tags:["building","house","cottage","home","roof","barn","church"],scene:{n:"Cottage",d:"A tan cottage with a red pitched roof, inset windows, a door and a chimney.",f:["pitched roof with overhanging eaves","inset windows either side of the door","chimney on the ridge"],dim:[24,40,20],rm:[],sh:[
+ {id:"cottage",about:"A brick cottage: walls with real window frames (glazed) and a door frame with its door opening into a carved hall, a pitched roof built as stepped courses (one stud in per three plates) with eaves that overhang the walls by one stud, and a chimney.",tags:["building","house","cottage","home","roof","barn","church"],scene:{n:"Cottage",d:"A tan cottage with a red pitched roof, inset windows, a door and a chimney.",f:["pitched roof with overhanging eaves","inset windows either side of the door","chimney on the ridge"],dim:[24,40,20],rm:[],sh:[
   box("base","Base","Display base","green",[0,0,0],[24,2,20]),
   box("walls","Walls","Walls","tan",[4,2,4],[16,18,12]),
   frame("door","Openings","Front door in its frame, outside facing the street","60596","white",[10,2,15],[4,18,1],"nz","brown"),
+  box("hall","Openings","Hall behind the door: room for its handle and to swing open","tan",[10,2,11],[4,18,4],{o:"subtract"}),
   frame("window-l","Openings","Front windows, glazed","60592","white",[6,8,15],[2,6,1],"nz",null,[2,9,0,0]),
   frame("window-b","Openings","Back windows, glazed","60592","white",[6,8,4],[2,6,1],"pz",null,[3,5,0,0]),
   box("roof-0","Roof","Roof course 1 with eaves","red",[3,20,3],[18,3,14]),
@@ -85,10 +86,11 @@ export const DESIGN_EXAMPLES:DesignExample[]=[
   box("ear-r","Head","Floppy ear, rooted in the head","brown",[6,17,10],[2,6,2]),
   {i:"tail",c:"Tail",l:"Raised tail",k:"lean",o:"add",a:null,col:"brown",p:[19,14,7],s:[1,3,0],e:[22,24,7],r:null,rep:null},
  ]}},
-{id:"minifigs",about:"A corner shop at minifig scale: two real minifigures standing on the base studs (a shopkeeper at the door facing out, a customer turned toward her), a real 1 x 4 x 6 door frame with its door and glazed shop windows facing the street, a roof that overhangs as an awning, and a lamp post. The whole scene is sized around the 12-plate figures instead of building people from boxes.",tags:["person","people","figure","minifig","crew","character","worker","passenger","shop","street","town"],scene:{n:"Corner shop",d:"A tan corner shop with a red awning roof, a shopkeeper in the doorway, a customer and a street lamp.",f:["two minifigures on the street","door and windows sized for the figures","overhanging awning roof"],dim:[20,24,12],rm:[],sh:[
+{id:"minifigs",about:"A corner shop at minifig scale: two real minifigures standing on the base studs (a shopkeeper at the door facing out, a customer turned toward her), a real 1 x 4 x 6 door frame with its door (the floor behind it carved clear) and glazed shop windows facing the street, a roof that overhangs as an awning, and a lamp post. The whole scene is sized around the 12-plate figures instead of building people from boxes.",tags:["person","people","figure","minifig","crew","character","worker","passenger","shop","street","town"],scene:{n:"Corner shop",d:"A tan corner shop with a red awning roof, a shopkeeper in the doorway, a customer and a street lamp.",f:["two minifigures on the street","door and windows sized for the figures","overhanging awning roof"],dim:[20,24,12],rm:[],sh:[
   box("base","Base","Display base","gray",[0,0,0],[20,2,12]),
   box("walls","Shop","Shop walls","tan",[1,2,1],[18,18,4]),
   frame("door","Shop","Shop door in its frame, 4 studs wide and 18 plates high","60596","white",[7,2,4],[4,18,1],"nz","brown"),
+  box("hall","Shop","Shop floor behind the door, clear of its handle","tan",[7,2,2],[4,18,2],{o:"subtract"}),
   frame("window-l","Shop","Left shop window, two glazed frames","60593","white",[2,5,4],[2,9,1],"nz",null,[2,2,0,0]),
   frame("window-r","Shop","Right shop window, two glazed frames","60593","white",[13,5,4],[2,9,1],"nz",null,[2,2,0,0]),
   box("awning","Shop","Roof overhanging the street as an awning","red",[1,20,1],[18,1,6]),

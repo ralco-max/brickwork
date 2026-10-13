@@ -69,6 +69,19 @@ async function fittedPlacement(frame,fitted){
  if(!slot||!knuckle||knuckle.seq.length!==1||slot.seq[1]!==knuckle.seq[0])throw Error(`No documented ${fitted.hinge} hinge joins ${fitted.id} to ${frame}`);
  return {position:slot.pos.map((v,i)=>snap(v-knuckle.pos[i])),matrix:identity,source:`LDCad shadow SNAP_FGR [group=${fitted.hinge}] ${frame} (${slot.pos.join(" ")}) with ${fitted.id} (${knuckle.pos.join(" ")})`};
 }
+// A fitted element's drawn studs may stand proud of the frame's box (60616b's handle reaches 2.75 LDU behind 60596).
+// The cells outside the box that they reach are the frame's clearance: no other piece may fill them.
+function clearanceCells(raw,{w,d,h,origin}){
+ const convert=p=>new Vector3((p[0]-origin[0])/20,(origin[1]-p[1])/8,(p[2]-origin[2])/20),cells=new Set(),box=new Box3();
+ for(const t of raw.triangles){
+  if(!t.stud)continue;const vs=t.vertices.map(convert),triangle=new Triangle(...vs),bound=new Box3().setFromPoints(vs);
+  for(let x=Math.floor(bound.min.x+epsilon);x<=Math.floor(bound.max.x-epsilon);x++)for(let y=Math.floor(bound.min.y+epsilon);y<=Math.floor(bound.max.y-epsilon);y++)for(let z=Math.floor(bound.min.z+epsilon);z<=Math.floor(bound.max.z-epsilon);z++){
+   if(x>=0&&x<w&&y>=0&&y<h&&z>=0&&z<d)continue;
+   box.min.set(x+epsilon,y+epsilon,z+epsilon);box.max.set(x+1-epsilon,y+1-epsilon,z+1-epsilon);if(box.intersectsTriangle(triangle))cells.add(`${x},${y},${z}`);
+  }
+ }
+ return [...cells].map(k=>k.split(",").map(Number)).sort((a,b)=>a[1]-b[1]||a[2]-b[2]||a[0]-b[0]);
+}
 const transformRaw=(raw,{position:p,matrix:m})=>({...raw,triangles:raw.triangles.map(t=>({...t,vertices:t.vertices.map(([x,y,z])=>[m[0]*x+m[1]*y+m[2]*z+p[0],m[3]*x+m[4]*y+m[5]*z+p[1],m[6]*x+m[7]*y+m[8]*z+p[2]].map(snap))}))});
 for(const candidate of selection.parts){
  if(candidate.legacy||choice.length&&!choice.includes(candidate.id))continue;if(Object.keys(parts).length>=limit)break;
@@ -113,7 +126,8 @@ for(const candidate of selection.parts){
    const fittedMesh={...await compileLDrawMesh(wrapper,{w,d,h,bodyOrigin:origin}),part:fit.id};
    await fs.writeFile(path.join(out,`${id}.json`),JSON.stringify(fittedMesh)+"\n");
    await fs.writeFile(path.join(out,`${fit.id}.svg`),meshThumbnail(fittedMesh));
-   fitted={part:fit.id,name:fit.name,colors:fit.colors,default:candidate.fitted.default,price,ldraw:{position:placement.position,matrix:placement.matrix},placement:placement.source,mesh:`/parts/ldraw/${id}.json`,thumbnail:`/parts/ldraw/${fit.id}.svg`,sourcePart:fit.rebrickableId};
+   const clearance=clearanceCells(fittedRaw,{w,d,h,origin});
+   fitted={part:fit.id,name:fit.name,colors:fit.colors,default:candidate.fitted.default,price,ldraw:{position:placement.position,matrix:placement.matrix},placement:placement.source,mesh:`/parts/ldraw/${id}.json`,thumbnail:`/parts/ldraw/${fit.id}.svg`,sourcePart:fit.rebrickableId,...(clearance.length?{clearance}:{})};
    for(const s of fittedSource.sources)sources.set(s.path,s);
   }
   parts[candidate.id]={name:candidate.name,w,d,h,price,family:candidate.family,colors:candidate.colors,...(candidate.handedness?{handedness:candidate.handedness}:{}),...(candidate.counterpart?{counterpart:candidate.counterpart}:{}),topStuds,bottomSockets,occupancy,ldrawOffset:origin.map(n=>-n||0),mesh:`/parts/ldraw/${candidate.id}.json`,thumbnail:`/parts/ldraw/${candidate.id}.svg`,sourcePart:candidate.rebrickableId,...(fitted?{fitted}:{})};
@@ -130,6 +144,6 @@ await fs.writeFile(path.join(root,"public/parts/catalog.json"),JSON.stringify({.
 await fs.mkdir(path.join(root,"public/licenses/ldcad"),{recursive:true});await fs.copyFile(path.join(shadowDir,"LICENSE.md"),path.join(root,"public/licenses/ldcad/LICENSE.md"));
 // A per-file mirror (scripts/fetch-part-sources.mjs) is not a checkout, so it names its pinned commit.
 const shadowCommit=arg("--shadow-commit")||execFileSync("git",["rev-parse","HEAD"],{cwd:shadowDir,encoding:"utf8"}).trim();
-const attribution={geometry:{...selection.sources.ldraw,files:[...sources.values()].sort((a,b)=>a.path.localeCompare(b.path))},connections:{url:output.connectionSource,commit:shadowCommit,license:"CC BY-SA 4.0",attribution:"LDCad Shadow Library contributors",modifications:"Filtered to upright System stud/anti-stud connectors, transformed to the application's whole-stud and plate grid.",files:connectorCompiler.sources()},collision:"Conservative stud-cell envelopes computed from LDraw body meshes; sub-stud interlocking and side connectors are not simulated.",fitted:"Glass and doors that clip or hinge into a frame are compiled with it: placed as the frame's LDraw shortcut places them, or where the LDCad finger snaps of both shadow files meet, and counted in the frame's collision cells. A door's stud handle stands 2.75 LDU proud of its frame and is drawn, not collided.",prices:"Formula-based planning estimates, not seller quotes",rejected};
+const attribution={geometry:{...selection.sources.ldraw,files:[...sources.values()].sort((a,b)=>a.path.localeCompare(b.path))},connections:{url:output.connectionSource,commit:shadowCommit,license:"CC BY-SA 4.0",attribution:"LDCad Shadow Library contributors",modifications:"Filtered to upright System stud/anti-stud connectors, transformed to the application's whole-stud and plate grid.",files:connectorCompiler.sources()},collision:"Conservative stud-cell envelopes computed from LDraw body meshes; sub-stud interlocking and side connectors are not simulated.",fitted:"Glass and doors that clip or hinge into a frame are compiled with it: placed as the frame's LDraw shortcut places them, or where the LDCad finger snaps of both shadow files meet, and counted in the frame's collision cells. A door's stud handle stands 2.75 LDU proud of its frame: the cells it reaches are recorded as the frame's clearance, which no other piece may fill.",prices:"Formula-based planning estimates, not seller quotes",rejected};
 await fs.writeFile(path.join(root,"public/parts/attribution.json"),JSON.stringify(attribution,null,2)+"\n");
 console.log(JSON.stringify({supported:Object.keys(parts).length,rejected:rejected.length,reasons:rejected.reduce((m,r)=>(m[r.reason]=(m[r.reason]||0)+1,m),{})}));

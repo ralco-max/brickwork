@@ -6,7 +6,7 @@ import {isMinifig} from "./minifig";
 export type PartCell=readonly [number,number,number];
 type Shape=Pick<Piece,"part"|"w"|"d">&Partial<Pick<Piece,"h"|"face"|"rotated">>;
 type Located=Shape&Pick<Piece,"x"|"y"|"z">;
-type Spatial={cells:readonly PartCell[];top:readonly PartCell[];bottom:readonly PartCell[];cellKeys:ReadonlySet<string>;solidBox:boolean};
+type Spatial={cells:readonly PartCell[];top:readonly PartCell[];bottom:readonly PartCell[];clear:readonly PartCell[];cellKeys:ReadonlySet<string>;solidBox:boolean};
 const cache=new Map<string,Spatial>();
 const faces:Face[]=["pz","px","nz","nx"];
 const key=(x:number,y:number,z:number)=>`${x},${y},${z}`;
@@ -30,7 +30,7 @@ function spatial(p:Shape):Spatial{
  const h=p.h??PARTS[p.part]?.h;if(h===undefined)throw Error(`Unsupported part ${p.part}.`);
  const face=legacy(p.part)?p.face??"pz":faceFor(p),id=`${p.part}:${p.w}:${p.d}:${h}:${face}`;
  const existing=cache.get(id);if(existing)return existing;
- let cells:readonly PartCell[],top:readonly PartCell[],bottom:readonly PartCell[];
+ let cells:readonly PartCell[],top:readonly PartCell[],bottom:readonly PartCell[],clear:readonly PartCell[]=unique([]);
  if(isMinifig(p.part)){
   // A minifigure fills its footprint to the top of its head and clutches with the two anti-stud
   // holes under its feet. Its head stud sits on the figure's centreline, between grid studs, so
@@ -42,7 +42,7 @@ function spatial(p:Shape):Spatial{
   const definition=catalogPart(p.part);if(!definition)throw Error(`Part ${p.part} has no verified spatial definition.`);
   const turn=faces.indexOf(face),orient=(items:readonly (readonly number[])[])=>unique(items.map(c=>rotateCell(c as PartCell,definition.w,definition.d,turn)));
   // Missing connectors are never replaced by bounding-box assumptions.
-  cells=orient(definition.occupancy);top=orient(definition.topStuds);bottom=orient(definition.bottomSockets);
+  cells=orient(definition.occupancy);top=orient(definition.topStuds);bottom=orient(definition.bottomSockets);clear=orient(definition.fitted?.clearance||[]);
  }else{
   const occupied:PartCell[]=[],studs:PartCell[]=[],sockets:PartCell[]=[];
   const slope=SLOPES[p.part],wheel=Object.hasOwn(WHEELS,p.part),tile=TILES.has(p.part);
@@ -55,7 +55,7 @@ function spatial(p:Shape):Spatial{
   }
   cells=unique(occupied);top=unique(studs);bottom=unique(sockets);
  }
- const result={cells,top,bottom,cellKeys:new Set(cells.map(c=>key(...c))),solidBox:cells.length===p.w*p.d*h};cache.set(id,result);return result;
+ const result={cells,top,bottom,clear,cellKeys:new Set(cells.map(c=>key(...c))),solidBox:cells.length===p.w*p.d*h};cache.set(id,result);return result;
 }
 
 /** Cached local occupancy, with no per-piece array creation. */
@@ -66,7 +66,7 @@ export function forEachPieceCell(p:Located,visit:(x:number,y:number,z:number)=>v
 export function* pieceCells(p:Located):Generator<[number,number,number]>{for(const [x,y,z] of spatial(p).cells)yield [p.x+x,p.y+y,p.z+z];}
 
 /** Broad phase first; holes and empty corners remain available in the narrow phase. */
-export function piecesIntersect(a:Located,b:Located):boolean{
+export function cellsIntersect(a:Located,b:Located):boolean{
  const ah=a.h??PARTS[a.part].h,bh=b.h??PARTS[b.part].h;
  if(!(a.x<b.x+b.w&&a.x+a.w>b.x&&a.y<b.y+bh&&a.y+ah>b.y&&a.z<b.z+b.d&&a.z+a.d>b.z))return false;
  const left=spatial(a),right=spatial(b);if(left.solidBox&&right.solidBox)return true;
@@ -74,3 +74,15 @@ export function piecesIntersect(a:Located,b:Located):boolean{
  for(const [x,y,z] of firstData.cells)if(secondData.cellKeys.has(key(first.x+x-second.x,first.y+y-second.y,first.z+z-second.z)))return true;
  return false;
 }
+/** A frame's clearance (a hung door's handle, just behind it): cells outside its box that no other piece may fill. */
+const NONE:readonly PartCell[]=Object.freeze([]);
+export const pieceClearanceOffsets=(p:Shape):readonly PartCell[]=>!legacy(p.part)&&catalogPart(p.part)?.fitted?.clearance?spatial(p).clear:NONE;
+export function* pieceClearance(p:Located):Generator<[number,number,number]>{for(const [x,y,z] of pieceClearanceOffsets(p))yield [p.x+x,p.y+y,p.z+z];}
+function blocks(a:Located,b:Located){
+ const clear=pieceClearanceOffsets(a);if(!clear.length)return false;
+ const bh=b.h??PARTS[b.part].h;let cells:ReadonlySet<string>|undefined;
+ for(const [x,y,z] of clear){const cx=a.x+x-b.x,cy=a.y+y-b.y,cz=a.z+z-b.z;if(cx>=0&&cx<b.w&&cy>=0&&cy<bh&&cz>=0&&cz<b.d&&(cells??=spatial(b).cellKeys).has(key(cx,cy,cz)))return true;}
+ return false;
+}
+/** Two pieces clash when they share a cell or one fills the other's clearance. */
+export const piecesIntersect=(a:Located,b:Located):boolean=>cellsIntersect(a,b)||blocks(a,b)||blocks(b,a);

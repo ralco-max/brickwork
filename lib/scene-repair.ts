@@ -4,7 +4,7 @@ import {SIGN_FACES,SIGN_TEXT_PATTERN,signMetrics} from "./brick-lettering";
 import {partColors} from "./part-colors";
 import {fittedElement} from "./part-catalog";
 import {colorFinish,SKIN_COLORS} from "./colors";
-import {pieceCells,piecesIntersect} from "./part-spatial";
+import {pieceCells,pieceClearance,piecesIntersect} from "./part-spatial";
 import {shapeSchema,expandShapes,explicitPiece,isExplicit,wheelPiece,wheelPart,compileScene,expandCompactHeader,expandCompactShape,compactShapeSchema} from "./generated-scene";
 import type {GeneratedScene,Shape} from "./generated-scene";
 import {nearestColor,hexRgb,rgbLab,supportLoosePieces,voxelKey} from "./models";
@@ -146,18 +146,20 @@ export function repairScene(raw:unknown,brief?:Partial<Pick<DesignBrief,"maxWidt
  if(moved.length)note(`Moved ${list(moved)} inward to fit the build area.`);
  if(trimmed.length)note(`Trimmed ${list(trimmed)} at the edge of the build area.`);
 
- // Real elements cannot share space: the earlier one stays, the later one (or its later copies) goes.
- const wheels=expandShapes(shapes).filter(s=>s.kind==="wheel"&&s.operation==="add").map(wheelPiece),taken=new Map<string,string>();
+ // Real elements cannot share space, nor fill the cells a hung door's handle needs behind its frame: the earlier one
+ // stays, the later one (or its later copies) goes.
+ const wheels=expandShapes(shapes).filter(s=>s.kind==="wheel"&&s.operation==="add").map(wheelPiece),taken=new Map<string,string>(),handles=new Map<string,string>();
  shapes=shapes.flatMap(s=>{
   if(!isExplicit(s))return [s];
-  const count=s.repeat?.count||1,mine=new Set<string>();let keep=0,blocker="";
+  const count=s.repeat?.count||1,mine=new Set<string>(),clear=new Set<string>();let keep=0,blocker="";
   for(;keep<count;keep++){
-   const p=explicitPiece(at(s,keep)),cells=[...pieceCells(p)].map(([x,y,z])=>voxelKey(x,y,z));
+   const p=explicitPiece(at(s,keep)),cells=[...pieceCells(p)].map(([x,y,z])=>voxelKey(x,y,z)),pocket=[...pieceClearance(p)].map(([x,y,z])=>voxelKey(x,y,z));
    if(wheels.some(w=>piecesIntersect(p,w))){blocker="a wheel";break;}
-   const hit=cells.find(k=>taken.has(k)||mine.has(k));if(hit){blocker=taken.has(hit)?`“${taken.get(hit)}”`:"its own copies";break;}
-   for(const k of cells)mine.add(k);
+   const hit=cells.find(k=>taken.has(k)||mine.has(k)||handles.has(k)||clear.has(k))??pocket.find(k=>taken.has(k)||mine.has(k));
+   if(hit!==undefined){blocker=taken.has(hit)?`“${taken.get(hit)}”`:handles.has(hit)?`the door handle of “${handles.get(hit)}”`:"its own copies";break;}
+   for(const k of cells)mine.add(k);for(const k of pocket)clear.add(k);
   }
-  for(const k of mine)taken.set(k,s.label);
+  for(const k of mine)taken.set(k,s.label);for(const k of clear)handles.set(k,s.label);
   if(!keep){note(`Removed ${quoted(s)}: it overlapped ${blocker}.`);return [];}
   if(keep<count){note(`Kept ${keep} of ${count} copies of ${quoted(s)}; the next overlapped ${blocker}.`);return [{...s,repeat:{...s.repeat!,count:keep}}];}
   return [s];

@@ -9048,7 +9048,7 @@
     ]
   },
   "collision": "Conservative stud-cell envelopes computed from LDraw body meshes; sub-stud interlocking and side connectors are not simulated.",
-  "fitted": "Glass and doors that clip or hinge into a frame are compiled with it: placed as the frame's LDraw shortcut places them, or where the LDCad finger snaps of both shadow files meet, and counted in the frame's collision cells. A door's stud handle stands 2.75 LDU proud of its frame and is drawn, not collided.",
+  "fitted": "Glass and doors that clip or hinge into a frame are compiled with it: placed as the frame's LDraw shortcut places them, or where the LDCad finger snaps of both shadow files meet, and counted in the frame's collision cells. A door's stud handle stands 2.75 LDU proud of its frame: the cells it reaches are recorded as the frame's clearance, which no other piece may fill.",
   "prices": "Formula-based planning estimates, not seller quotes",
   "rejected": [
     {
