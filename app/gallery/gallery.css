@@ -1,0 +1,49 @@
+/* Community gallery. Uses the app's shade roles from globals.css, so light and dark follow the theme. */
+.gallery-shell{min-height:100svh;background:var(--surface);color:var(--ink);overflow-x:clip}
+.gallery-topbar{max-width:1320px;margin:0 auto;padding:0 36px}
+.gallery-topbar .brand{min-width:0}
+.gallery-topbar .header-actions{align-items:center;gap:8px;flex-shrink:0}
+.gallery-main{max-width:1320px;margin:0 auto;padding:8px 36px 72px}
+.gallery-head{display:flex;justify-content:space-between;align-items:flex-end;flex-wrap:wrap;gap:16px 28px;margin:10px 0 26px}
+.gallery-head h1{font-family:var(--font-display);font-size:clamp(30px,4vw,46px);font-weight:650;letter-spacing:-.04em;line-height:1.08}
+.gallery-head p{margin-top:9px;max-width:580px;font-size:15px;line-height:1.6;color:var(--ink-3)}
+.gallery-sort{display:inline-flex;gap:2px;padding:3px;border:1px solid var(--line);border-radius:10px;background:var(--surface-2)}
+.gallery-sort a{display:inline-flex;align-items:center;min-height:40px;padding:0 14px;border-radius:8px;font-size:14px;font-weight:600;color:var(--ink-3);text-decoration:none;white-space:nowrap}
+.gallery-sort a:hover{color:var(--ink)}
+.gallery-sort a[aria-current=page]{background:var(--surface);color:var(--ink);box-shadow:0 1px 3px #1424311a}
+.gallery-grid{list-style:none;margin:0;padding:0;display:grid;grid-template-columns:repeat(auto-fill,minmax(228px,1fr));gap:20px}
+.gallery-grid>li{min-width:0}
+.gallery-card{position:relative;height:100%;border:1px solid var(--line);border-radius:12px;background:var(--surface);overflow:hidden;transition:box-shadow .2s,border-color .2s,transform .2s}
+.gallery-card:hover{border-color:var(--line-strong);box-shadow:var(--shadow-soft);transform:translateY(-2px)}
+.gallery-card-link{display:block;color:inherit;text-decoration:none;border-radius:12px}
+.gallery-card-link:focus-visible{outline:2px solid var(--primary);outline-offset:-2px}
+/* The share card puts its 630px-square render at the right edge; a square crop at 98% shows just the model. */
+.gallery-card img{display:block;width:100%;height:auto;aspect-ratio:1;object-fit:cover;object-position:98% 50%;background:#e9edf2}
+.gallery-card-body{display:grid;gap:4px;padding:12px 46px 14px 14px;min-width:0}
+.gallery-card-body>strong{display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2;overflow:hidden;overflow-wrap:anywhere;font-size:15px;font-weight:600;line-height:1.35;color:var(--ink)}
+.gallery-card-meta{display:flex;flex-wrap:wrap;align-items:center;gap:2px 12px;font-size:13px;color:var(--ink-3)}
+.gallery-remixes{display:inline-flex;align-items:center;gap:4px;white-space:nowrap}
+.gallery-card-menu{position:absolute;right:6px;bottom:9px;display:grid;place-items:center;width:36px;height:36px;border:0;border-radius:8px;background:transparent;color:var(--ink-3)}
+.gallery-card-menu:hover,.gallery-card-menu[data-state=open]{background:var(--surface-2);color:var(--ink)}
+.gallery-card-menu:focus-visible{outline:2px solid var(--primary)}
+.gallery-more{display:flex;margin:30px auto 0;min-width:190px}
+.gallery-error{margin-top:12px;text-align:center;font-size:14px;color:var(--accent-deep)}
+.gallery-error:empty{display:none}
+.gallery-empty{display:grid;justify-items:center;gap:12px;padding:64px 20px;border:1px dashed var(--line-strong);border-radius:16px;background:var(--surface-2);text-align:center}
+.gallery-empty h2{font-family:var(--font-display);font-size:clamp(22px,3vw,28px);font-weight:600;letter-spacing:-.03em}
+.gallery-empty p{max-width:440px;font-size:15px;line-height:1.6;color:var(--ink-3)}
+.gallery-empty .button{margin-top:6px}
+@media(pointer:coarse){.gallery-card-menu{width:44px;height:44px;right:2px;bottom:4px}}
+@media(max-width:760px){
+ .gallery-topbar{height:auto;min-height:68px;padding:10px 16px;flex-wrap:nowrap;gap:8px}
+ .gallery-main{padding:4px 16px 48px}
+ .gallery-head{margin:6px 0 18px;gap:14px}
+ .gallery-head p{font-size:14px}
+ .gallery-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+ .gallery-card-body{padding:9px 40px 11px 10px}
+ .gallery-card-body>strong{font-size:14px}
+ .gallery-card-meta{font-size:12px}
+ .gallery-make{padding:0 12px}
+}
+@media(max-width:360px){.gallery-make>span{display:none}.gallery-make{width:44px;padding:0}}
+@media(prefers-reduced-motion:reduce){.gallery-card,.gallery-card:hover{transition:none;transform:none}}

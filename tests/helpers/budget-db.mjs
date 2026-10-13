@@ -7,7 +7,8 @@ export function budgetDb(path=':memory:',initialize=true){
  const db={prepare(sql){let values=[];return {
   bind(...next){values=next;return this;},
   async run(){return {meta:{changes:Number(sqlite.prepare(sql).run(...values).changes)}};},
-  async first(){return sqlite.prepare(sql).get(...values)??null;}
+  async first(){return sqlite.prepare(sql).get(...values)??null;},
+  async all(){return {results:sqlite.prepare(sql).all(...values)};}
  };}};
  return {db,sqlite};
 }
