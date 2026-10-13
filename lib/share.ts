@@ -3,6 +3,7 @@ import {defaultBrief,referenceKey} from "./design-project";
 import type {DesignBrief} from "./design-project";
 import {splitCaption} from "./generated-scene";
 import {clipSentence} from "./utils";
+import {networkOf} from "./moderation";
 
 // Unlisted public links: anyone with the URL can view and remix, nothing is indexed.
 export const SHARE_ID=/^[A-Za-z0-9]{10}$/;
@@ -77,7 +78,8 @@ export function jpegSize(b:Uint8Array):{width:number;height:number}|null{
 }
 
 export async function creatorHash(request:Request){
- const ip=request.headers.get("cf-connecting-ip")||"local",day=Math.floor(Date.now()/86_400_000);
+ // An IPv6 visitor is their /64, not each of its addresses.
+ const ip=networkOf(request.headers.get("cf-connecting-ip")),day=Math.floor(Date.now()/86_400_000);
  // A daily salt: enough to count recent shares, never a durable IP identifier.
  const digest=await crypto.subtle.digest("SHA-256",new TextEncoder().encode(`bricks-share-${day}:${ip}`));
  return Array.from(new Uint8Array(digest).slice(0,16),b=>b.toString(16).padStart(2,"0")).join("");

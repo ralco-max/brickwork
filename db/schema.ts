@@ -1,4 +1,5 @@
-import {index,integer,sqliteTable,text} from "drizzle-orm/sqlite-core";
+import {sql} from "drizzle-orm";
+import {check,index,integer,real,sqliteTable,text,uniqueIndex} from "drizzle-orm/sqlite-core";
 
 // Only an irreversible key fingerprint and accounting amounts are persisted.
 export const aiSpend=sqliteTable("ai_spend",{
@@ -25,4 +26,64 @@ export const shares=sqliteTable("shares",{
  createdAt:integer("created_at").notNull(),
  ownerHash:text("owner_hash"),
  contentHash:text("content_hash"),
-},table=>[index("idx_shares_creator").on(table.creatorHash,table.createdAt),index("idx_shares_content").on(table.creatorHash,table.contentHash)]);
+},table=>[index("idx_shares_creator").on(table.creatorHash,table.createdAt),index("idx_shares_content").on(table.creatorHash,table.contentHash),index("idx_shares_content_hash").on(table.contentHash,table.createdAt)]);
+
+// The opt-in public gallery: one narrow row per published share, so listing never reads a
+// share's project or image. Rows go with their share. Unpublishing only clears `listed`, so
+// moderation, reports, remixes and the first publish time survive a relist. Reports and remixes
+// are keyed by salted hashes only; an admin restore dismisses reports rather than deleting them,
+// so the same people cannot hide the build again.
+export const gallery=sqliteTable("gallery",{
+ shareId:text("share_id").primaryKey().references(()=>shares.id,{onDelete:"cascade"}),
+ name:text("name").notNull(),
+ pieceCount:integer("piece_count").notNull(),
+ contentHash:text("content_hash").notNull().unique(),
+ publisherHash:text("publisher_hash").notNull(),
+ publishedAt:integer("published_at").notNull(),
+ remixes:integer("remixes").notNull().default(0),
+ reports:integer("reports").notNull().default(0),
+ hidden:integer("hidden").notNull().default(0),
+ listed:integer("listed").notNull().default(1),
+},table=>[index("idx_gallery_recent").on(table.hidden,table.listed,table.publishedAt,table.shareId),index("idx_gallery_remixed").on(table.hidden,table.listed,table.remixes,table.publishedAt,table.shareId),check("gallery_hidden",sql`${table.hidden} IN (0,1)`),check("gallery_listed",sql`${table.listed} IN (0,1)`)]);
+export const galleryReports=sqliteTable("gallery_reports",{
+ shareId:text("share_id").notNull().references(()=>shares.id,{onDelete:"cascade"}),
+ reporterHash:text("reporter_hash").notNull(),
+ createdAt:integer("created_at").notNull(),
+ dismissed:integer("dismissed").notNull().default(0),
+},table=>[uniqueIndex("uq_gallery_reports").on(table.shareId,table.reporterHash),check("gallery_reports_dismissed",sql`${table.dismissed} IN (0,1)`)]);
+export const galleryRemixes=sqliteTable("gallery_remixes",{
+ shareId:text("share_id").notNull().references(()=>shares.id,{onDelete:"cascade"}),
+ visitorHash:text("visitor_hash").notNull(),
+ createdAt:integer("created_at").notNull(),
+},table=>[uniqueIndex("uq_gallery_remixes").on(table.shareId,table.visitorHash)]);
+// Publishes and reports per daily-salted visitor hash, for rate limits that unpublishing cannot
+// reset. Rows older than a day are pruned as new ones arrive.
+export const galleryActions=sqliteTable("gallery_actions",{
+ kind:text("kind",{enum:["publish","report"]}).notNull(),
+ visitorHash:text("visitor_hash").notNull(),
+ createdAt:integer("created_at").notNull(),
+},table=>[index("idx_gallery_actions").on(table.kind,table.visitorHash,table.createdAt),index("idx_gallery_actions_created").on(table.createdAt),check("gallery_actions_kind",sql`${table.kind} IN ('publish','report')`)]);
+// Moderation keyed by content, not by link, and without a foreign key, so it outlives the link:
+// deleting a hidden or removed build and sharing it again does not clear it. "hidden" lets the
+// owner list it, hidden; "removed" (an admin unpublish) refuses it. Only an admin restore lifts it.
+export const galleryBlocks=sqliteTable("gallery_blocks",{
+ contentHash:text("content_hash").primaryKey(),
+ shareId:text("share_id").notNull(),
+ kind:text("kind",{enum:["hidden","removed"]}).notNull(),
+ createdAt:integer("created_at").notNull(),
+},table=>[check("gallery_blocks_kind",sql`${table.kind} IN ('hidden','removed')`)]);
+
+// "Looks right / Needs work" on a finished build. No prompt, photo, IP or share id: only the
+// verdict, an optional short reason and the build's shape. creator_hash is the daily-salted IP
+// hash used for rate limiting.
+export const buildFeedback=sqliteTable("build_feedback",{
+ id:text("id").primaryKey(),
+ verdict:text("verdict",{enum:["good","needs_work"]}).notNull(),
+ reason:text("reason"),
+ subjectKind:text("subject_kind"),
+ pieceCount:integer("piece_count"),
+ model:text("model"),
+ costUsd:real("cost_usd"),
+ createdAt:integer("created_at").notNull(),
+ creatorHash:text("creator_hash").notNull(),
+},table=>[index("idx_build_feedback_creator").on(table.creatorHash,table.createdAt),index("idx_build_feedback_created").on(table.createdAt),check("build_feedback_verdict",sql`${table.verdict} IN ('good','needs_work')`),check("build_feedback_reason",sql`${table.reason} IS NULL OR length(${table.reason}) <= 280`)]);
