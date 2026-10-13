@@ -1,5 +1,5 @@
 "use client";
-import {useEffect,useMemo,useRef,useState} from "react";
+import {useEffect,useMemo,useRef,useState,useSyncExternalStore} from "react";
 import {ArrowDown,ArrowLeft,ArrowRight,ArrowUp,Scan} from "lucide-react";
 import * as THREE from "three";
 import {OrbitControls} from "three/addons/controls/OrbitControls.js";
@@ -18,7 +18,7 @@ import {PreviewGeometryBuffer,type PreviewGeometry} from "@/lib/preview-geometry
 
 export type BrickHit={piece:Piece;point:{x:number;y:number;z:number};normal:{x:number;y:number;z:number}};
 export type RegionCapture=Pick<RevisionRegion,"image"|"polygon"|"bounds">;
-type Props={regionMode?:boolean;onRegion?:(region:RegionCapture)=>void;onCancelRegion?:()=>void;arrivals?:{epoch:number;paused:boolean;mode?:ArrivalMode};suspended?:boolean;light?:number;pieces:Piece[];length:number;width?:number;height?:number;modelKey?:string;editMode?:string;onBrick?:(hit:BrickHit)=>void;highlightIds?:number[];heat?:Map<number,number>;explode:number;stage:number;selected:string|null;view:string;reset:number;rotate:boolean;onPick:(key:string|null)=>void;assembly?:{time:()=>number;onFrame?:(canvas:HTMLCanvasElement,time:number)=>void;sweep?:boolean};presentation?:boolean;onCanvas?:(canvas:HTMLCanvasElement|null)=>void};
+type Props={regionMode?:boolean;onRegion?:(region:RegionCapture)=>void;onCancelRegion?:()=>void;arrivals?:{epoch:number;paused:boolean;mode?:ArrivalMode};suspended?:boolean;light?:number;pieces:Piece[];length:number;width?:number;height?:number;modelKey?:string;editMode?:string;onBrick?:(hit:BrickHit)=>void;highlightIds?:number[];heat?:Map<number,number>;explode:number;stage:number;selected:string|null;view:string;reset:number;rotate:boolean;onPick:(key:string|null)=>void;onPickPiece?:(pieceId:string)=>void;assembly?:{time:()=>number;onFrame?:(canvas:HTMLCanvasElement,time:number)=>void;sweep?:boolean};presentation?:boolean;onCanvas?:(canvas:HTMLCanvasElement|null)=>void};
 export default function Viewport(props:Props){
  const buffer=useRef<PreviewGeometryBuffer|null>(null);if(!buffer.current)buffer.current=new PreviewGeometryBuffer();
  const request=useMemo<PreviewGeometry>(()=>({pieces:props.pieces,length:props.length,width:props.width,height:props.height,modelKey:props.modelKey}),[props.pieces,props.length,props.width,props.height,props.modelKey]);
@@ -36,6 +36,9 @@ export default function Viewport(props:Props){
  </div>;
 }
 
+// Touch-first screens get touch wording; the server and the first client render assume a mouse.
+const COARSE="(pointer: coarse)",coarseNow=()=>window.matchMedia(COARSE).matches;
+function watchPointer(change:()=>void){const media=window.matchMedia(COARSE);media.addEventListener("change",change);return()=>media.removeEventListener("change",change);}
 // This component receives only complete geometry snapshots. Its scene, camera,
 // controls and animation stay alive while the wrapper loads the next update.
 function ReadyViewport(props:Props){
@@ -43,7 +46,7 @@ function ReadyViewport(props:Props){
  const rendererRef=useRef<THREE.WebGLRenderer|null>(null);
  const previousFraming=useRef({view:props.view,reset:props.reset,explode:props.explode});
  const arrivalState=useRef({epoch:-1,clock:0,entries:new Map<string,Arrival>()});
- const [error,setError]=useState(false),[touchActive,setTouchActive]=useState(false);const presentationProp=Boolean(props.presentation);const touchEnabled=useRef(touchActive);touchEnabled.current=touchActive;
+ const [error,setError]=useState(false),[touchActive,setTouchActive]=useState(false);const coarsePointer=useSyncExternalStore(watchPointer,coarseNow,()=>false);const presentationProp=Boolean(props.presentation);const touchEnabled=useRef(touchActive);touchEnabled.current=touchActive;
  useEffect(()=>()=>{latest.current.onCanvas?.(null);const renderer=rendererRef.current;rendererRef.current=null;renderer?.dispose();renderer?.domElement.remove();},[]);
  useEffect(()=>{
   if(!host.current)return;const node=host.current;let renderer:THREE.WebGLRenderer;
@@ -217,10 +220,13 @@ function ReadyViewport(props:Props){
   };
   if(!props.presentation)renderer.domElement.addEventListener("keydown",keyboard);
   const ray=new THREE.Raycaster(),pointer=new THREE.Vector2(),activePointers=new Set<number>();let downX=0,downY=0,tapPointer:number|null=null;
-  const down=(e:PointerEvent)=>{cameraMove=null;activePointers.add(e.pointerId);if(e.button!==0||activePointers.size>1||(coarse&&!touchEnabled.current)){tapPointer=null;return;}tapPointer=e.pointerId;downX=e.clientX;downY=e.clientY;};
+  // While a phone scrolls the page, a plain tap still picks a part when the host asks for one (onPickPiece);
+  // inspection selection and brick edits wait for Explore model.
+  const touchLocked=()=>coarse&&!touchEnabled.current,tapBlocked=()=>touchLocked()&&!latest.current.onPickPiece;
+  const down=(e:PointerEvent)=>{cameraMove=null;activePointers.add(e.pointerId);if(e.button!==0||activePointers.size>1||tapBlocked()){tapPointer=null;return;}tapPointer=e.pointerId;downX=e.clientX;downY=e.clientY;};
   const move=(e:PointerEvent)=>{if(tapPointer===e.pointerId&&Math.hypot(e.clientX-downX,e.clientY-downY)>(e.pointerType==="touch"?8:5))tapPointer=null;};
   const cancelPointer=(e:PointerEvent)=>{activePointers.delete(e.pointerId);tapPointer=null;};
-  const pick=(e:PointerEvent)=>{const isTap=tapPointer===e.pointerId&&activePointers.size===1;activePointers.delete(e.pointerId);if(tapPointer===e.pointerId)tapPointer=null;if(!isTap||latest.current.regionMode||e.button!==0||(coarse&&!touchEnabled.current)||Math.hypot(e.clientX-downX,e.clientY-downY)>(e.pointerType==="touch"?8:5))return;const rect=node.getBoundingClientRect();pointer.set((e.clientX-rect.left)/rect.width*2-1,-(e.clientY-rect.top)/rect.height*2+1);ray.setFromCamera(pointer,camera);const hit=ray.intersectObjects(meshes)[0];if(hit&&hit.instanceId!==undefined){const p=hit.object.userData.pieces[hit.instanceId] as Piece;if(latest.current.editMode&&latest.current.editMode!=="inspect"&&latest.current.onBrick){const n=hit.face?.normal??new THREE.Vector3(0,1,0);latest.current.onBrick({piece:p,point:{x:hit.point.x+centerX,y:hit.point.y/.4,z:hit.point.z+centerZ},normal:{x:n.x,y:n.y,z:n.z}});return;}const key=`${p.part}:${p.color}`;latest.current.onPick(latest.current.selected===key?null:key);}else latest.current.onPick(null);};
+  const pick=(e:PointerEvent)=>{const isTap=tapPointer===e.pointerId&&activePointers.size===1;activePointers.delete(e.pointerId);if(tapPointer===e.pointerId)tapPointer=null;if(!isTap||latest.current.regionMode||e.button!==0||tapBlocked()||Math.hypot(e.clientX-downX,e.clientY-downY)>(e.pointerType==="touch"?8:5))return;const locked=touchLocked(),rect=node.getBoundingClientRect();pointer.set((e.clientX-rect.left)/rect.width*2-1,-(e.clientY-rect.top)/rect.height*2+1);ray.setFromCamera(pointer,camera);const hit=ray.intersectObjects(meshes)[0];if(hit&&hit.instanceId!==undefined){const p=hit.object.userData.pieces[hit.instanceId] as Piece;if(!locked&&latest.current.editMode&&latest.current.editMode!=="inspect"&&latest.current.onBrick){const n=hit.face?.normal??new THREE.Vector3(0,1,0);latest.current.onBrick({piece:p,point:{x:hit.point.x+centerX,y:hit.point.y/.4,z:hit.point.z+centerZ},normal:{x:n.x,y:n.y,z:n.z}});return;}latest.current.onPickPiece?.(String(p.id));if(locked)return;const key=`${p.part}:${p.color}`;latest.current.onPick(latest.current.selected===key?null:key);}else if(!locked)latest.current.onPick(null);};
   renderer.domElement.addEventListener("pointerdown",down);renderer.domElement.addEventListener("pointermove",move);renderer.domElement.addEventListener("pointerup",pick);renderer.domElement.addEventListener("pointercancel",cancelPointer);
   const lost=(e:Event)=>{e.preventDefault();latest.current.onCanvas?.(null);setError(true);};renderer.domElement.addEventListener("webglcontextlost",lost);
   let inView=true;const visibility=new IntersectionObserver(entries=>{inView=entries[0]?.isIntersecting??true;});visibility.observe(node);
@@ -233,15 +239,18 @@ const time=latest.current.assembly?.time();if(time!==undefined&&(time!==lastTime
  useEffect(()=>{api.current?.update(props);},[props.explode,props.stage,props.selected,props.rotate,props.highlightIds,props.heat,props.light,props.regionMode,touchActive]);
  useEffect(()=>{const old=previousFraming.current;previousFraming.current={view:props.view,reset:props.reset,explode:props.explode};if(old.view!==props.view||old.reset!==props.reset||old.explode!==props.explode)api.current?.camera(props.view);},[props.view,props.reset,props.explode]);
  return <div className={"canvas-host "+(props.editMode&&props.editMode!=="inspect"?"is-editing":"")} data-touch-active={touchActive} data-region-mode={Boolean(props.regionMode)} ref={host}>{!presentationProp&&!error&&!props.regionMode&&<>
+  {/* Fit is always shown; the arrow pad appears for keyboard users (focus on the model or the pad). */}
   <div className="camera-navigation" role="group" aria-label="Move the camera">
-   <span>Move view</span><div>
-    <button type="button" className="camera-pan" title="Move view left" aria-label="Move view left" onClick={()=>api.current?.pan(-1,0)}><ArrowLeft size={18}/></button>
-    <button type="button" className="camera-pan" title="Move view up" aria-label="Move view up" onClick={()=>api.current?.pan(0,1)}><ArrowUp size={18}/></button>
-    <button type="button" className="camera-pan" title="Move view down" aria-label="Move view down" onClick={()=>api.current?.pan(0,-1)}><ArrowDown size={18}/></button>
-    <button type="button" className="camera-pan" title="Move view right" aria-label="Move view right" onClick={()=>api.current?.pan(1,0)}><ArrowRight size={18}/></button>
+   <span className="camera-pad-label">Move view</span><div>
+    <span className="camera-pad">
+     <button type="button" className="camera-pan" title="Move view left" aria-label="Move view left" onClick={()=>api.current?.pan(-1,0)}><ArrowLeft size={18}/></button>
+     <button type="button" className="camera-pan" title="Move view up" aria-label="Move view up" onClick={()=>api.current?.pan(0,1)}><ArrowUp size={18}/></button>
+     <button type="button" className="camera-pan" title="Move view down" aria-label="Move view down" onClick={()=>api.current?.pan(0,-1)}><ArrowDown size={18}/></button>
+     <button type="button" className="camera-pan" title="Move view right" aria-label="Move view right" onClick={()=>api.current?.pan(1,0)}><ArrowRight size={18}/></button>
+    </span>
     <button type="button" className="camera-fit" title="Fit the whole model in view" aria-label="Fit the whole model in view" onClick={()=>api.current?.camera(latest.current.view)}><Scan size={18}/><span>Fit</span></button>
-   </div><small className="camera-gesture-hint">{touchActive?"Drag to rotate · Pinch to zoom · Two fingers to move":"Right-drag to pan · Scroll to zoom"}</small>
+   </div><small className="camera-gesture-hint">{coarsePointer?touchActive?"Drag to rotate · Pinch to zoom · Two fingers to move":"Tap Explore model to rotate and zoom":"Right-drag to pan · Scroll to zoom"}</small>
   </div>
   <button type="button" className="touch-model-toggle" aria-pressed={touchActive} aria-label={touchActive?"Done exploring model. Enable page scrolling":"Explore model. Enable touch rotation, zoom and movement"} onClick={()=>setTouchActive(v=>!v)}>{touchActive?"Done":"Explore model"}</button>
- </>}{props.regionMode&&!error&&<RegionMarker onSelect={polygon=>{if(!api.current)throw Error("Preview is not ready");props.onRegion?.(api.current.captureRegion(polygon));}} onCancel={()=>props.onCancelRegion?.()}/>} {error&&<div className="canvas-error"><strong>3D preview is unavailable in this browser.</strong><p>The parts audit and exports still work. Try opening the studio in Safari or Chrome with WebGL enabled.</p></div>}</div>;
+ </>}{props.regionMode&&!error&&<RegionMarker onSelect={polygon=>{if(!api.current)throw Error("Preview is not ready");props.onRegion?.(api.current.captureRegion(polygon));}} onCancel={()=>props.onCancelRegion?.()}/>} {error&&<div className="canvas-error"><strong>3D preview is unavailable in this browser.</strong><p>The parts list and downloads still work. Try opening the studio in Safari or Chrome with WebGL enabled.</p></div>}</div>;
 }

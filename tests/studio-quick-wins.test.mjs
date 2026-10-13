@@ -66,7 +66,7 @@ test('the generator offers one Connect & build label and keeps the paid repair o
  assert.match(src,/setErrorCode\("AI_NOT_CONNECTED"\)/);
 });
 
-test('landing HUD: caption under the title, Build details below the canvas, no edition badge on a preset',()=>{
+test('landing HUD: caption under the title, Build details below the canvas, no edition badge on a preset',async()=>{
  const html=renderToStaticMarkup(React.createElement(studio.default));
  const preset=generateRecipe('bridge','large');
  assert.ok(html.includes(`<p class="hud-caption">${preset.description}</p>`));
@@ -74,10 +74,10 @@ test('landing HUD: caption under the title, Build details below the canvas, no e
  assert.doesNotMatch(html,/hud-panel|<details class="hud-details"/);
  assert.match(html,/<button type="button" class="hud-pill hud-details-toggle "[^>]*aria-expanded="false" aria-controls="build-details"/);
  assert.doesNotMatch(html,/id="build-details"/,'the panel only renders when opened');
- // Replay and Reset camera no longer share an icon, and the hint does not repeat the camera help.
- const button=label=>html.match(new RegExp(`<button[^>]*aria-label="${label}"[^>]*>.*?</button>`))?.[0]||'';
- assert.match(button('Replay the assembly from the start'),/lucide-rotate-ccw/);
- assert.match(button('Reset camera'),/lucide-house/);assert.doesNotMatch(button('Reset camera'),/lucide-rotate-ccw/);
+ // Replay and Reset camera no longer share an icon; with Make a video they sit in a labelled ⋯ menu beside Play.
+ assert.match(html,/<button class="view-more" title="More view options" aria-label="More view options"/);
+ const studioSrc=await readFile(new URL('../app/studio.tsx',import.meta.url),'utf8');
+ assert.match(studioSrc,/<RotateCcw size=\{16\}\/>Replay the assembly<\/DropdownMenuItem>/);assert.match(studioSrc,/<House size=\{16\}\/>Reset camera<\/DropdownMenuItem>/);
  assert.match(html,/Drag to orbit · Click to inspect/);
 });
 

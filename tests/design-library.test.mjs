@@ -191,16 +191,23 @@ test('recently viewed shares are a separate small list that tolerates broken sto
  assert.deepEqual(m.viewedShares(),[]);assert.doesNotThrow(()=>m.rememberViewedShare({id:'y',name:'y',pieceCount:1}));
 });
 
-test('the drawer separates featured builds from recent designs and keeps the landmark choices',async()=>{
- const rendered=await build({stdin:{contents:'import React from "react";import {renderToStaticMarkup} from "react-dom/server";import DesignsDrawer from "./app/designs-drawer";export const render=(props)=>renderToStaticMarkup(<DesignsDrawer {...props}/>);',resolveDir:process.cwd(),loader:'tsx'},bundle:true,platform:'node',format:'cjs',write:false,logLevel:'error'});
+test('My builds is a visual grid: pinned and recent apart, one Open per card, the rest in a ⋯ menu, no landmarks',async()=>{
+ const rendered=await build({stdin:{contents:'import React from "react";import {renderToStaticMarkup} from "react-dom/server";import DesignsDrawer,{isAIDesign} from "./app/designs-drawer";export {isAIDesign};export const render=(props)=>renderToStaticMarkup(<DesignsDrawer {...props}/>);',resolveDir:process.cwd(),loader:'tsx'},bundle:true,platform:'node',format:'cjs',write:false,logLevel:'error'});
  const loaded={exports:{}};new Function('require','module','exports',rendered.outputFiles[0].text)(createRequire(import.meta.url),loaded,loaded.exports);
- const noop=()=>{},html=loaded.exports.render({open:true,model:{recipe:'bridge'},designs:[{...savedFixture('favorite'),featured:true},savedFixture('recent')],onClose:noop,onChoose:noop,onOpenSaved:noop,onContinueSaved:noop,onShopSaved:noop,onDeleteSaved:noop,onFeatureSaved:noop});
- const featured=html.slice(html.indexOf('aria-label="Featured designs"'),html.indexOf('LANDMARKS'));
- const recent=html.slice(html.indexOf('aria-label="Recent designs"'));
- assert.match(featured,/Build favorite/);assert.doesNotMatch(featured,/Build recent/);
+ const noop=()=>{},props={open:true,onClose:noop,onOpenSaved:noop,onContinueSaved:noop,onShopSaved:noop,onDeleteSaved:noop,onFeatureSaved:noop};
+ const html=loaded.exports.render({...props,designs:[{...savedFixture('favorite'),featured:true},savedFixture('recent'),{...savedFixture('pictured'),thumbnail:'data:image/jpeg;base64,AAAA'}]});
+ const pinned=html.slice(html.indexOf('aria-label="Pinned builds"'),html.indexOf('aria-label="Recent builds"')),recent=html.slice(html.indexOf('aria-label="Recent builds"'));
+ assert.match(pinned,/Build favorite/);assert.doesNotMatch(pinned,/Build recent/);
  assert.match(recent,/Build recent/);assert.doesNotMatch(recent,/Build favorite/);
- assert.match(featured,/aria-label="Unfeature Build favorite" aria-pressed="true"/);
- assert.match(recent,/aria-label="Feature Build recent" aria-pressed="false"/);
- for(const name of ['Golden Gate','Neuschwanstein','Cape Hatteras','Saturn V'])assert.ok(html.includes(name));
- assert.equal((html.match(/>Open<\/button>/g)||[]).length,2);
+ // One click target per card; pin, refine, pieces and delete wait in its menu.
+ assert.equal((html.match(/class="design-card-open"/g)||[]).length,3);assert.equal((html.match(/aria-label="More for Build /g)||[]).length,3);
+ for(const name of ['favorite','recent'])assert.match(html,new RegExp(`aria-label="Open Build ${name}"`));
+ assert.doesNotMatch(html,/>Feature<|>Continue with AI<|>Delete<|aria-label="Delete /);
+ // A stored picture shows; a build without one gets its initial on a tinted tile.
+ assert.match(html,/<img src="data:image\/jpeg;base64,AAAA"/);assert.match(html,/--thumb-hue:\d+/);assert.match(html,/<span aria-hidden="true">B<\/span>/);
+ for(const name of ['Golden Gate','Neuschwanstein','Cape Hatteras','Saturn V'])assert.ok(!html.includes(name),`${name} belongs to Presets`);
+ assert.match(html,/href="\/gallery"/);
+ const empty=loaded.exports.render({...props,designs:[]});assert.match(empty,/Nothing here yet/);assert.doesNotMatch(empty,/Pinned builds|Recent builds/);
+ // Refine with AI is offered only for builds that have an AI scene.
+ assert.equal(loaded.exports.isAIDesign(savedFixture('plain')),false);assert.equal(loaded.exports.isAIDesign({...savedFixture('ai'),project:JSON.stringify({generation:{shapes:[]}},null,2)}),true);
 });

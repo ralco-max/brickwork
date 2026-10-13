@@ -184,8 +184,8 @@ test('the built /s/:id page serves preview tags and the shared name, and missing
  assert.match(html,/<meta name="twitter:card" content="summary_large_image"/);
  assert.match(html,/<meta property="og:title" content="Harbor &lt;Lighthouse&gt; &amp; &quot;Pier&quot;"/);
  assert.match(html,/<meta name="robots" content="noindex/);
- // The first paint names the shared creation instead of the default landmark.
- assert.match(html,/aria-label="Model name"[^>]*value="Harbor &lt;Lighthouse&gt; &amp; &quot;Pier&quot;"/);assert.doesNotMatch(html,/value="Golden Gate Bridge"/);assert.doesNotMatch(html,/3,208/);
+ // The first paint names the shared creation instead of the default landmark, in the lean viewer (no editor chrome).
+ assert.match(html,/<h1 id="viewer-title">Harbor &lt;Lighthouse&gt; &amp; &quot;Pier&quot;<\/h1>/);assert.doesNotMatch(html,/class="command-bar"|aria-label="Model name"/);assert.doesNotMatch(html,/value="Golden Gate Bridge"/);assert.doesNotMatch(html,/3,208/);
  assert.match(html,new RegExp(`Loading ${shared.pieceCount} pieces`));
  for(const path of ['/s/ZZZZZZZZZZ','/s/bad']){const missing=await visit(path);assert.equal(missing.status,404,path);assert.match(await missing.text(),/This shared creation isn’t here/);}
 });
