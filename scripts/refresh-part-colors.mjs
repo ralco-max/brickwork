@@ -3,7 +3,8 @@
 // Rebrickable 41 but LDraw 43, and Rebrickable 43 is a different colour (Trans-Very Lt Blue).
 // A part is offered in a new colour only when that exact part number has an element ID or appears,
 // not as a spare, in the inventory of a released set in that colour (never a Database Sets placeholder).
-// Saved projects do not depend on this data to open, so a refresh may drop a pair. Classic colours stay with
+// Saved projects do not depend on this data to open: a scene that now packs into other parts or colours keeps its
+// saved bricks (lib/design-project.ts checks the cells they fill), so a refresh may add or drop a pair. Classic colours stay with
 // refresh-part-catalog-selection.py; LEGO element IDs stay with refresh-lego-elements.mjs.
 //   node scripts/refresh-part-colors.mjs                    official cdn.rebrickable.com downloads
 //   node scripts/refresh-part-colors.mjs --source-dir DIR   the same files, decompressed in DIR

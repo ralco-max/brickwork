@@ -172,6 +172,25 @@ test('painting keeps each piece in a colour its part is made in, and saved proje
  }finally{catalog.colors.splice(0,catalog.colors.length,...before);legacy.splice(at,0,'pearlgold');}
 });
 
+test('a part-colour refresh that changes how a saved scene packs still opens it with its saved bricks',()=>{
+ // A pearl gold slab is packed from plates, not placed as an explicit part, so the packer's colour data decides its pieces.
+ const box=(id,color,p,s)=>({id,component:id,label:id,kind:'box',operation:'add',color,position:{x:p[0],y:p[1],z:p[2]},size:{x:s[0],y:s[1],z:s[2]},end:{x:0,y:0,z:0},radius:1});
+ const generation={name:'Gold crown',description:'A crown.',dimensions:{x:12,y:12,z:12},shapes:[box('base','darkgray',[0,0,0],[8,2,8]),box('crown','pearlgold',[2,2,2],[4,1,4])]};
+ const design={brief:{...m.defaultBrief('A gold crown'),finish:'smooth'},manual:{erase:[],bricks:[]},locked:[],revisions:[]};
+ const saved=JSON.parse(m.projectJSON(m.validateProject({format:'brickwork',version:3,name:'Gold crown',description:'A crown.',pieces:m.compileScene(generation,{smooth:true}).pieces,generation,design}),m.emptyShopping()));
+ const key=list=>list.map(p=>`${p.part}:${p.color}:${p.x}:${p.y}:${p.z}`).sort().join('|');
+ const holders=['3003','3666','3022','3023','3024','3069b','3068b'].map(id=>m.partColors(id)).filter(list=>list.includes('pearlgold')),gainers=['3020','3001'].map(id=>m.partColors(id));
+ const refresh=(lists,change)=>{const before=lists.map(list=>[...list]);change();try{
+  assert.notEqual(key(m.compileScene(generation,{smooth:true}).pieces),key(saved.pieces),'the refreshed data packs the scene differently');
+  const opened=m.validateProject(structuredClone(saved));assert.ok(opened.generation&&opened.design,'the AI scene and history survive');assert.equal(key(opened.pieces),key(saved.pieces),'the saved bricks are kept');
+  assert.equal(m.sanitizeSharedProject(structuredClone(saved)).pieceCount,saved.pieces.length,'the share link opens too');
+  assert.throws(()=>m.validateProject({...structuredClone(saved),pieces:saved.pieces.slice(1)}),/do not match the saved bricks/,'missing bricks are still refused');
+ }finally{lists.forEach((list,i)=>list.splice(0,list.length,...before[i]));}};
+ // A refresh that drops pearl gold from every plate and tile, and one that adds it to a plate and a brick.
+ refresh(holders,()=>{for(const list of holders)list.splice(list.indexOf('pearlgold'),1);});
+ refresh(gainers,()=>{for(const list of gainers)list.push('pearlgold');});
+});
+
 test('prompts and schemas offer every colour with usage guidance',()=>{
  const allowed=m.DESIGN_INSTRUCTIONS.split('\n').find(l=>l.includes('Allowed colors:'));assert.ok(allowed);
  for(const k of keys){assert.match(allowed,new RegExp(`\\b${k}\\b`),k);assert.match(m.RESEARCH_INSTRUCTIONS,new RegExp(`\\b${k}\\b`),k);}

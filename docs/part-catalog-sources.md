@@ -96,7 +96,9 @@ flat silver, from `DATABASE-2012` alone), which are therefore not offered.
 Availability decides what can be **made**: AI generation (repair, then a fresh-scene
 check), placing and painting in the studio, and packing. It never decides whether a
 saved project, share or library design **opens**: those load without re-checking it,
-because the data is provisional and a refresh may drop a pair. In shopping, an added
+because the data is provisional and a refresh may add or drop a pair. A saved scene that
+now packs into other parts or colours keeps the bricks it was saved with, as long as they
+fill exactly the scene's cells (`readProjectContent` in `lib/design-project.ts`). In shopping, an added
 color the part is evidenced in says "No exact LEGO element yet — verify on
 BrickLink", while a part/color pair the catalog does not list at all (an imported
 piece) says "Not listed in this color".
