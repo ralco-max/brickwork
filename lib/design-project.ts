@@ -80,7 +80,8 @@ export function readProjectMetadata(data:Record<string,unknown>,pieces:Piece[]):
  const design=parsed?.success?parsed.data as DesignContext:undefined;
  const shop=data.shopping?shoppingSchema.safeParse(data.shopping):null;if(shop&&!shop.success)throw Error("The project's shopping data is invalid.");
  if(design&&!generation)throw Error("The project is missing its generation scene.");
- if(generation){const rebuilt=compileScene(generation,{manual:design?.manual,hollow:design?.brief.hollow,smooth:design?.brief.finish==="smooth"});const expected=[...pieces].map(pieceKey).sort(),actual=rebuilt.pieces.map(pieceKey).sort();if(JSON.stringify(expected)!==JSON.stringify(actual))throw Error("The scene and protected edits do not match the saved bricks. Restore a complete project export.");}
+ // Exports and share links packed before the display base was kept out of slope carving verify against that packing.
+ if(generation){const packed=(carveBase:boolean)=>JSON.stringify(compileScene(generation,{manual:design?.manual,hollow:design?.brief.hollow,smooth:design?.brief.finish==="smooth",carveBase}).pieces.map(pieceKey).sort()),expected=JSON.stringify([...pieces].map(pieceKey).sort());if(expected!==packed(false)&&expected!==packed(true))throw Error("The scene and protected edits do not match the saved bricks. Restore a complete project export.");}
  return {generation,design,detail:design?.brief.size,shopping:shop?.success?shop.data:emptyShopping()};
 }
 export function designChecks(model:BuildModel,brief:DesignBrief,target?:{x:number;y:number;z:number}){
