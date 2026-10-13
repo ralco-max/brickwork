@@ -78,21 +78,21 @@ export async function setGalleryListing(shareId:string,ownerToken:string,show:bo
 
 /** Opt-in and off by default: a link stays unlisted unless its creator ticks this. */
 export function GalleryToggle({shareId,ownerToken,publishable}:{shareId:string;ownerToken?:string;publishable:boolean}){
- const id=useId(),[listing,setListing]=useState({checked:false,hidden:false,busy:false,error:""});
+ const id=useId(),[listing,setListing]=useState({checked:false,hidden:false,removed:false,busy:false,error:""});
  // Start from the server's answer, so a link listed on an earlier visit shows as listed.
  useEffect(()=>{
   let live=true;
-  void fetch(`/api/gallery/${encodeURIComponent(shareId)}`).then(r=>r.ok?r.json() as Promise<{published?:boolean;hidden?:boolean}>:null).then(status=>{if(live&&status)setListing(v=>v.busy?v:{...v,checked:status.published===true,hidden:status.hidden===true});}).catch(()=>{});
+  void fetch(`/api/gallery/${encodeURIComponent(shareId)}`).then(r=>r.ok?r.json() as Promise<{published?:boolean;hidden?:boolean;removed?:boolean}>:null).then(status=>{if(live&&status)setListing(v=>v.busy?v:{...v,checked:status.published===true,hidden:status.hidden===true,removed:status.removed===true});}).catch(()=>{});
   return()=>{live=false;};
  },[shareId]);
  const toggle=async(show:boolean)=>{
   if(!ownerToken)return;setListing(v=>({...v,checked:show,busy:true,error:""}));
-  try{const next=await setGalleryListing(shareId,ownerToken,show);setListing({checked:next.published,hidden:next.hidden,busy:false,error:""});}
+  try{const next=await setGalleryListing(shareId,ownerToken,show);setListing(v=>({...v,checked:next.published,hidden:next.hidden,busy:false,error:""}));}
   catch(error){setListing(v=>({...v,checked:!show,busy:false,error:error instanceof Error?error.message:"The gallery couldn’t be updated."}));}
  };
- const note=!publishable?"Change this preset or design your own build to show it in the gallery.":!ownerToken?"Only the browser that created this link can show it in the gallery.":listing.checked&&listing.hidden?"Hidden from the gallery after reports while it’s reviewed.":"Lists its name, preview and piece count in the public gallery, where anyone can open and remix it. Turn off any time.";
+ const note=!publishable?"Change this preset or design your own build to show it in the gallery.":!ownerToken?"Only the browser that created this link can show it in the gallery.":listing.removed?"A moderator took this build out of the public gallery. The link still works.":listing.checked&&listing.hidden?"Listed, but hidden from the gallery while it’s reviewed.":"Lists its name, preview and piece count in the public gallery, where anyone can open and remix it. Turn off any time.";
  return <div className="gallery-publish">
-  <Checkbox id={id} checked={listing.checked} disabled={!publishable||!ownerToken||listing.busy} onCheckedChange={value=>void toggle(value===true)} aria-describedby={`${id}-note`}/>
+  <Checkbox id={id} checked={listing.checked} disabled={!publishable||!ownerToken||listing.removed||listing.busy} onCheckedChange={value=>void toggle(value===true)} aria-describedby={`${id}-note`}/>
   <div><label htmlFor={id}>Show in the public gallery{listing.busy&&<LoaderCircle className="spin" size={14} aria-label="Saving"/>}</label>
    <p id={`${id}-note`}>{note}{listing.checked&&!listing.hidden&&!listing.busy&&<> <a href="/gallery" target="_blank" rel="noopener">See the gallery</a></>}</p>
    {listing.error&&<p className="gallery-publish-error" role="alert">{listing.error}</p>}

@@ -1,7 +1,6 @@
 import type {Metadata} from "next";
 import {headers} from "next/headers";
 import Link from "next/link";
-import {cache} from "react";
 import {Plus} from "lucide-react";
 import {env} from "cloudflare:workers";
 import {listGallery,parseSort} from "@/lib/gallery";
@@ -13,19 +12,18 @@ import "./gallery.css";
 type Props={searchParams:Promise<{sort?:string|string[]}>};
 const TITLE="Community builds",DESCRIPTION="Custom brick models people designed with Bricks by Ralc and chose to share. Open any of them to explore it, remix it or get the pieces.";
 
-// Metadata and the page share one read of the first page per request.
-const firstPage=cache(async(sort:GallerySort):Promise<GalleryPage|null>=>{
+async function firstPage(sort:GallerySort):Promise<GalleryPage|null>{
  const db=(env as unknown as GalleryEnv).DB;if(!db)return null;
  try{return await listGallery(db,sort);}catch{console.error(JSON.stringify({event:"bricks_gallery_failed",op:"page"}));return null;}
-});
+}
 const sortOf=async(searchParams:Props["searchParams"])=>{const raw=(await searchParams).sort;return parseSort(typeof raw==="string"?raw:null)||"recent";};
 
-export async function generateMetadata({searchParams}:Props):Promise<Metadata>{
+export async function generateMetadata():Promise<Metadata>{
  const host=(await headers()).get("host")||"localhost",protocol=/^(localhost|127\.0\.0\.1)(:|$)/.test(host)?"http":"https",base=`${protocol}://${host}`;
- // The newest build's card makes the link preview; the logo stands in while the gallery is empty.
- const hero=(await firstPage(await sortOf(searchParams)))?.items[0];
- const images=hero?[{url:`${base}${hero.imageUrl}`,width:1200,height:630,alt:`${hero.name}, a custom brick model`}]:[{url:`${base}/bricks-logo.png`,alt:"Bricks by Ralc"}];
- return {title:`${TITLE} · Bricks by Ralc`,description:DESCRIPTION,alternates:{canonical:`${base}/gallery`},openGraph:{type:"website",siteName:"Bricks by Ralc",url:`${base}/gallery`,title:TITLE,description:DESCRIPTION,images},twitter:{card:hero?"summary_large_image":"summary",title:TITLE,description:DESCRIPTION,images:images.map(image=>image.url)}};
+ // Always the site's own logo, never a build's picture: that is a JPEG its creator uploaded, which
+ // nobody has reviewed, and link unfurlers cache it for days past any report or removal.
+ const image={url:`${base}/bricks-logo.png`,width:1000,height:1000,alt:"Bricks by Ralc"};
+ return {title:`${TITLE} · Bricks by Ralc`,description:DESCRIPTION,alternates:{canonical:`${base}/gallery`},openGraph:{type:"website",siteName:"Bricks by Ralc",url:`${base}/gallery`,title:TITLE,description:DESCRIPTION,images:[image]},twitter:{card:"summary",title:TITLE,description:DESCRIPTION,images:[image.url]}};
 }
 
 /** What people have built: published shares only, server-rendered so the names are indexable. */

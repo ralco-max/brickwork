@@ -37,6 +37,7 @@ export async function POST(request:Request){
  switch(result.status){
   case "missing":return fail("This shared creation was not found.",404);
   case "forbidden":return fail("Only the browser that created this link can show it in the gallery.",403);
+  case "removed":return fail("A moderator took this build out of the gallery, so it can’t be shown there again.",403);
   case "preset":return fail("Change this preset or design your own build to show it in the gallery.",422);
   case "blocked":return fail(result.message,422);
   case "duplicate":return fail("This build is already in the gallery under another link.",409);

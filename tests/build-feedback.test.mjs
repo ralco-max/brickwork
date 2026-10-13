@@ -63,13 +63,17 @@ test('the owner’s summary needs the admin token and shows how builds are going
  await m.createFeedback(db,{verdict:'needs_work',reason:'Ancient history'},'creator',now-40*86_400_000);
  sqlite.prepare("INSERT INTO shares (id,name,description,piece_count,project,image,creator_hash,created_at) VALUES ('Hidden0001','Reported build','',1,'{}','x','c',0)").run();
  sqlite.prepare("INSERT INTO gallery (share_id,name,piece_count,content_hash,publisher_hash,published_at,reports,hidden) VALUES ('Hidden0001','Reported build',1,'h','p',1,3,1)").run();
+ // An admin removal: unlisted, hidden and blocked by content.
+ sqlite.prepare("INSERT INTO shares (id,name,description,piece_count,project,image,creator_hash,created_at) VALUES ('Removed001','Removed build','',1,'{}','x','c',0)").run();
+ sqlite.prepare("INSERT INTO gallery (share_id,name,piece_count,content_hash,publisher_hash,published_at,reports,hidden,listed) VALUES ('Removed001','Removed build',1,'r','p',2,0,1,0)").run();
+ sqlite.prepare("INSERT INTO gallery_blocks (content_hash,share_id,kind,created_at) VALUES ('r','Removed001','removed',2)").run();
  const response=await summary('gallery-admin-secret');assert.equal(response.status,200);assert.equal(response.headers.get('cache-control'),'no-store');
  const body=await response.json();
  assert.equal(body.total,5,'the last 30 days by default');assert.deepEqual(body.verdicts,{good:3,needsWork:2});
  assert.deepEqual(body.byKind[0],{kind:'bridge',good:2,needsWork:1});assert.deepEqual(body.byKind.find(k=>k.kind==='unknown'),{kind:'unknown',good:1,needsWork:0});
  assert.deepEqual(body.byModel[0],{model:'gpt-6.1-sol',good:2,needsWork:1,avgCostUsd:.3});
  assert.deepEqual(body.recentReasons.map(r=>r.reason).sort(),['Falls apart','Wrong colors']);
- assert.deepEqual(body.gallery,{published:1,hidden:1,hiddenItems:[{id:'Hidden0001',name:'Reported build',reports:3}]});
+ assert.deepEqual(body.gallery,{published:1,hidden:2,hiddenItems:[{id:'Removed001',name:'Removed build',reports:0,listed:false,removed:true},{id:'Hidden0001',name:'Reported build',reports:3,listed:true,removed:false}]});
  assert.equal((await (await summary('gallery-admin-secret','?days=60')).json()).total,6);
  for(const days of ['0','366','1.5','x'])assert.equal((await summary('gallery-admin-secret',`?days=${days}`)).status,400);
 });

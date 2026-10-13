@@ -16,7 +16,8 @@ export async function GET(_request:Request,{params}:Params){
  return status?Response.json(status,{headers:NO_STORE}):fail("The gallery is temporarily unavailable.",503);
 }
 
-// Unpublish with the link's owner token or the gallery admin token. The link keeps working.
+// Unpublish with the link's owner token (a relist brings it back as it was) or the gallery admin
+// token (removed: it can't be listed again until an admin restore). The link keeps working.
 export async function DELETE(request:Request,{params}:Params){
  const {id}=await params,config=env as unknown as GalleryEnv;
  if(!sameOrigin(request))return fail("Open Bricks in its own tab.",403);
@@ -29,7 +30,8 @@ export async function DELETE(request:Request,{params}:Params){
  return new Response(null,{status:204,headers:NO_STORE});
 }
 
-// Admin only: hide a build, or restore one that reports hid ({"hidden":false} also clears its reports).
+// Admin only: hide a build, or restore one that reports or an admin hid or removed ({"hidden":false}
+// also dismisses its reports, so the same people can't hide it again).
 const hiddenBody=z.object({hidden:z.boolean()}).strict();
 export async function PATCH(request:Request,{params}:Params){
  const {id}=await params,config=env as unknown as GalleryEnv;
