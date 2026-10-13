@@ -121,11 +121,12 @@ function checkFreshColors(shapes:Shape[]){
 }
 // fresh: a scene the AI just produced, also held to checkFreshColors. Saved scenes (project files, shares, the library,
 // a revision's previous design) skip it: which colours a part comes in is source data that a refresh can change, and it
-// must never stop a saved design from opening. compileScene and sceneVoxels compile whatever was accepted.
-export function validateScene(raw:unknown,{fresh=false}:{fresh?:boolean}={}):GeneratedScene{
+// must never stop a saved design from opening. compileScene and sceneVoxels compile whatever was accepted. A revision
+// passes carried, the IDs (or labels) of shapes kept unchanged from the saved design: only its new shapes are fresh.
+export function validateScene(raw:unknown,{fresh=false,carried}:{fresh?:boolean;carried?:ReadonlySet<string>}={}):GeneratedScene{
  const parsed=sceneSchema.safeParse(raw);if(!parsed.success)throw Error("The generator returned an incomplete design. Try again; your current build is safe.");
  const scene=parsed.data;scene.shapes=scene.shapes.map(s=>{if(!isExplicit(s))return s;const p=explicitPiece(s);return {...s,size:{x:p.w,y:p.h,z:p.d},face:p.face||"pz"};});let evaluations=0;
- if(fresh)checkFreshColors(expandShapes(scene.shapes));
+ if(fresh)checkFreshColors(expandShapes(carried?.size?scene.shapes.filter(s=>!carried.has(s.id||s.label)):scene.shapes));
  const ids=scene.shapes.filter(s=>s.id).map(s=>s.id);if(new Set(ids).size!==ids.length)throw Error("The design has duplicate shape IDs.");
  const expanded=expandShapes(scene.shapes),reserved=new Set<string>(),handles=new Set<string>(),wheels=expanded.filter(s=>s.kind==="wheel"&&s.operation==="add").map(wheelPiece);
  const blocked=()=>new GenerationError("A part or minifigure fills the space behind a door frame that its door's handle needs. Leave the cells behind a door frame empty.","INVALID_GEOMETRY");

@@ -72,7 +72,10 @@ export async function* generateScene(input:GenerationInput,key:string,model:stri
  // A paid design is never thrown away over a fixable shape: repairScene makes the smallest valid change and says what it
  // did. While components are locked the build area stays put (enforceLocks requires the same dimensions).
  const ceilings=input.locked?.length&&input.previous?{maxWidth:input.previous.dimensions.x,maxDepth:input.previous.dimensions.z,maxHeight:input.previous.dimensions.y}:input.brief;
+ // Only this pass's shapes are held to today's colour data; shapes carried over unchanged keep the colours they were saved
+ // with, so an unrelated revision never recolours (or, when locked, rejects) an earlier component.
+ const incoming=new Set(parsed.shapes.map(s=>s.id||s.label)),carried=input.previous?new Set(input.previous.shapes.map(s=>s.id||s.label).filter(k=>!incoming.has(k))):undefined;
  let candidate:unknown=merged,corrections:string[]=[];
- try{const fixed=repairScene(merged,ceilings);candidate={...fixed.scene,...(merged.notes?.length?{notes:merged.notes}:{})};corrections=fixed.corrections;}catch{/* validateScene reports what is unusable */}
- const scene=validateScene(candidate,{fresh:true});if(corrections.length)yield {type:"corrections",items:corrections};yield {type:"complete",scene};
+ try{const fixed=repairScene(merged,ceilings,carried);candidate={...fixed.scene,...(merged.notes?.length?{notes:merged.notes}:{})};corrections=fixed.corrections;}catch{/* validateScene reports what is unusable */}
+ const scene=validateScene(candidate,{fresh:true,carried});if(corrections.length)yield {type:"corrections",items:corrections};yield {type:"complete",scene};
 }

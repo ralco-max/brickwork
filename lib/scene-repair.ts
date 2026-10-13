@@ -55,7 +55,10 @@ function reach(s:Shape):Vec{
 const fits=(s:Shape,d:Vec)=>{const r=reach(s);return AXES.every(a=>r[a]<=d[a]);};
 const list=(items:string[])=>items.length>3?`${items.slice(0,3).join(", ")} and ${items.length-3} more`:items.join(", ");
 
-export function repairScene(raw:unknown,brief?:Partial<Pick<DesignBrief,"maxWidth"|"maxDepth"|"maxHeight">>):{scene:GeneratedScene;corrections:string[]}{
+// carried: the IDs (or labels) of shapes a revision kept unchanged from the saved design. Their colours, glass and skin
+// were accepted when that design was made, and which colours a part comes in is source data a refresh can change, so
+// they are never recoloured here (validateScene exempts them from the fresh colour check the same way).
+export function repairScene(raw:unknown,brief?:Partial<Pick<DesignBrief,"maxWidth"|"maxDepth"|"maxHeight">>,carried?:ReadonlySet<string>):{scene:GeneratedScene;corrections:string[]}{
  let data=raw;
  if(typeof data==="string"){try{data=JSON.parse(data);}catch{throw Error(INCOMPLETE);}}
  if(!data||typeof data!=="object"||Array.isArray(data))throw Error(INCOMPLETE);
@@ -78,13 +81,14 @@ export function repairScene(raw:unknown,brief?:Partial<Pick<DesignBrief,"maxWidt
  const snapped:string[]=[];
  shapes=shapes.flatMap(s=>{
   // A wheel shape is a real wheel too: the part its size selects must come in its colour.
-  if(s.kind==="wheel"&&s.operation==="add"){const part=wheelPart(s),color=madeIn(s.color,partColors(part));if(color===s.color)return [s];note(`Changed ${quoted(s)} (wheel ${part}) from ${s.color} to ${color}, the nearest colour it is made in.`);return [{...s,color}];}
+  const saved=Boolean(carried?.has(s.id||s.label));
+  if(s.kind==="wheel"&&s.operation==="add"){if(saved)return [s];const part=wheelPart(s),color=madeIn(s.color,partColors(part));if(color===s.color)return [s];note(`Changed ${quoted(s)} (wheel ${part}) from ${s.color} to ${color}, the nearest colour it is made in.`);return [{...s,color}];}
   if(!isExplicit(s)&&s.kind!=="text")return [s];
   if(s.operation!=="add"){note(`Removed ${quoted(s)}: a ${s.kind==="text"?"sign":s.kind==="minifig"?"minifigure":"catalog part"} cannot carve space; remove it by its shape ID instead.`);return [];}
   if(s.kind==="part"&&(!s.part||!Object.hasOwn(PARTS,s.part))){note(`Removed ${quoted(s)}: part ${s.part||"(none)"} is not in the catalog.`);return [];}
   let next=s;
   if(!AXES.every(a=>Number.isInteger(s.position[a]))){next={...next,position:{x:Math.round(s.position.x),y:Math.round(s.position.y),z:Math.round(s.position.z)}};snapped.push(quoted(s));}
-  if(s.kind==="part"){
+  if(s.kind==="part"&&!saved){
    const listed=partColors(s.part!);
    if(!listed.includes(next.color)){
     if(!listed.length){note(`Removed ${quoted(s)}: part ${s.part} has no listed colours.`);return [];}
@@ -96,7 +100,7 @@ export function repairScene(raw:unknown,brief?:Partial<Pick<DesignBrief,"maxWidt
    else if(fitted&&next.background&&!fitted.colors.includes(next.background)){const color=madeIn(next.background,fitted.colors);note(`Changed the ${fitted.name} in ${quoted(s)} from ${next.background} to ${color}, the nearest colour it is made in.`);next={...next,background:color};}
   }
   // Heads and hands come in skin tones only; any other skin falls back to the classic yellow.
-  if(s.kind==="minifig"&&next.skin&&!SKIN_COLORS.includes(next.skin)){note(`Gave ${quoted(s)} a classic yellow head and hands: ${next.skin} is not a skin tone.`);next={...next,skin:null};}
+  if(s.kind==="minifig"&&!saved&&next.skin&&!SKIN_COLORS.includes(next.skin)){note(`Gave ${quoted(s)} a classic yellow head and hands: ${next.skin} is not a skin tone.`);next={...next,skin:null};}
   if(s.kind==="text"){
    const text=[...(s.text||"")].filter(c=>SIGN_TEXT_PATTERN.test(c)).join("").slice(0,12);
    if(!text.trim()){note(`Removed sign ${quoted(s)}: it has no letters the brick alphabet can spell.`);return [];}

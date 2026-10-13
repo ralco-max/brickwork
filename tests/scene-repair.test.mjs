@@ -106,3 +106,28 @@ test('the display base is never carved into loose slopes',()=>{
  const plinth=comp=>({...scene([]),shapes:[{...base,size:{x:20,y:4,z:16},component:comp},shape('walls','box','tan',[1,2,1],[18,9,14])]}),low=m=>m.pieces.filter(p=>SLOPES[p.part]&&p.y<4).length;
  assert.ok(low(compileScene(plinth('Plinth')))>0,'an ordinary 2-plate step beside a wall takes cheese slopes');assert.equal(low(compileScene(plinth('Base'))),0,'a taller Base component keeps its plates');
 });
+
+test('a revision recolours and checks only its own shapes; saved figures and parts keep their colours, so locks hold',async()=>{
+ const extra=await build({stdin:{contents:'export {generateScene} from "./lib/generation-provider";export {enforceLocks} from "./lib/design-project";export {partColors} from "./lib/part-colors";',resolveDir:process.cwd(),loader:'ts'},bundle:true,platform:'node',format:'esm',write:false,logLevel:'error',external:['cloudflare:workers']});
+ const {generateScene,enforceLocks,partColors}=await import('data:text/javascript;base64,'+Buffer.from(extra.outputFiles[0].text).toString('base64'));
+ // Saved before skin tones were enforced: a robot with a white head, and a 1 x 1 plate in pearl gold, both in the locked crew.
+ const robot={...figure('robot',10,12),component:'Crew',label:'Robot',skin:'white'},badge={...shape('badge','part','pearlgold',[4,2,12],[1,1,1],{component:'Crew'}),part:'3024',face:'pz'};
+ const previous=validateScene(scene([shape('wall','box','tan',[0,2,0],[20,15,4],{component:'Shop'}),robot,badge]));
+ assert.equal(previous.shapes.find(s=>s.id==='robot').skin,'white','a saved scene still opens as saved');
+ const awning=shape('awning','box','red',[0,17,4],[20,1,3],{component:'Awning'}),medal={...shape('medal','part','pearlgold',[6,2,12],[1,1,1],{component:'Trim'}),part:'3024',face:'pz'};
+ const text=JSON.stringify(compactScene({name:'Robot shop',description:'A shop.',dimensions:previous.dimensions,shapes:[awning,medal]}));
+ const body=new TextEncoder().encode([{type:'response.output_text.delta',delta:text},{type:'response.completed',response:{status:'completed'}}].map(x=>'data: '+JSON.stringify(x)+'\r\n\r\n').join(''));
+ const fetcher=async()=>new Response(new ReadableStream({start(c){c.enqueue(body);c.close();}}));
+ // A refresh has since dropped pearl gold from that plate; the badge was accepted when it was made.
+ const plate=partColors('3024'),before=[...plate];plate.splice(plate.indexOf('pearlgold'),1);
+ try{
+  for(const locked of [['Crew'],undefined]){
+   const events=[];for await(const e of generateScene({prompt:'Add a red awning and a gold medal',detail:'small',previous,...(locked?{locked}:{})},'k','gpt-6.1-sol',new AbortController().signal,fetcher))events.push(e);
+   const done=events.find(e=>e.type==='complete').scene,corrections=events.find(e=>e.type==='corrections')?.items||[];
+   assert.equal(done.shapes.find(s=>s.id==='robot').skin,'white','the saved robot keeps its head');assert.equal(done.shapes.find(s=>s.id==='badge').color,'pearlgold','the saved part keeps its colour');
+   assert.notEqual(done.shapes.find(s=>s.id==='medal').color,'pearlgold','a new part is still held to today\'s colour data');
+   assert.ok(corrections.some(c=>/medal/.test(c))&&!corrections.some(c=>/Robot|badge/.test(c)),JSON.stringify(corrections));
+   if(locked)assert.doesNotThrow(()=>enforceLocks(previous,done,locked),'the paid revision is kept');
+  }
+ }finally{plate.splice(0,plate.length,...before);}
+});
