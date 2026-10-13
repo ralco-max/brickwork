@@ -7,7 +7,7 @@ import {referencePhotoSchema,referencePhotosSchema,collectReferencePhotos,MAX_RE
 import type {ReferenceSheet} from "./design-research";
 import {COLORS,ELEMENTS,PARTS,auditModel} from "./bridge";
 import type {Piece} from "./bridge";
-import {finishModel,intersects} from "./models";
+import {finishModel,intersects,packingParts} from "./models";
 import type {BuildModel,VoxelMap} from "./models";
 import {validateScene,sceneVoxels,compileScene,looseByComponent,expandShapes,splitCaption,CAPTION_MAX,sceneSchema} from "./generated-scene";
 import {clipSentence} from "./utils";
@@ -57,6 +57,13 @@ export const contextSchema=z.object({unfinished:z.boolean().optional(),reviewReq
 const recordKey=z.string().max(40).refine(key=>{const [part,color,...extra]=key.split(":");return !extra.length&&Object.hasOwn(ELEMENTS,part)&&Object.hasOwn(COLORS,color);});
 const shoppingSchema=z.object({owned:z.record(recordKey,z.number().int().min(0).max(16000)),elementIds:z.record(recordKey,z.string().regex(/^\d{0,8}$/)),priceOverrides:z.record(recordKey,z.number().finite().min(0).max(10000)),quotes:z.record(recordKey,z.object({available:z.number().int().min(0).max(100000),unitPrice:z.number().finite().min(0).max(10000),url:z.string().url().max(1000).refine(s=>/^https:\/\//.test(s)),checkedAt:z.string().datetime()}))});
 const occupiedCells=(list:Piece[])=>{const cells:string[]=[];for(const p of list)forEachPieceCell(p,(x,y,z)=>cells.push(`${x},${y},${z}`));return JSON.stringify(cells.sort());};
+// Saved bricks that differ from today's packing only in which packing parts and colours fill the same cells.
+function repacked(saved:Piece[],packed:Piece[]){
+ const count=new Map<string,number>();for(const p of packed)count.set(pieceKey(p),(count.get(pieceKey(p))||0)+1);
+ const extra:Piece[]=[];for(const p of saved){const k=pieceKey(p),n=count.get(k)||0;if(n)count.set(k,n-1);else extra.push(p);}
+ const missing=packed.filter(p=>{const k=pieceKey(p),n=count.get(k)||0;if(!n)return false;count.set(k,n-1);return true;}),parts=packingParts();
+ return [...extra,...missing].every(p=>parts.has(p.part))&&occupiedCells(extra)===occupiedCells(missing);
+}
 const pieceKey=(p:Piece)=>`${p.part}:${p.color}:${p.x}:${p.y}:${p.z}:${p.rotated}:${p.face||(p.rotated?"px":"pz")}${p.legs||p.skin?`:${p.legs||""}:${p.skin||""}`:""}${p.fitted?`:fitted=${p.fitted}`:""}`;
 export function editModel(model:BuildModel,pieces:Piece[]):BuildModel{
  const meta={...model,recipe:undefined,bridgeConfig:undefined,source:"custom" as const,edited:true};
@@ -103,10 +110,11 @@ function readProjectContent(data:Record<string,unknown>,pieces:Piece[]):Partial<
  const shop=data.shopping?shoppingSchema.safeParse(data.shopping):null;if(shop&&!shop.success)throw Error("The project's shopping data is invalid.");
  if(design&&!generation)throw Error("The project is missing its generation scene.");
  // Exports and share links packed before the display base was kept out of slope carving verify against that packing.
- // Which parts and colours pack a scene's cells (filler colours, slopes, tiles) follows part-colour data that a refresh
- // can change; which cells it fills does not. Saved bricks that fill exactly the scene's cells are kept as saved, so a
- // data refresh never stops a save, share or library design from opening; missing or extra bricks still do.
- if(generation){const compiled=(carveBase:boolean)=>compileScene(generation,{manual:design?.manual,hollow:design?.brief.hollow,smooth:design?.brief.finish==="smooth",carveBase}).pieces,keys=(list:Piece[])=>JSON.stringify(list.map(pieceKey).sort()),expected=keys(pieces),current=compiled(false);if(expected!==keys(current)&&expected!==keys(compiled(true))&&occupiedCells(pieces)!==occupiedCells(current))throw Error("The scene and protected edits do not match the saved bricks. Restore a complete project export.");}
+ // Which packing parts and colours fill a scene's plain cells (filler colours, slopes, tiles) follows part-colour data
+ // that a refresh can change; which cells they fill does not. Saved bricks that differ only that way are kept as saved,
+ // so a data refresh never stops a save, share or library design from opening. Missing or extra bricks, or a protected
+ // edit, catalog part or figure that differs from the saved one, still do.
+ if(generation){const compiled=(carveBase:boolean)=>compileScene(generation,{manual:design?.manual,hollow:design?.brief.hollow,smooth:design?.brief.finish==="smooth",carveBase}).pieces,keys=(list:Piece[])=>JSON.stringify(list.map(pieceKey).sort()),expected=keys(pieces),current=compiled(false);if(expected!==keys(current)&&expected!==keys(compiled(true))&&!repacked(pieces,current))throw Error("The scene and protected edits do not match the saved bricks. Restore a complete project export.");}
  return {generation,design,detail:design?.brief.size,shopping:shop?.success?shop.data:emptyShopping()};
 }
 // The body above the base against the planned target at one scale. A declared vertical exaggeration accepts any

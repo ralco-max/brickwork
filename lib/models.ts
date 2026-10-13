@@ -2,7 +2,7 @@ import type {GeneratedScene} from "./generated-scene";
 import {readProjectMetadata,migrateCaption} from "./design-project";
 import {clipSentence} from "./utils";
 import type {DesignContext,ShoppingState} from "./design-project";
-import {COLORS,PARTS,STAGES,auditModel,LEGACY_PARTS} from "./bridge";
+import {COLORS,PARTS,STAGES,SLOPES,auditModel,LEGACY_PARTS} from "./bridge";
 import {EXPANDED_PARTS,fittedElement,fittedColor} from "./part-catalog";
 import {partColors,partAllowsColor} from "./part-colors";
 import {SOLID_COLORS} from "./colors";
@@ -62,13 +62,21 @@ function catalogPackingOptions():PackingOption[]{
  }
  return expandedPackingOptions=options;
 }
+const CORE_PACKING:PartId[]=["3007","3001","3008","3009","3010","3003","3004","3035","3034","3020","3460","3666","3710","3022","3005","3023","3024"];
+let packingPartSet:ReadonlySet<string>|undefined;
+/**
+ * Every part the packer, smooth tops or slope carving may choose for a scene's plain cells. Which of them fills a cell
+ * (and the filler colour of a cell no plate comes in) follows the part-colour data, which a refresh can change; the cells
+ * they fill do not. Manual bricks, catalog parts, wheels and figures are placed as drawn, never chosen this way.
+ */
+export function packingParts():ReadonlySet<string>{return packingPartSet??=new Set<string>([...CORE_PACKING,...catalogPackingOptions().map(o=>o.part),...Object.values(PLATE_TO_TILE) as string[],"87079",...Object.keys(SLOPES)]);}
 export function packVoxels(input:VoxelMap,settings:{expanded?:boolean}={}):Piece[]{
  // Each core part below only takes the colours it is made in. A colour without a 1 x 1 plate could
  // never be filled, so it becomes the nearest colour that has one rather than leaving holes.
  const filler=partColors("3024"),swap=new Map<ColorKey,ColorKey>(),fill=(c:ColorKey)=>{if(filler.includes(c))return c;let v=swap.get(c);if(!v){v=nearestColor(...hexRgb(COLORS[c].hex),filler);swap.set(c,v);}return v;};
  const voxels=[...input.values()].every(c=>filler.includes(c))?input:new Map([...input].map(([k,c])=>[k,fill(c)]));
  const remaining=new Map(voxels),pieces:Piece[]=[],owners=new Map<string,number>();
- const ids:PartId[]=["3007","3001","3008","3009","3010","3003","3004","3035","3034","3020","3460","3666","3710","3022","3005","3023","3024"];
+ const ids=CORE_PACKING;
  type Option=PackingOption;
  const options:Option[]=ids.flatMap(part=>[false,true].map(rotated=>{const p=PARTS[part];return {part,rotated,w:rotated?p.d:p.w,d:rotated?p.w:p.d,h:p.h,colors:partColors(part)};}));
  if(settings.expanded)options.push(...catalogPackingOptions());
