@@ -2089,6 +2089,12 @@
         "sha256": "a1dd11c88627c1a6bfe28119c235dcdad25471c5f8aa948ead850397b939a7c3"
       },
       {
+        "path": "p/box0.dat",
+        "author": "Santeri Piippo [arezey]",
+        "license": "Licensed under CC BY 4.0 : see CAreadme.txt",
+        "sha256": "c2a26e0f7caf639bcdd55dd56325f8756ef39a1f86ed16bacd2c9fb625af2847"
+      },
+      {
         "path": "p/box2-11.dat",
         "author": "Steffen [Steffen]",
         "license": "Licensed under CC BY 4.0 : see CAreadme.txt",
@@ -3349,6 +3355,12 @@
         "sha256": "8f20090e06d54e64e9a95bd3e8ae89621a7887438bdb50a2e0f26c0f11a76684"
       },
       {
+        "path": "parts/2412b.dat",
+        "author": "Guy Vivan [guyvivan]",
+        "license": "Licensed under CC BY 2.0 and CC BY 4.0 : see CAreadme.txt",
+        "sha256": "a7e7b03fc76cad9d94eb7199721b929f95227b1f8a35add5b7c66ee1ba6dca57"
+      },
+      {
         "path": "parts/2419.dat",
         "author": "James Jessiman",
         "license": "Licensed under CC BY 4.0 : see CAreadme.txt",
@@ -3551,6 +3563,12 @@
         "author": "Lutz Uhlmann [El-Lutzo]",
         "license": "Licensed under CC BY 2.0 and CC BY 4.0 : see CAreadme.txt",
         "sha256": "20b82ba1a3f3083d5e45008f8423bac00c430c2e94c713bba471a59dc74dc9c0"
+      },
+      {
+        "path": "parts/2877.dat",
+        "author": "James Jessiman",
+        "license": "Licensed under CC BY 4.0 : see CAreadme.txt",
+        "sha256": "46c3a0dc6329d3f0be9b3b4485b5e2e41295bad750a0f4c4b6a2e6631c0c0029"
       },
       {
         "path": "parts/29115.dat",
@@ -4411,6 +4429,12 @@
         "sha256": "bc07ca0cd50e82c55fdd1b7cbbe5b2ebfc852c54643f5ee54780e2a66e785ee2"
       },
       {
+        "path": "parts/4216.dat",
+        "author": "Christian M. Angele [cma_1971]",
+        "license": "Licensed under CC BY 2.0 and CC BY 4.0 : see CAreadme.txt",
+        "sha256": "0318e1bbdab2bc172019444a0108aac1d71be57c4000cf9b6927ca9636ba9031"
+      },
+      {
         "path": "parts/4228.dat",
         "author": "James Jessiman",
         "license": "Licensed under CC BY 4.0 : see CAreadme.txt",
@@ -4969,10 +4993,58 @@
         "sha256": "d17844fa73dfd1de731b9b68cc8899ec0737d346744396c1e87cbb03a5fad231"
       },
       {
+        "path": "parts/60592.dat",
+        "author": "Michael Heidemann [mikeheide]",
+        "license": "Licensed under CC BY 4.0 : see CAreadme.txt",
+        "sha256": "274b66b880f4e750dc65fd6c4b7cbcff019e18b9a3e634b2aadd38071b79a368"
+      },
+      {
+        "path": "parts/60592c01.dat",
+        "author": "Greg Teft [gregteft]",
+        "license": "Licensed under CC BY 2.0 and CC BY 4.0 : see CAreadme.txt",
+        "sha256": "0101c24b5fe305b90f571bde663b7dfabb7713c7e0d403500c614953f4458d84"
+      },
+      {
+        "path": "parts/60593.dat",
+        "author": "Alex Taylor [anathema]",
+        "license": "Licensed under CC BY 4.0 : see CAreadme.txt",
+        "sha256": "6a0e0d627e899ba519eca1b7bd9d6ac50ed684625bcdd737f3dd55095bf5aac0"
+      },
+      {
+        "path": "parts/60593c01.dat",
+        "author": "Greg Teft [gregteft]",
+        "license": "Licensed under CC BY 2.0 and CC BY 4.0 : see CAreadme.txt",
+        "sha256": "fb0082209f75af35b60bc4a8ce0f1ed35104ae38bebf21f19841057259d911bb"
+      },
+      {
+        "path": "parts/60596.dat",
+        "author": "J.C. Tchang [tchang]",
+        "license": "Licensed under CC BY 4.0 : see CAreadme.txt",
+        "sha256": "7c2dfe7f1adb69f8e530328b1d1427f04d3b19e7be8d1149699b761c668666d7"
+      },
+      {
         "path": "parts/6060.dat",
         "author": "James Jessiman",
         "license": "Licensed under CC BY 4.0 : see CAreadme.txt",
         "sha256": "57b5f46ebf50e15badb0c783a1033d5feff3b0941fadf11beac7531e250e9079"
+      },
+      {
+        "path": "parts/60601.dat",
+        "author": "Michael Heidemann [mikeheide]",
+        "license": "Licensed under CC BY 4.0 : see CAreadme.txt",
+        "sha256": "f9802551d645052a00163ba5ab8aa2eb8f6a7be85fbae58a827161182971d882"
+      },
+      {
+        "path": "parts/60602.dat",
+        "author": "Alex Taylor [anathema]",
+        "license": "Licensed under CC BY 4.0 : see CAreadme.txt",
+        "sha256": "2e6ac9f586e07461a8104dd4503f945c4a5f31d741a2e1809d2986153a428cfd"
+      },
+      {
+        "path": "parts/60616b.dat",
+        "author": "Santeri Piippo [arezey]",
+        "license": "Licensed under CC BY 4.0 : see CAreadme.txt",
+        "sha256": "ca1c50b057c1442563acd924397d661d0e49d7c276c3fc6146f63e6f1a2301b4"
       },
       {
         "path": "parts/6066.dat",
@@ -5627,6 +5699,12 @@
         "author": "Maciej Kowalik [Madmaks]",
         "license": "Licensed under CC BY 2.0 and CC BY 4.0 : see CAreadme.txt",
         "sha256": "960e3d8482c36ddb6fbedcc65cf342d1d54dce4085e23e2abc79495ffe805840"
+      },
+      {
+        "path": "parts/98283.dat",
+        "author": "Philippe Hurbain [Philo]",
+        "license": "Licensed under CC BY 4.0 : see CAreadme.txt",
+        "sha256": "b8c290dc1de3d7c3a31fd377bd4c5c0f58b57e49740b70accf0d9b04f0e07eb1"
       },
       {
         "path": "parts/99301.dat",
@@ -6595,10 +6673,22 @@
         "sha256": "7d1959a8dc86472a2d41f7beac6a52e5fe9909e3f350b2d10e20eb0e21704526"
       },
       {
+        "path": "parts/s/60601s01.dat",
+        "author": "Ulrich Röder [UR]",
+        "license": "Licensed under CC BY 4.0 : see CAreadme.txt",
+        "sha256": "b9a706c51be95874bcabd328ba7fddc3b0ee79423d075765976e05d7a099f7d3"
+      },
+      {
         "path": "parts/s/6060s01.dat",
         "author": "Gerald Lasser [GeraldLasser]",
         "license": "Licensed under CC BY 4.0 : see CAreadme.txt",
         "sha256": "0f9ef2f762f47778e46eec52763325bdeef82a554b38bec98cac31fd7abd24f7"
+      },
+      {
+        "path": "parts/s/60616s01.dat",
+        "author": "Max Martin Richter [MMR1988]",
+        "license": "Licensed under CC BY 4.0 : see CAreadme.txt",
+        "sha256": "386c401f8d77871530291ca333c51b7171ebefa3b2d7d27b1a6dc35462c78e87"
       },
       {
         "path": "parts/s/6069s01.dat",
@@ -7264,6 +7354,10 @@
         "sha256": "9825854b39d016e3fa6e5d79e4a9a8041e09092833da4173ee4195fa09865f96"
       },
       {
+        "file": "parts/2412b.dat",
+        "sha256": "7f009a5099f9f4f380f5fc46a3b469e40cdc2b9a179f4d865bef871c87160947"
+      },
+      {
         "file": "parts/2419.dat",
         "sha256": "efd33f11ee7bdfbe3086c714cb2d44643bc48a7627aa6859b47b8d00f4e5a5d8"
       },
@@ -7362,6 +7456,10 @@
       {
         "file": "parts/2876.dat",
         "sha256": "df5e330e6b7bd8e33d94e1c10c423f2194124250f0143ba9ca7178c0b8ec1eda"
+      },
+      {
+        "file": "parts/2877.dat",
+        "sha256": "6893212d67177c9c448097f0a53a96902679468f14c1139a07f23e4aa1aad57e"
       },
       {
         "file": "parts/29115.dat",
@@ -7804,6 +7902,10 @@
         "sha256": "20984eb0df909116f56efdf9d3119652c400a6f3ac6393652a4a121f40cf61d4"
       },
       {
+        "file": "parts/4216.dat",
+        "sha256": "b0f29b472a561e3eb3e3d7e2a0cdcb620d664011d93710a5619197535dfe10bd"
+      },
+      {
         "file": "parts/4228.dat",
         "sha256": "d19b54705cc173e563850748c37ba1564f847d7b9241c70d990e41903572c081"
       },
@@ -8044,8 +8146,24 @@
         "sha256": "9683ba7918ad3ff86ba24b2972bff0688a66b86834471f27ded1586db1e5ed07"
       },
       {
+        "file": "parts/60592.dat",
+        "sha256": "cbad8c1b09148c3d1bfd7d4179b5f003cf3482325efa31c87d10c057fe8fe86a"
+      },
+      {
+        "file": "parts/60593.dat",
+        "sha256": "6dce353ca6b45fc6d2520508cb15276fd04014819bd7e5fee6b877d6c0dacf38"
+      },
+      {
+        "file": "parts/60596.dat",
+        "sha256": "a4136ad633be7931793288d462241b2eed4be034d9c8a8954707833799964be3"
+      },
+      {
         "file": "parts/6060.dat",
         "sha256": "4af51761ceadc5d76b3c6eafca895bfa50242b49907f13f392a12783a018240a"
+      },
+      {
+        "file": "parts/60616b.dat",
+        "sha256": "c8a15280466ceb8c57653208fe1099a2edc9153628af59984838e7511032ec16"
       },
       {
         "file": "parts/6066.dat",
@@ -8380,6 +8498,10 @@
         "sha256": "c1e049ffa67f4af2457578d8b84bfa10e6069488dc8933446640033b5a99475d"
       },
       {
+        "file": "parts/98283.dat",
+        "sha256": "bc5738a4345757ea0ffea7dd5511ff3cc19810215b67325bab7a12a18e438ac9"
+      },
+      {
         "file": "parts/99301.dat",
         "sha256": "016046d1b49ee2533df940d2996b130457e74aa077deb0ba103cde03726d2a70"
       },
@@ -8482,6 +8604,10 @@
       {
         "file": "parts/s/3002s01.dat",
         "sha256": "413826aec8d8df3a71490f19263fa571f115623a75d1aa04eefe27cf503d9964"
+      },
+      {
+        "file": "parts/s/3004s01.dat",
+        "sha256": "2a6763330e98a7e7c0d50d5c7465a966882ee76829939d70d089d789386fab9d"
       },
       {
         "file": "parts/s/30151s02.dat",
@@ -8780,6 +8906,10 @@
         "sha256": "652b72e4768429c84854ba7d4e4f0ea0a83cfc19061be95a2461c560d9de4fd9"
       },
       {
+        "file": "parts/s/60601s01.dat",
+        "sha256": "f5151198508f674f25ff6e7d6b82647a0387a501a390a451ae688cb97a820eac"
+      },
+      {
         "file": "parts/s/6060s01.dat",
         "sha256": "b7ae807ac3c831ec001eb989a2da5e28d93375daa0b65f02ac731e8eb2a8418a"
       },
@@ -8918,6 +9048,7 @@
     ]
   },
   "collision": "Conservative stud-cell envelopes computed from LDraw body meshes; sub-stud interlocking and side connectors are not simulated.",
+  "fitted": "Glass and doors that clip or hinge into a frame are compiled with it: placed as the frame's LDraw shortcut places them, or where the LDCad finger snaps of both shadow files meet, and counted in the frame's collision cells. A door's stud handle stands 2.75 LDU proud of its frame: the cells it reaches are recorded as the frame's clearance, which no other piece may fill.",
   "prices": "Formula-based planning estimates, not seller quotes",
   "rejected": [
     {
@@ -9263,6 +9394,27 @@
     {
       "id": "43888",
       "reason": "No documented upright anti-stud sockets"
+    },
+    {
+      "id": "60601",
+      "reason": "No documented upright anti-stud sockets",
+      "fittedIn": [
+        "60592"
+      ]
+    },
+    {
+      "id": "60602",
+      "reason": "No documented upright anti-stud sockets",
+      "fittedIn": [
+        "60593"
+      ]
+    },
+    {
+      "id": "60616b",
+      "reason": "No documented upright anti-stud sockets",
+      "fittedIn": [
+        "60596"
+      ]
     }
   ]
 }

@@ -268,7 +268,7 @@ body {margin:0;background:var(--background);color:var(--foreground);font-family:
 .design-flow.is-design .generation-empty{color:var(--ink-3);padding:32px;gap:20px}.design-flow.is-design .generation-empty strong{color:var(--ink);font-size:clamp(24px,3vw,38px);line-height:1.2;letter-spacing:-.035em;max-width:26ch;font-weight:500;overflow-wrap:anywhere}.design-flow.is-design .generation-empty p{font-size:15px;line-height:1.6;color:var(--ink-3);max-width:42ch}.empty-stage-label{color:var(--ink-3);font-size:12px;letter-spacing:.12em}
 .design-flow.is-design .generation-status{background:var(--surface);border-top:1px solid var(--surface-2);color:var(--ink-2);padding:16px 22px;gap:12px;flex-wrap:wrap;font-size:14px;min-height:58px}.design-flow.is-design .generation-status>svg{display:none}.live-elapsed{margin-left:auto;font-variant-numeric:tabular-nums;white-space:nowrap;font-size:13px;color:var(--ink-3)}.design-flow.is-design.is-building .generation-status:before{content:"";width:6px;height:6px;border-radius:50%;background:#ed5a26;animation:creation-breathe 2s ease-in-out infinite;flex-shrink:0}
 @keyframes creation-breathe{50%{opacity:.3}}
-.design-flow.is-design .review-camera{position:absolute;top:16px;left:16px;z-index:3;padding:4px;gap:2px;background:var(--glass);border:1px solid var(--surface-2);border-radius:24px;backdrop-filter:blur(12px)}.design-flow.is-design .review-camera button{color:var(--ink-3);min-height:40px;padding:8px 13px;font-size:13px;border-radius:20px}.design-flow.is-design .review-camera button.active{background:var(--surface-2);color:var(--ink)}
+.design-flow.is-design .review-camera{position:absolute;top:16px;left:16px;z-index:3;padding:4px;gap:2px;background:var(--glass);border:1px solid var(--surface-2);border-radius:24px;backdrop-filter:blur(12px)}.design-flow.is-design .review-camera button{color:var(--ink-3);min-height:40px;padding:8px 13px;font-size:13px;border-radius:20px;white-space:nowrap;flex:0 0 auto}.design-flow.is-design .review-camera button.active{background:var(--surface-2);color:var(--ink)}
 .design-flow.is-design .generation-assembly{width:auto;position:absolute;right:16px;top:16px;z-index:3;margin:0;background:var(--glass);color:var(--ink-2);border:1px solid var(--surface-2);border-radius:24px;min-height:48px;padding:10px 16px;font-size:14px}.design-flow.is-design .generation-assembly span{display:none}.design-flow.is-building .generation-assembly{display:none}
 .design-flow.is-design .generation-result{padding:24px;background:var(--surface);border:0;display:grid;gap:16px}.design-flow.is-design .generation-result>div:first-child{margin:0;display:flex;align-items:baseline;justify-content:space-between}.design-flow.is-design .generation-result>div:first-child strong{font-size:23px;letter-spacing:-.025em}.design-flow.is-design .generation-result>div:first-child span{font-size:14px}
 .design-inspection{border-top:1px solid var(--surface-2);border-bottom:1px solid var(--surface-2);padding:0}.design-inspection>summary{cursor:pointer;min-height:52px;padding:16px 0;font-size:15px;font-weight:550;line-height:1.5}.design-inspection>summary span{float:right;color:var(--ink-3);font-size:13px;font-weight:400}.design-inspection[open]{padding-bottom:16px}.design-inspection .review-verdict{margin-top:0}.design-inspection .review-issues{padding-left:20px}.design-inspection .feature-review>p{margin:16px 0}.design-inspection .review-limit{margin-top:16px;color:var(--ink-3);line-height:1.6}
@@ -425,7 +425,7 @@ h1,.landing-film-caption h1,.project-heading h1,[data-slot=dialog-title]{text-wr
 .stage-main .workspace-toolbar{border-top:1px solid var(--border)}
 @media(max-width:1024px){
  .command-bar{padding:8px 10px;gap:6px;flex-wrap:nowrap}.command-bar .quick-create{order:0;flex:1;min-width:0}.command-bar>button span:not(.button-count){display:none}.command-bar>button{padding:0 11px;min-height:44px;border-radius:10px}.command-bar>button .button-count{display:none}
- .command-bar .quick-create-field{padding:3px;gap:3px}.command-bar .quick-create-field input{min-width:0;font-size:16px}.command-bar .quick-create-field button[type=submit] span{display:none}.command-bar .quick-create-field button{min-width:40px}
+ .command-bar .quick-create-field{padding:3px;gap:3px}.command-bar .quick-create-field input{min-width:0;font-size:16px}.command-bar .quick-create-field button{min-width:40px}
  .stage-layout{display:flex;flex-direction:column;align-items:stretch;margin:12px;gap:12px;transition:none}.stage-main,.designs-drawer,#designs-drawer{width:100%;min-width:0}
  .designs-drawer{display:none}.drawer-open .designs-drawer{display:block}.designs-drawer-inner{width:auto;margin:0}
  /* The tools panel is a bottom sheet on a phone: it slides over the stage and scrolls on its own, with its own close button. */
@@ -433,7 +433,7 @@ h1,.landing-film-caption h1,.project-heading h1,[data-slot=dialog-title]{text-wr
  .tools-panel .config-panel{width:auto;margin:0;border:0;border-radius:0}.tools-panel .panel-heading{position:sticky;top:0;z-index:2;background:var(--surface);padding:12px 0;margin-bottom:8px;display:flex;align-items:center;gap:8px}
  .tools-close{display:grid;place-items:center;margin-left:auto;width:40px;height:40px;border:1px solid var(--line);border-radius:50%;background:var(--surface);color:var(--ink-2)}
  .studio-focused .stage-layout{padding-bottom:12px}
- .below-view{padding:8px 10px;gap:6px}.explode-control{min-width:0;width:100%}.hud-pill,.stage-hud .hud-details>summary{min-height:38px}
+ .below-view{padding:8px 10px;gap:6px}.explode-control{min-width:0;width:100%}.hud-pill{min-height:38px}
  .studio-explore .model-viewport{height:clamp(360px,58svh,640px)}
 }
 
@@ -442,14 +442,15 @@ h1,.landing-film-caption h1,.project-heading h1,[data-slot=dialog-title]{text-wr
 .stage-hud:focus{outline:none}
 .stage-hud .hud-title{display:flex;align-items:center;gap:8px;padding:5px 12px;background:var(--glass);border:1px solid var(--surface-2);border-radius:12px;min-width:0;max-width:100%;color:var(--ink-3)}
 .stage-hud .hud-title input{font:inherit;font-size:1.05rem;font-weight:600;letter-spacing:-.02em;background:transparent;border:0;color:var(--ink);min-width:0;width:100%;outline:none;padding:0}
-.stage-hud .hud-meta{display:flex;align-items:center;gap:8px;font-size:11px;letter-spacing:.12em;color:var(--ink-3);padding-left:4px;white-space:nowrap}
+.stage-hud .hud-meta{display:flex;align-items:center;gap:8px;font-size:11px;letter-spacing:.12em;color:var(--ink-3);padding:3px 8px;white-space:nowrap;background:var(--glass);border-radius:8px;-webkit-backdrop-filter:blur(6px);backdrop-filter:blur(6px)}
 .stage-hud .hud-meta .project-badge{margin:0}
 .stage-hud .hud-actions{display:flex;flex-wrap:wrap;gap:6px;max-width:100%}
-.hud-pill,.stage-hud .hud-details>summary{display:inline-flex;align-items:center;gap:6px;min-height:36px;padding:0 12px;font:inherit;font-size:.8rem;font-weight:500;color:var(--ink-2);background:var(--glass);border:1px solid var(--surface-2);border-radius:20px;cursor:pointer;list-style:none;white-space:nowrap}
-.hud-pill:hover,.stage-hud .hud-details>summary:hover{color:var(--ink);border-color:var(--line-strong)}.hud-pill.is-active{background:var(--ink);color:var(--surface);border-color:var(--ink)}
-.stage-hud .hud-details{position:relative}.stage-hud .hud-details>summary::-webkit-details-marker{display:none}.stage-hud .hud-details[open]>summary{color:var(--ink)}
-.stage-hud .hud-panel{position:absolute;top:calc(100% + 6px);left:0;width:min(360px,72vw);padding:12px 14px;display:grid;gap:8px;background:var(--surface);border:1px solid var(--line);border-radius:12px;box-shadow:var(--shadow-pop);font-size:.85rem;line-height:1.5;color:var(--ink-2)}
-.stage-hud .hud-panel p{margin:0}
+.hud-pill{display:inline-flex;align-items:center;gap:6px;min-height:36px;padding:0 12px;font:inherit;font-size:.8rem;font-weight:500;color:var(--ink-2);background:var(--glass);border:1px solid var(--surface-2);border-radius:20px;cursor:pointer;list-style:none;white-space:nowrap}
+.hud-pill:hover{color:var(--ink);border-color:var(--line-strong)}.hud-pill.is-active{background:var(--ink);color:var(--surface);border-color:var(--ink)}
+/* The caption is clamped on the stage; the full text lives in Build details, which opens below the canvas so it never covers the model. */
+.stage-hud .hud-caption{margin:-2px 0 0;padding:4px 8px;background:var(--glass);border-radius:8px;-webkit-backdrop-filter:blur(6px);backdrop-filter:blur(6px);max-width:440px;font-size:.82rem;line-height:1.45;color:var(--ink-2);display:-webkit-box;-webkit-line-clamp:2;line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;overflow-wrap:anywhere}
+.build-details{display:grid;gap:8px;padding:14px 24px 18px;border-bottom:1px solid var(--surface-2);font-size:.875rem;line-height:1.55;color:var(--ink-2)}.build-details p{margin:0;max-width:760px;overflow-wrap:anywhere}
+.build-details-head{display:flex;align-items:center;justify-content:space-between;gap:8px}.build-details-head strong{font-size:.95rem;font-weight:600;color:var(--ink)}.build-details-head .icon-button{width:44px;height:44px;border-radius:50%}.build-details-meta{font-size:.8rem;color:var(--ink-3)}
 /* Nothing in the stage may run past its column: metrics reflow, rows wrap, and below 1240px an open drawer floats over the stage while the tools are open. */
 .stage-main .model-metrics{grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:12px 0}.stage-main .below-view{flex-wrap:wrap}.stage-main .workspace-toolbar{flex-wrap:wrap;height:auto;min-height:61px}
 .stage-layout{position:relative}
@@ -458,7 +459,7 @@ h1,.landing-film-caption h1,.project-heading h1,[data-slot=dialog-title]{text-wr
  .studio-focused.drawer-open .designs-drawer{position:absolute;left:0;top:0;z-index:6;overflow:visible}
  .studio-focused.drawer-open .designs-drawer-inner{box-shadow:var(--shadow-pop);max-height:calc(100vh - 200px);overflow:auto}
 }
-@media(max-width:760px){.stage-hud{top:10px;left:10px;max-width:calc(100% - 70px);gap:6px}.stage-hud .hud-title input{font-size:.95rem}.stage-hud .hud-meta{display:none}.hud-pill,.stage-hud .hud-details>summary{min-height:34px;padding:0 10px;font-size:.75rem}}
+@media(max-width:760px){.stage-hud{top:10px;left:10px;max-width:calc(100% - 70px);gap:6px}.stage-hud .hud-title input{font-size:.95rem}.stage-hud .hud-meta{display:none}.hud-pill{min-height:34px;padding:0 10px;font-size:.75rem}}
 
 /* Sunlight slider beside Explode: dawn on the left, sunset on the right. */
 .light-control label{display:inline-flex;align-items:center;gap:6px}.light-control{min-width:170px}
@@ -621,7 +622,7 @@ h1,.landing-film-caption h1,.project-heading h1,[data-slot=dialog-title]{text-wr
 .design-flow.is-design .finish-feedback>label{font-size:16px;line-height:1.45;font-weight:550;color:var(--ink)}
 .design-flow.is-design .finish-feedback textarea{min-height:112px;font-size:15px;line-height:1.55;resize:vertical}
 .design-flow.is-design .finish-feedback .feedback-submit{display:flex;align-items:center;justify-content:center;gap:8px;width:100%;min-height:46px;padding:12px 16px;border-radius:9px;background:var(--primary);color:var(--on-accent);font-size:15px;font-weight:600;border:1px solid var(--primary);box-shadow:0 3px 10px #ed5a2620}
-.design-flow.is-design .finish-feedback .feedback-submit:disabled{opacity:.45;box-shadow:none;cursor:default}
+.design-flow.is-design .finish-feedback .feedback-submit:disabled{opacity:.45;box-shadow:none;cursor:default}.design-flow.is-design .finish-feedback .feedback-fix{display:flex;align-items:center;justify-content:center;gap:8px;width:100%;min-height:44px;height:auto;white-space:normal}
 .design-flow.is-design .finish-feedback .feedback-submit:not(:disabled):hover{filter:brightness(.96)}
 .design-flow.is-design .finish-feedback .feedback-submit:focus-visible{outline:2px solid var(--ink);outline-offset:3px}
 .feedback-queue{display:grid;gap:9px;padding:12px;border:1px solid var(--accent-muted);border-radius:9px;background:var(--accent-soft);font-size:13px;line-height:1.55;color:var(--ink-2);overflow-wrap:anywhere}
@@ -658,15 +659,15 @@ h1,.landing-film-caption h1,.project-heading h1,[data-slot=dialog-title]{text-wr
  .studio .brand{gap:7px;min-width:0}.studio .header-actions{gap:4px;flex-shrink:0}
  .studio .header-actions>.button{width:44px;height:44px;min-width:44px;padding:0}.studio .header-actions>.button>span{display:none}
  .studio .command-bar{padding:10px max(12px,env(safe-area-inset-right)) 12px max(12px,env(safe-area-inset-left));gap:10px}
- .studio .command-bar .quick-create-field button[type=submit]{width:44px;height:44px;padding:0;flex:none}.studio .command-bar .quick-create-field button[type=submit]>svg:last-child{display:none}
+ .studio .command-bar .quick-create-field textarea{min-height:90px} .studio .command-bar .quick-create-field button[type=submit]{height:44px;padding:0 12px;flex:none}.studio .command-bar .quick-create-field button[type=submit]>svg:last-child{display:none}
  .studio .stage-layout,.studio.studio-focused .stage-layout{margin:0 max(10px,env(safe-area-inset-right)) 20px max(10px,env(safe-area-inset-left));padding:0;gap:0}
  .studio .model-viewport,.studio.studio-explore .model-viewport{height:auto;min-height:0;display:flex;flex-direction:column;cursor:default;overflow:visible}
  .studio .stage-hud{position:relative;inset:auto;max-width:none;width:100%;padding:12px;gap:10px;background:var(--surface);border-bottom:1px solid var(--line);z-index:4}
  .studio .stage-hud .hud-title{width:100%;padding:0 10px;min-height:44px;border-color:var(--line);background:var(--surface)}
  .studio .stage-hud .hud-title input{font-size:16px;min-height:42px}
  .studio .stage-hud .hud-actions{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));width:100%;gap:7px}
- .studio .hud-pill,.studio .stage-hud .hud-details>summary{width:100%;min-width:0;min-height:44px;justify-content:center;white-space:normal;padding:7px 8px;font-size:13px;line-height:1.3;border-color:var(--line);border-radius:9px}
- .studio .stage-hud .hud-details{position:static}.studio .stage-hud .hud-panel{width:auto;top:calc(100% + 6px);left:12px;right:12px;max-height:45dvh;overflow:auto;overflow-wrap:anywhere;z-index:6}
+ .studio .hud-pill{width:100%;min-width:0;min-height:44px;justify-content:center;white-space:normal;padding:7px 8px;font-size:13px;line-height:1.3;border-color:var(--line);border-radius:9px}
+ .studio .stage-hud .hud-caption{padding:0 4px;font-size:13px;max-width:none}.studio .build-details{padding:12px}
  .studio .studio-model-canvas{position:relative;inset:auto;height:clamp(300px,48svh,490px);min-height:0;width:100%;flex:none;overflow:hidden}
  .studio .view-controls{top:auto;bottom:12px;right:12px;z-index:4;flex-direction:row;gap:4px}
  .studio .view-controls>button{width:44px;height:44px;min-height:44px}.studio .view-controls>.intro-speed{display:none}
@@ -702,8 +703,8 @@ h1,.landing-film-caption h1,.project-heading h1,[data-slot=dialog-title]{text-wr
  .generator-dialog.design-flow>[data-slot=dialog-header],.create-dialog>[data-slot=dialog-header]{padding-right:48px;text-align:left;margin:0 0 14px}
  .generator-dialog.design-flow [data-slot=dialog-title],.create-dialog [data-slot=dialog-title]{font-size:24px;line-height:1.2;overflow-wrap:anywhere}.generator-dialog.design-flow [data-slot=dialog-description],.create-dialog [data-slot=dialog-description]{font-size:14px;line-height:1.5}
  .generator-dialog>[data-slot=dialog-close],.create-dialog>[data-slot=dialog-close],.shopping-sheet>[data-slot=sheet-close]{position:fixed;top:calc(var(--visual-viewport-top,0px) + max(8px,env(safe-area-inset-top)));right:max(8px,env(safe-area-inset-right));width:44px;height:44px;display:grid;place-items:center;z-index:15;background:var(--surface-2);border-radius:50%;opacity:1;color:var(--ink)}
- .design-flow.is-design .creation-toolbar{margin:0 0 6px;gap:8px}.design-flow.is-design .creation-toolbar>div{width:100%;display:grid;grid-template-columns:1fr 1fr;gap:8px}
- .design-flow.is-design .creation-toolbar button{border-radius:9px;min-height:44px;padding:8px;font-size:13px;justify-content:center}.design-flow.is-design .creation-toolbar .creation-replay,.design-flow.is-design .creation-toolbar .creation-feedback-jump{display:none}
+ .design-flow.is-design .creation-toolbar{margin:0 0 6px;gap:8px}.design-flow.is-design .creation-toolbar>div{width:100%;display:grid;grid-auto-flow:column;grid-auto-columns:minmax(0,1fr);gap:8px}
+ .design-flow.is-design .creation-toolbar button{border-radius:9px;min-height:44px;padding:8px;font-size:13px;justify-content:center}.design-flow.is-design .creation-toolbar .creation-feedback-jump{display:none}
  .mobile-build-nav{display:flex;position:sticky;top:0;z-index:9;gap:8px;padding:8px 50px 8px 0;margin:0 0 8px;background:var(--surface);border-bottom:1px solid var(--line)}
  .mobile-build-nav button{display:flex;align-items:center;justify-content:center;gap:7px;flex:1;min-width:0;min-height:44px;border:1px solid var(--line);background:var(--surface-2);color:var(--ink);border-radius:9px;font-size:14px;font-weight:550}.mobile-feedback-dot{width:7px;height:7px;border-radius:50%;background:var(--primary)}
  .design-flow.is-design .generator-layout{display:flex;flex-direction:column;gap:12px;min-width:0}.design-flow.is-design:is(.mobile-preview,.mobile-refine) .generation-preview{order:0;display:flex;min-width:0;min-height:0;scroll-margin-top:72px;border-radius:12px;box-shadow:none;border:1px solid var(--line)}
@@ -750,3 +751,112 @@ h1,.landing-film-caption h1,.project-heading h1,[data-slot=dialog-title]{text-wr
 .run-usage{flex:1 1 100%;min-width:0;font-size:12px}.run-usage>summary{cursor:pointer;min-height:44px;display:flex;align-items:center;text-decoration:underline;text-underline-offset:3px}.run-usage-content{display:grid;gap:12px;padding:12px;border:1px solid var(--line);border-radius:10px;overflow-wrap:anywhere}.run-usage-stage{display:grid;gap:4px}.run-usage-stage strong{display:flex;justify-content:space-between;gap:12px;color:var(--ink-2)}.run-usage-stage small{font-size:12px;line-height:1.5}.run-usage-content p{font-size:12px;line-height:1.5}
 .share-dialog{max-width:620px!important;width:calc(100vw - 32px)!important}.share-status{display:flex;align-items:center;gap:9px;font-size:14px;color:var(--ink-3);padding:18px 0}.share-error{font-size:13px;line-height:1.7;background:var(--accent-soft);border:1px solid var(--accent-muted);color:var(--accent-deep);border-radius:6px;padding:12px 15px}.share-ready{display:flex;flex-direction:column;gap:12px}.share-preview{width:100%;height:auto;aspect-ratio:1200/630;border:1px solid var(--line);border-radius:8px;background:var(--surface-2)}.share-link{display:flex;gap:8px}.share-link>input{flex:1;min-width:0;border:1px solid var(--line);border-radius:6px;padding:0 12px;height:42px;font-size:14px;color:var(--ink-2);background:var(--surface)}.share-link>.button{white-space:nowrap}.share-native{align-self:flex-start}.shared-banner{display:flex;align-items:flex-start;gap:10px;margin:14px 36px 0;padding:11px 15px;border:1px solid var(--accent-muted);border-radius:8px;background:var(--accent-soft);color:var(--accent-deep);font-size:13px;line-height:1.6}.shared-banner>svg{flex-shrink:0;margin-top:3px}.shared-banner>span{flex:1;min-width:0}.shared-banner strong{font-weight:600}.shared-banner>.icon-button{margin:-4px -6px -4px auto;width:30px;height:30px;border:0;background:transparent;color:inherit}
 @media (max-width:1024px){.shared-banner{margin:10px 16px 0}.share-link{flex-direction:column}.share-link>.button{height:42px}}
+
+/* Streamlined studio: first run, one-step Create, the build plan chip, viewer mode and the My builds grid. */
+.gallery-link{gap:7px;text-decoration:none}
+.quick-create{position:relative}
+.quick-create-pitch{margin:0 0 2px 2px;font-size:.95rem;line-height:1.45;font-weight:500;color:var(--ink-2)}
+.command-bar .idea-attachments>p[id$="-help"]{display:none}
+.quick-create.is-dragging::after{content:"Drop photos to add them";position:absolute;inset:-6px;z-index:3;display:grid;place-items:center;border:2px dashed var(--primary);border-radius:16px;background:var(--accent-soft);color:var(--accent-deep);font-weight:600;pointer-events:none}
+.idea-drop-hint{font-size:13px;color:var(--ink-3)}
+/* "0 / 4 photos" is visual noise on the bar, but the count stays in the accessibility tree so its live update is heard. */
+.command-bar .idea-attachment-count[aria-label^="0 of"]{position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%);white-space:nowrap}
+@media(pointer:coarse){.idea-drop-hint{display:none}}
+.quick-create-ideas{margin-top:0}
+.quick-create-ideas>button:last-child{background:var(--surface);border-color:var(--surface-2)}
+.idea-attachment-actions .brief-chip-wrap{display:inline-flex;align-items:center;gap:2px}
+.idea-attachment-actions .brief-chip{gap:6px;min-height:40px;padding:6px 10px 6px 13px;border:1px solid var(--accent-muted);border-radius:999px;background:var(--accent-soft);color:var(--accent-deep);font-size:13px;font-weight:600;white-space:nowrap}
+.idea-attachment-actions .brief-chip:hover:not(:disabled){border-color:var(--primary);background:var(--accent-soft)}
+.idea-attachment-actions .brief-chip-reset{width:30px;min-height:30px;height:30px;padding:0;border:0;border-radius:50%;background:transparent;color:var(--ink-3)}
+.brief-chip-menu{min-width:270px}
+.brief-chip-note{margin-left:auto;padding-left:18px;font-size:12px;color:var(--muted-foreground)}
+.menu-section-label{font-size:11px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--muted-foreground)}
+.brief-chip-menu [data-slot=dropdown-menu-label]{font-size:11px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--muted-foreground)}
+/* HUD: one-line caption, a plain buildability verdict and the save status. */
+.stage-hud .hud-caption{-webkit-line-clamp:1;line-clamp:1}
+.stage-hud .hud-meta{flex-wrap:wrap;row-gap:6px}
+.buildability-chip{display:inline-flex;align-items:center;gap:5px;min-height:26px;padding:2px 9px;border:1px solid var(--line);border-radius:999px;background:var(--glass);font:inherit;font-size:12px;font-weight:600;letter-spacing:0;color:var(--ink-2);white-space:nowrap}
+.buildability-chip.is-solid{color:var(--ok-ink);background:var(--ok-bg);border-color:transparent}
+.buildability-chip.needs-attention{color:var(--warn-ink);background:var(--warn-bg);border-color:var(--warn-line)}
+button.buildability-chip{cursor:pointer}button.buildability-chip:hover{border-color:var(--line-strong)}
+.saved-status{display:inline-flex;align-items:center;gap:4px;font-size:11.5px;letter-spacing:0;color:var(--ink-3)}
+.hud-pill.hud-pill-ai{color:var(--accent-deep);border-color:var(--accent-muted)}
+.hud-pill.hud-pill-ai:hover{border-color:var(--primary)}
+/* The arrow pad shows for keyboard users only: focus on the model or tab into the pad. Fit stays. */
+.camera-navigation .camera-pad{display:contents}
+.camera-navigation>div{justify-self:start}
+.camera-navigation:not(:has(:focus-visible)) .camera-pan,.camera-navigation:not(:has(:focus-visible))>.camera-pad-label{position:absolute;width:1px;height:1px;min-height:0;overflow:hidden;clip-path:inset(50%);white-space:nowrap}
+.camera-navigation:not(:has(:focus-visible)) .camera-fit{border-left:0;border-radius:7px}
+.canvas-host:has(>canvas:focus-visible) .camera-navigation .camera-pan{position:static;width:44px;height:44px;min-height:44px;overflow:visible;clip-path:none}
+.canvas-host:has(>canvas:focus-visible) .camera-navigation>.camera-pad-label{position:static;width:auto;height:auto;overflow:visible;clip-path:none}
+.canvas-host:has(>canvas:focus-visible) .camera-navigation .camera-fit{border-left:1px solid var(--line);border-radius:0 7px 7px 0}
+/* Explore model on a touch screen keeps the pad too: it is the one-finger way to move the view (WCAG 2.5.1). */
+.canvas-host[data-touch-active=true] .camera-navigation .camera-pan{position:static;width:44px;height:44px;min-height:44px;overflow:visible;clip-path:none}
+.canvas-host[data-touch-active=true] .camera-navigation>.camera-pad-label{position:static;width:auto;height:auto;overflow:visible;clip-path:none}
+.canvas-host[data-touch-active=true] .camera-navigation .camera-fit{border-left:1px solid var(--line);border-radius:0 7px 7px 0}
+.view-menu{min-width:240px}
+/* Parts list: the buildability verdict, with the digital audit behind it. */
+.buildability-details{margin-bottom:22px;border:1px solid var(--surface-2);border-radius:10px;background:var(--surface)}
+.buildability-details>summary{display:flex;align-items:center;flex-wrap:wrap;gap:6px 10px;min-height:52px;padding:10px 16px;cursor:pointer;list-style:none}
+.buildability-details>summary::-webkit-details-marker{display:none}
+.buildability-details>summary::after{content:"+";margin-left:auto;font-size:1.15rem;color:var(--ink-3)}
+.buildability-details[open]>summary::after{content:"−"}
+.buildability-title{font-size:14px;font-weight:600;color:var(--ink)}
+.buildability-details>summary small{font-size:12.5px;color:var(--ink-3)}
+.buildability-details>.audit-strip,.buildability-details>.audit-actions{margin:0 12px 12px}
+/* Brief: two outcome tiers with an estimated range each. */
+.brief-options.tier-options{grid-template-columns:repeat(2,minmax(0,1fr))}
+.tier-cost{display:block;margin-top:3px;font-size:.8rem;font-weight:600;color:var(--ink-2)}
+.brief-advanced-settings .brief-dimensions label{display:grid;gap:6px;font-size:.85rem;font-weight:500}
+.brief-advanced-settings>div>label{font-size:.9rem;font-weight:550}
+.brief-legacy{margin:4px 0 0}
+/* Shared link viewer: the model first, then its name, caption and three actions. */
+.viewer-card{display:flex;align-items:flex-end;justify-content:space-between;flex-wrap:wrap;gap:16px 28px;padding:20px 24px 22px;border-top:1px solid var(--line)}
+.viewer-text{display:grid;gap:6px;flex:1 1 380px;min-width:0;max-width:620px}
+.studio-viewing .model-viewport{height:clamp(380px,60svh,760px)}
+.viewer-text h1{font-family:var(--font-display);font-size:clamp(26px,3vw,36px);font-weight:650;letter-spacing:-.03em;line-height:1.1;color:var(--ink);overflow-wrap:anywhere}
+.viewer-caption{font-size:15px;line-height:1.55;color:var(--ink-2)}
+.viewer-meta{font-size:13px;color:var(--ink-3)}
+.viewer-actions{display:flex;flex-wrap:wrap;gap:8px}
+.viewer-actions .button{min-height:44px;gap:8px}
+/* The viewer's main action carries white text, so it takes a deeper orange than the brand fill (5.2:1). */
+.viewer-actions .button.primary{background:#c2410c;border-color:#c2410c}.viewer-actions .button.primary:hover:not(:disabled){background:#9a3412;border-color:#9a3412}
+/* My builds: a visual grid; one click opens a card, the rest is in its ⋯ menu. */
+.designs-drawer .design-section{display:grid;gap:9px}
+.design-section-title{display:flex;align-items:baseline;flex-wrap:wrap;gap:4px 8px;margin:0;font-size:11px;font-weight:600;letter-spacing:.12em;text-transform:uppercase;color:var(--ink-3)}
+.design-section-title small{font-size:12px;font-weight:400;letter-spacing:0;text-transform:none}
+.design-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px 10px;margin:0;padding:0;list-style:none}
+.design-card{position:relative;min-width:0}
+.design-card-open{display:grid;gap:7px;width:100%;padding:0;border:0;border-radius:10px;background:transparent;color:inherit;font:inherit;text-align:left;cursor:pointer}
+.design-card-open:focus-visible{outline:2px solid var(--primary);outline-offset:3px}
+.design-thumb{position:relative;display:grid;place-items:center;aspect-ratio:4/3;overflow:hidden;border:1px solid var(--line);border-radius:10px;background:hsl(var(--thumb-hue) 45% 93%);color:hsl(var(--thumb-hue) 35% 36%);font-family:var(--font-display);font-size:28px;font-weight:650}
+.dark .design-thumb{background:hsl(var(--thumb-hue) 22% 20%);color:hsl(var(--thumb-hue) 45% 78%)}
+.design-thumb img{width:100%;height:100%;object-fit:cover}
+.design-card-open:hover .design-thumb{border-color:var(--line-strong)}
+.design-card.is-draft .design-thumb{border-style:dashed}
+.design-pin{position:absolute;left:8px;top:8px;color:var(--accent-deep)}
+.design-card-text{display:grid;gap:2px;min-width:0;padding:0 2px}
+.design-card-text strong{display:-webkit-box;-webkit-line-clamp:2;line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;overflow-wrap:anywhere;font-size:13px;font-weight:600;line-height:1.3;color:var(--ink)}
+.design-card-text small{font-size:11.5px;color:var(--ink-3)}
+.design-card-menu{position:absolute;top:5px;right:5px;display:grid;place-items:center;width:32px;height:32px;padding:0;border:1px solid var(--line);border-radius:50%;background:var(--glass);color:var(--ink-2)}
+.design-card-menu:hover{color:var(--ink);border-color:var(--line-strong)}
+.drawer-gallery-link{display:inline-flex;align-items:center;gap:8px;padding:12px 2px 2px;border-top:1px solid var(--surface-2);font-size:13px;font-weight:550;color:var(--ink-2);text-decoration:none}
+.drawer-gallery-link:hover{color:var(--accent-deep)}
+.design-card.is-deleted .design-thumb{gap:8px;place-content:center;justify-items:center;border-style:dashed;background:var(--surface-2);color:var(--ink-3);font-family:inherit;font-size:12.5px;font-weight:500}
+.design-undo-button{display:inline-flex;align-items:center;gap:6px;min-height:36px;padding:0 14px;border:1px solid var(--line-strong);border-radius:999px;background:var(--surface);color:var(--ink);font:inherit;font-size:13px;font-weight:600}
+.design-undo-button:hover{border-color:var(--ink-3)}.design-undo-button:focus-visible{outline:2px solid var(--primary);outline-offset:2px}
+.design-card.is-deleted .design-card-text{color:var(--ink-3)}.design-card.is-deleted .design-card-text strong{color:var(--ink-3);text-decoration:line-through}
+/* A toast's action stays tappable while a modal sheet has turned pointer events off on the page. */
+[data-sonner-toast]:not([data-visible=false]){pointer-events:auto}
+@media(max-width:1024px){
+ .studio .stage-hud .hud-meta{display:flex;font-size:10px}
+ .studio .hud-pill{white-space:nowrap;padding:0 10px;border-radius:999px}
+ .viewer-card{flex-direction:column;align-items:stretch;gap:14px;padding:16px 14px 18px}.viewer-text{flex:none;max-width:none}
+ .viewer-actions{display:grid;grid-template-columns:1fr 1fr}.viewer-actions .button.primary{grid-column:1/-1}
+ .viewer-caption{font-size:14px}
+ .design-grid{gap:14px 12px}.design-card-menu{width:40px;height:40px;top:4px;right:4px}.design-undo-button{min-height:44px}
+ .idea-attachment-actions .brief-chip{min-height:44px}
+ .quick-create-pitch{font-size:.9rem}
+ .quick-create-ideas{gap:6px}.quick-create-ideas>span{flex-basis:100%}.quick-create-ideas>button{min-height:40px;padding:6px 10px;gap:8px;font-size:13px}
+ .studio .stage-hud{gap:7px;padding:10px 12px}.studio .stage-hud .hud-title{min-height:40px}.studio .stage-hud .hud-title input{min-height:38px}
+}

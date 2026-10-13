@@ -19,7 +19,7 @@ export default function RegionMarker({onSelect,onCancel}:Props){
  const cancelStroke=()=>{const id=pointer.current;pointer.current=null;drawing.current=[];setIsDrawing(false);setPoints(previousPoints.current);if(id!==null&&svg.current)release(svg.current,id);};
  const marked=points.length>=3&&!isDrawing;
  return <div className={"region-marker"+(isDrawing?" is-drawing":"")+(marked?" has-selection":"")} onKeyDown={e=>{if(e.key==="Escape"){e.preventDefault();e.stopPropagation();onCancel();}}}>
-  <svg ref={svg} viewBox="0 0 1000 1000" preserveAspectRatio="none" tabIndex={0} role="group" aria-label="Mark an area to edit. Draw a loop, then choose Use marked area. Arrow keys move a selection, Shift and arrows resize, and Enter attaches it. Escape cancels."
+  <svg ref={svg} viewBox="0 0 1000 1000" preserveAspectRatio="none" tabIndex={0} role="group" aria-label="Draw around the area to change. Draw a loop, then choose Use this area. Arrow keys move a selection, Shift and arrows resize, and Enter attaches it. Escape cancels."
    onKeyDown={e=>{
     if(e.key==="Enter"){e.preventDefault();select(points.length?points:centered);return;}
     if(!["ArrowLeft","ArrowRight","ArrowUp","ArrowDown"].includes(e.key))return;
@@ -42,11 +42,11 @@ export default function RegionMarker({onSelect,onCancel}:Props){
    onPointerUp={e=>{
     if(pointer.current!==e.pointerId)return;e.preventDefault();const point=at(e),raw=point?[...drawing.current,point]:drawing.current;pointer.current=null;drawing.current=[];setIsDrawing(false);release(e.currentTarget,e.pointerId);
     const polygon=cleanRegionPolygon(raw);if(polygon.length<3){setPoints(previousPoints.current);setMessage("Draw a larger loop around the area you want to change.");return;}
-    setPoints(polygon);setMessage("Choose Use marked area, or draw a new loop.");
+    setPoints(polygon);setMessage("Choose Use this area, or draw a new loop.");
    }}
    onPointerCancel={e=>{if(pointer.current===e.pointerId){cancelStroke();setMessage("Drawing canceled. Try again with one finger.");}}}
    onLostPointerCapture={e=>{if(pointer.current===e.pointerId)cancelStroke();}}
   >{points.length>1&&<polygon points={points.map(p=>`${p.x*1000},${p.y*1000}`).join(" ")} fill="#fb541e24" fillRule="evenodd" stroke="#fb541e" strokeWidth="3" vectorEffect="non-scaling-stroke"/>}</svg>
-  <div className="region-marker-help"><strong>{marked?"Review your marked area":"Draw around the area to change"}</strong><span className="region-marker-status" role="status">{isDrawing?"Release to preview your area.":message||"Draw one loop. Empty space can be included for additions."}</span><div className="region-marker-actions"><button type="button" disabled={isDrawing} onClick={()=>select(marked?points:centered)}><Check size={16}/>{marked?"Use marked area":"Use center area"}</button>{marked&&<button type="button" className="region-marker-redraw" onClick={()=>{setPoints([]);setMessage("");svg.current?.focus({preventScroll:true});}}><RotateCcw size={16}/>Redraw</button>}<button type="button" onClick={onCancel}><X size={16}/>Cancel</button></div></div>
+  <div className="region-marker-help"><strong>{marked?"Check the drawn area":"Draw around the area to change"}</strong><span className="region-marker-status" role="status">{isDrawing?"Release to preview your area.":message||"Draw one loop. Empty space can be included for additions."}</span><div className="region-marker-actions"><button type="button" disabled={isDrawing} onClick={()=>select(marked?points:centered)}><Check size={16}/>{marked?"Use this area":"Use center area"}</button>{marked&&<button type="button" className="region-marker-redraw" onClick={()=>{setPoints([]);setMessage("");svg.current?.focus({preventScroll:true});}}><RotateCcw size={16}/>Redraw</button>}<button type="button" onClick={onCancel}><X size={16}/>Cancel</button></div></div>
  </div>;
 }

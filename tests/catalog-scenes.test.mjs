@@ -19,7 +19,7 @@ test('catalog parts derive authoritative dimensions for all yaw faces, including
   const input=part('Element',pid,3,2,3,{face,size:{x:70,y:70,z:70}}),validated=validateScene(scene([base,input])),shape=validated.shapes[1],p=catalogPiece(shape),turned=face==='px'||face==='nx';
   assert.deepEqual(shape.size,{x:turned?PARTS[pid].d:PARTS[pid].w,y:PARTS[pid].h,z:turned?PARTS[pid].w:PARTS[pid].d});assert.equal(p.face,face);assert.equal(p.rotated,turned);
  }
- for(const patch of [{part:'UNKNOWN'},{color:'red'},{operation:'subtract'},{position:{x:2.5,y:2,z:2}},{position:{x:14,y:2,z:2}}])assert.throws(()=>validateScene(scene([base,{...part('Element','TESTARCH',2,2,2),...patch}])),/unknown|listed|remove|whole|outside/i);
+ for(const patch of [{part:'UNKNOWN'},{color:'red'},{operation:'subtract'},{position:{x:2.5,y:2,z:2}},{position:{x:14,y:2,z:2}}])assert.throws(()=>validateScene(scene([base,{...part('Element','TESTARCH',2,2,2),...patch}]),{fresh:true}),/unknown|listed|remove|whole|outside/i);
 });
 
 test('actual occupancy permits a separate real part inside an arch opening and rejects solid overlaps',()=>{

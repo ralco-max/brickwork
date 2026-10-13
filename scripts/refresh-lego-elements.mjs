@@ -1,5 +1,7 @@
 // Refresh the small subset of Rebrickable's public element catalog used by Brickwork.
 // No API key and no per-user requests are needed. This is not a stock/price feed.
+// Colours are matched on their Rebrickable ID (lib/colors.ts rebrickable), never the LDraw code:
+// Trans-Light Blue is Rebrickable 41 / LDraw 43, and Rebrickable 43 is Trans-Very Lt Blue.
 import {build} from "esbuild";
 import {readFile,writeFile,mkdir} from "node:fs/promises";
 import {createHash} from "node:crypto";
@@ -11,8 +13,8 @@ const root=path.resolve(path.dirname(fileURLToPath(import.meta.url)),".."),args=
 const option=name=>{const index=args.indexOf(name);return index>=0?args[index+1]:undefined;};
 const sourceDir=option("--source-dir"),updatedAt=option("--date")||new Date().toISOString().slice(0,10);
 if(!/^\d{4}-\d{2}-\d{2}$/.test(updatedAt))throw Error("Use an ISO date with --date.");
-const bundle=await build({stdin:{contents:'export {PARTS,COLORS,WHEELS} from "./lib/bridge";',resolveDir:root,loader:"ts"},bundle:true,platform:"node",format:"esm",write:false});
-const {PARTS,COLORS,WHEELS}=await import("data:text/javascript;base64,"+Buffer.from(bundle.outputFiles[0].text).toString("base64"));
+const bundle=await build({stdin:{contents:'export {ELEMENTS,COLORS,WHEELS} from "./lib/bridge";',resolveDir:root,loader:"ts"},bundle:true,platform:"node",format:"esm",write:false});
+const {ELEMENTS,COLORS,WHEELS}=await import("data:text/javascript;base64,"+Buffer.from(bundle.outputFiles[0].text).toString("base64"));
 
 // A full CSV parser is necessary: source descriptions can contain quoted commas.
 function csv(text){
@@ -40,22 +42,23 @@ if(!elements.length||!Object.hasOwn(elements[0],"element_id")||!Object.hasOwn(el
 // This alias is evidenced by elements.design_id=3040 and parts.part_num=3040b.
 const aliases={"3040":"3040b"};
 for(const [key,color] of Object.entries(COLORS)){
- const actual=colors.find(row=>row.id===String(color.ldraw));
- if(!actual||actual.is_trans!=="False"||actual.name.toLowerCase()!==color.name.toLowerCase())throw Error(`Verify the source color mapping for ${key} before refreshing.`);
+ const actual=colors.find(row=>row.id===String(color.rebrickable));
+ if(!actual||/^(t|true)$/i.test(actual.is_trans)!==Boolean(color.transparent)||actual.name.toLowerCase()!==color.name.toLowerCase())throw Error(`Verify the source color mapping for ${key} (Rebrickable ${color.rebrickable}) before refreshing.`);
 }
 const catalog={},missing=[];
-for(const part of Object.keys(PARTS).sort()){
+// Every element a parts list can name, including the glass and doors fitted into frames.
+for(const part of Object.keys(ELEMENTS).sort()){
  if(Object.hasOwn(WHEELS,part)||part==="minifig")continue; // App wheels include a tire; catalog numbers identify the rim only.
  const sourcePart=aliases[part]||part;
  if(!parts.some(row=>row.part_num===sourcePart))throw Error(`Unknown source part ${sourcePart}.`);
  for(const [colorKey,color] of Object.entries(COLORS)){
-  const rows=elements.filter(row=>row.part_num===sourcePart&&row.color_id===String(color.ldraw)&&/^\d{6,8}$/.test(row.element_id));
+  const rows=elements.filter(row=>row.part_num===sourcePart&&row.color_id===String(color.rebrickable)&&/^\d{6,8}$/.test(row.element_id));
   if(aliases[part]&&!elements.some(row=>row.part_num===sourcePart&&row.design_id===part))throw Error(`Verify the design alias for ${part}.`);
   const ids=[...new Set(rows.map(row=>row.element_id))].sort((a,b)=>Number(b)-Number(a));
   if(ids.length)catalog[`${part}:${colorKey}`]=ids;else missing.push(`${part}:${colorKey}`);
  }
 }
-const output={version:1,updatedAt,sourceUrl:"https://rebrickable.com/downloads/",attribution:"LEGO element catalog data from Rebrickable",selection:"Highest numeric catalog element ID for the exact part and color; other known IDs retained. This ordering is not a stock or release-date claim.",sources:sources.sort((a,b)=>a.url.localeCompare(b.url)),partAliases:aliases,assemblyParts:Object.keys(WHEELS),missing,elements:catalog};
+const output={version:1,updatedAt,sourceUrl:"https://rebrickable.com/downloads/",attribution:"LEGO element catalog data from Rebrickable",selection:"Highest numeric catalog element ID for the exact part and color; other known IDs retained. This ordering is not a stock or release-date claim.",sources:sources.sort((a,b)=>a.url.localeCompare(b.url)),colors:Object.fromEntries(Object.entries(COLORS).map(([key,color])=>[key,color.rebrickable])),partAliases:aliases,assemblyParts:Object.keys(WHEELS),missing,elements:catalog};
 await mkdir(path.join(root,"lib/data"),{recursive:true});
 await writeFile(path.join(root,"lib/data/lego-elements.json"),JSON.stringify(output,null,2)+"\n");
 console.log(`Saved ${Object.keys(catalog).length} exact part/color matches; ${missing.length} absent combinations; ${Object.keys(WHEELS).length} wheel assemblies need separate components.`);

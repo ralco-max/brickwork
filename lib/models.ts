@@ -1,15 +1,18 @@
 import type {GeneratedScene} from "./generated-scene";
-import {readProjectMetadata} from "./design-project";
+import {readProjectMetadata,migrateCaption} from "./design-project";
+import {clipSentence} from "./utils";
 import type {DesignContext,ShoppingState} from "./design-project";
-import {COLORS,PARTS,STAGES,auditModel,LEGACY_PARTS} from "./bridge";
-import {EXPANDED_PARTS} from "./part-catalog";
-import {partDimensions,piecesIntersect,forEachPieceCell,topConnectorOffsets,bottomConnectorOffsets} from "./part-spatial";
+import {COLORS,PARTS,STAGES,SLOPES,auditModel,LEGACY_PARTS} from "./bridge";
+import {EXPANDED_PARTS,fittedElement,fittedColor} from "./part-catalog";
+import {partColors,partAllowsColor} from "./part-colors";
+import {SOLID_COLORS} from "./colors";
+import {partDimensions,piecesIntersect,cellsIntersect,forEachPieceCell,pieceClearanceOffsets,topConnectorOffsets,bottomConnectorOffsets} from "./part-spatial";
 import type {ColorKey,Piece,InventoryRow,PartId,Config,Face} from "./bridge";
 import {goldenGate,neuschwanstein,capeHatteras,saturnV} from "./landmarks";
 
 export type Recipe = "bridge"|"castle"|"lighthouse"|"house"|"rocket"|"robot"|"car"|"tree"|"cat"|"dog"|"boat"|"skyline"|"blank";
 export type Detail = "small"|"medium"|"large";
-export type BuildModel={libraryId?:string;design?:DesignContext;shopping?:ShoppingState;generation?:GeneratedScene;name:string;description:string;source:"recipe"|"mosaic"|"mesh"|"custom";recipe?:Recipe;detail?:Detail;primary?:ColorKey;accent?:ColorKey;bridgeConfig?:Config;pieces:Piece[];inventory:InventoryRow[];length:number;width:number;height:number;stages:{title:string;text:string}[];};
+export type BuildModel={libraryId?:string;design?:DesignContext;shopping?:ShoppingState;generation?:GeneratedScene;name:string;description:string;source:"recipe"|"mosaic"|"mesh"|"custom";edited?:boolean;recipe?:Recipe;detail?:Detail;primary?:ColorKey;accent?:ColorKey;bridgeConfig?:Config;pieces:Piece[];inventory:InventoryRow[];length:number;width:number;height:number;stages:{title:string;text:string}[];};
 export const RECIPES:{id:Recipe;name:string;prompt:string;color:ColorKey;description:string}[]=[
  {id:"bridge",name:"Golden Gate Bridge",prompt:"The Golden Gate Bridge in red",color:"red",description:"Art Deco towers, suspension cables, Fort Point and the Marin headlands"},
  {id:"castle",name:"Neuschwanstein",prompt:"Neuschwanstein Castle in white with navy slate roofs",color:"white",description:"Ludwig's Bavarian castle on its rock: the Palas, its towers and the red gatehouse"},
@@ -26,7 +29,8 @@ export const RECIPES:{id:Recipe;name:string;prompt:string;color:ColorKey;descrip
  {id:"blank",name:"Blank canvas",prompt:"Start with a blank canvas",color:"gray",description:"A studded base for your own design"},
 ];
 const defaultNames:Record<Recipe,string>={bridge:"Golden Gate Bridge",castle:"Neuschwanstein Castle",lighthouse:"Cape Hatteras Lighthouse",house:"Weekend cottage",rocket:"Saturn V",robot:"Your tiny sidekick",car:"Sunday drive",tree:"A little green escape",cat:"Curious cat",dog:"Best friend",boat:"Set sail",skyline:"City after dark",blank:"Untitled build"};
-export function inventoryFor(pieces:Piece[]) {const map=new Map<string,InventoryRow>();for(const p of pieces){const key=`${p.part}:${p.color}`,r=map.get(key);if(r)r.quantity++;else map.set(key,{key,part:p.part,color:p.color,quantity:1});}return [...map.values()].sort((a,b)=>b.quantity-a.quantity);}
+// A frame's fitted glass or door is its own element in its own colour, so it gets its own row.
+export function inventoryFor(pieces:Piece[]) {const map=new Map<string,InventoryRow>(),count=(part:string,color:ColorKey)=>{const key=`${part}:${color}`,r=map.get(key);if(r)r.quantity++;else map.set(key,{key,part,color,quantity:1});};for(const p of pieces){count(p.part,p.color);const fitted=fittedElement(p.part);if(fitted)count(fitted.part,fittedColor(p)!);}return [...map.values()].sort((a,b)=>b.quantity-a.quantity);}
 export function finishModel(pieces:Piece[],meta:Pick<BuildModel,"name"|"description"|"source">&Partial<BuildModel>,keepStages=false):BuildModel {
  const clean=pieces.map((p,id)=>({...p,id}));const maxY=Math.max(1,...clean.map(p=>p.y+p.h));
  let stages=meta.stages||STAGES;
@@ -58,12 +62,25 @@ function catalogPackingOptions():PackingOption[]{
  }
  return expandedPackingOptions=options;
 }
-export function packVoxels(voxels:VoxelMap,settings:{expanded?:boolean}={}):Piece[]{
+const CORE_PACKING:PartId[]=["3007","3001","3008","3009","3010","3003","3004","3035","3034","3020","3460","3666","3710","3022","3005","3023","3024"];
+let packingPartSet:ReadonlySet<string>|undefined;
+/**
+ * Every part the packer, smooth tops or slope carving may choose for a scene's plain cells. Which of them fills a cell
+ * (and the filler colour of a cell no plate comes in) follows the part-colour data, which a refresh can change; the cells
+ * they fill do not. Manual bricks, catalog parts, wheels and figures are placed as drawn, never chosen this way.
+ */
+export function packingParts():ReadonlySet<string>{return packingPartSet??=new Set<string>([...CORE_PACKING,...catalogPackingOptions().map(o=>o.part),...Object.values(PLATE_TO_TILE) as string[],"87079",...Object.keys(SLOPES)]);}
+export function packVoxels(input:VoxelMap,settings:{expanded?:boolean}={}):Piece[]{
+ // Each core part below only takes the colours it is made in. A colour without a 1 x 1 plate could
+ // never be filled, so it becomes the nearest colour that has one rather than leaving holes.
+ const filler=partColors("3024"),swap=new Map<ColorKey,ColorKey>(),fill=(c:ColorKey)=>{if(filler.includes(c))return c;let v=swap.get(c);if(!v){v=nearestColor(...hexRgb(COLORS[c].hex),filler);swap.set(c,v);}return v;};
+ const voxels=[...input.values()].every(c=>filler.includes(c))?input:new Map([...input].map(([k,c])=>[k,fill(c)]));
  const remaining=new Map(voxels),pieces:Piece[]=[],owners=new Map<string,number>();
- const ids:PartId[]=["3007","3001","3008","3009","3010","3003","3004","3035","3034","3020","3460","3666","3710","3022","3005","3023","3024"];
+ const ids=CORE_PACKING;
  type Option=PackingOption;
- const options:Option[]=ids.flatMap(part=>[false,true].map(rotated=>{const p=PARTS[part];return {part,rotated,w:rotated?p.d:p.w,d:rotated?p.w:p.d,h:p.h};}));
+ const options:Option[]=ids.flatMap(part=>[false,true].map(rotated=>{const p=PARTS[part];return {part,rotated,w:rotated?p.d:p.w,d:rotated?p.w:p.d,h:p.h,colors:partColors(part)};}));
  if(settings.expanded)options.push(...catalogPackingOptions());
+ const byColor=new Map<ColorKey,Option[]>(),optionsFor=(c:ColorKey)=>{let v=byColor.get(c);if(!v){v=options.filter(p=>!p.colors||p.colors.includes(c));byColor.set(c,v);}return v;};
  const positions=[...voxels.keys()].map(k=>k.split(",").map(Number)).sort((a,b)=>a[1]-b[1]||a[2]-b[2]||a[0]-b[0]);
  const tieLayers=new Set<number>();for(const [x,y,z] of positions)if(y>1&&!voxels.has(voxelKey(x,y-1,z))){tieLayers.add(y);tieLayers.add(y+1);}
  // Score option p with its minimum corner at (x,y,z), or null when it cannot go there.
@@ -87,25 +104,29 @@ export function packVoxels(voxels:VoxelMap,settings:{expanded?:boolean}={}):Piec
    const color=remaining.get(voxelKey(x,y,z));if(!color||voxels.has(voxelKey(x,y-1,z)))continue;
    let best:{p:Option;x:number;z:number}|undefined,bestScore=-1;
    // Bridging as much unsupported span as possible comes first, then piece size.
-   for(const p of options)for(let ox=0;ox<p.w;ox++)for(let oz=0;oz<p.d;oz++){const r=evaluate(p,x-ox,y,z-oz,color);if(!r||!r.supports)continue;const score=r.overhang*64+r.score;if(score>bestScore){bestScore=score;best={p,x:x-ox,z:z-oz};}}
+   for(const p of optionsFor(color))for(let ox=0;ox<p.w;ox++)for(let oz=0;oz<p.d;oz++){const r=evaluate(p,x-ox,y,z-oz,color);if(!r||!r.supports)continue;const score=r.overhang*64+r.score;if(score>bestScore){bestScore=score;best={p,x:x-ox,z:z-oz};}}
    if(best)place(best.p,color,best.x,y,best.z);
   }
   // Brick orientations change by layer to cross seams wherever the shape allows it.
   for(const [x,,z] of layer){const color=remaining.get(voxelKey(x,y,z));if(!color)continue;
    let best:Option|undefined,bestScore=-1;
-   for(const p of options){const r=evaluate(p,x,y,z,color);if(r&&r.score>bestScore){best=p;bestScore=r.score;}}
+   for(const p of optionsFor(color)){const r=evaluate(p,x,y,z,color);if(r&&r.score>bestScore){best=p;bestScore=r.score;}}
    if(best)place(best,color,x,y,z);
   }
  }
  if(pieces.length>16000)throw Error("This model needs too many pieces. Choose a smaller size and try again.");
  return pieces;
 }
+// Preset colours are opaque (a whole preset in glass or gold would be thousands of small parts).
+// Longer names first, so "dark red" is never read as red.
+const COLOR_WORDS:Record<string,ColorKey>={...Object.fromEntries(["red","orange","blue","navy","black","gray","white","green","tan","yellow","brown","pink","lime"].map(k=>[k,k as ColorKey])),grey:"gray","dark brown":"darkbrown","dark blue":"navy","dark bluish gray":"darkgray","dark bluish grey":"darkgray","dark gray":"darkgray","dark grey":"darkgray","dark tan":"darktan","dark red":"darkred","sand green":"sandgreen","dark green":"darkgreen","medium azure":"mediumazure",azure:"mediumazure","medium nougat":"mediumnougat",nougat:"mediumnougat",silver:"gray"};
+const COLOR_PATTERN=new RegExp(`\\b(${Object.keys(COLOR_WORDS).sort((a,b)=>b.length-a.length).map(w=>w.replace(/ /g,"[\\s-]+")).join("|")})\\b`,"g");
 export function parseIdea(text:string):{recipe:Recipe;color:ColorKey;accent:ColorKey;detail?:Detail;applied:string[]}|{error:string}{
  const t=text.toLowerCase();
  const terms:[Recipe,RegExp][]=[["bridge",/\b(bridge|golden gate)\b/],["lighthouse",/\b(lighthouse|beacon|hatteras)\b/],["castle",/\b(castle|fortress|palace|neuschwanstein)\b/],["house",/\b(house|cottage|cabin|home)\b/],["rocket",/\b(rocket|spaceship|spacecraft|saturn v|apollo)\b/],["robot",/\b(robot|droid)\b/],["car",/\b(car|convertible|bmw|roadster|automobile)\b/],["tree",/\b(tree|bonsai|oak)\b/],["cat",/\b(cat|kitten)\b/],["dog",/\b(dog|puppy|pup)\b/],["boat",/\b(boat|sailboat|yacht|ship)\b/],["skyline",/\b(skyline|city|skyscraper)\b/],["blank",/\b(blank|empty)\b/]];
  const hit=terms.find(([,r])=>r.test(t));if(!hit)return {error:"No matching preset."};
  const recipe=hit[0],r=RECIPES.find(r=>r.id===recipe)!;
- const colorWords=[...t.matchAll(/\b(red|orange|blue|navy|black|gray|grey|white|green|tan|yellow|dark brown|brown|pink)\b/g)].map(m=>(m[1]==="grey"?"gray":m[1]==="dark brown"?"darkbrown":m[1]) as ColorKey);
+ const colorWords=[...t.matchAll(COLOR_PATTERN)].map(m=>COLOR_WORDS[m[1].replace(/[\s-]+/g," ")]);
  const color=colorWords[0]||r.color,accent=colorWords[1]||({castle:"navy",house:"red",rocket:"red",robot:"yellow",car:"black",tree:"brown",cat:"white",dog:"white",boat:"blue",skyline:"yellow",lighthouse:"white",bridge:"blue",blank:"white"} as Record<Recipe,ColorKey>)[recipe];
  const detail=/\b(tiny|small|mini|compact)\b/.test(t)?"small":/\b(large|big|huge|display)\b/.test(t)?"large":undefined;
  return {recipe,color,accent,detail,applied:[r.name,`${COLORS[color].name} body`,`${COLORS[accent].name} accents`,...(detail?[`${detail} size`]:[])]};
@@ -145,20 +166,35 @@ export function generateRecipe(recipe:Recipe,detail:Detail="medium",primary?:Col
  }else base(32,24,p);
  return finishModel(packVoxels(voxels),{name:defaultNames[recipe],description:RECIPES.find(r=>r.id===recipe)!.description,source:"recipe",recipe,detail,primary:p,accent:a});
 }
-export function nearestColor(r:number,g:number,b:number):ColorKey {
- let best:ColorKey="white",distance=Infinity;for(const [key,c] of Object.entries(COLORS)){const hex=parseInt(c.hex.slice(1),16),dr=r-(hex>>16),dg=g-((hex>>8)&255),db=b-(hex&255),v=dr*dr*.3+dg*dg*.59+db*db*.11;if(v<distance){distance=v;best=key as ColorKey;}}return best;
+// CIELAB (sRGB, D65): equal distances look about equally different. Weighted RGB sent dark bluish
+// gray concrete to green and medium blue to gray; in Lab they land on dark bluish gray and blue.
+// (CIEDE2000 was tried: it compresses chroma for large differences and sent medium blue to gray.)
+export function rgbLab(r:number,g:number,b:number):[number,number,number]{
+ const lin=(c:number)=>{c/=255;return c<=.04045?c/12.92:((c+.055)/1.055)**2.4;},R=lin(r),G=lin(g),B=lin(b);
+ const f=(t:number)=>t>.008856?Math.cbrt(t):7.787*t+16/116,fx=f((R*.4124+G*.3576+B*.1805)/.95047),fy=f(R*.2126+G*.7152+B*.0722),fz=f((R*.0193+G*.1192+B*.9505)/1.08883);
+ return [116*fy-16,500*(fx-fy),200*(fy-fz)];
 }
+export const hexRgb=(hex:string):[number,number,number]=>{const n=parseInt(hex.slice(1),16);return [n>>16,(n>>8)&255,n&255];};
+// The palette colour nearest an RGB value, optionally only among the colours a part is made in. A
+// pixel cannot ask for glass or metal, so by default only opaque colours are candidates.
+export function nearestColor(r:number,g:number,b:number,among:readonly ColorKey[]=SOLID_COLORS):ColorKey {
+ const [L,A,B]=rgbLab(r,g,b);let best:ColorKey=among[0]||"white",distance=Infinity;
+ for(const key of among){const [l,a,bb]=paletteLab(key),v=(L-l)**2+(A-a)**2+(B-bb)**2;if(v<distance){distance=v;best=key;}}return best;
+}
+const labCache=new Map<ColorKey,[number,number,number]>();
+const paletteLab=(key:ColorKey)=>{let v=labCache.get(key);if(!v){v=rgbLab(...hexRgb(COLORS[key].hex));labCache.set(key,v);}return v;};
 export function mosaicFromPixels(data:ArrayLike<number>,width:number,height:number,name:string):BuildModel {
  if(width<1||height<1||width>96||height>96||data.length!==width*height*4)throw Error("Invalid image dimensions.");
  const voxels:VoxelMap=new Map();for(let z=0;z<height;z++)for(let x=0;x<width;x++){const i=(z*width+x)*4,alpha=data[i+3]/255,c=nearestColor(data[i]*alpha+255*(1-alpha),data[i+1]*alpha+255*(1-alpha),data[i+2]*alpha+255*(1-alpha));voxels.set(voxelKey(x,0,z),"gray");voxels.set(voxelKey(x,1,z),"gray");voxels.set(voxelKey(x,2,z),c);}
- return finishModel(packVoxels(voxels),{name,description:`${width} × ${height} stud mosaic · 13-color brick palette`,source:"mosaic"});
+ return finishModel(packVoxels(voxels),{name,description:`${width} × ${height} stud mosaic · ${SOLID_COLORS.length}-color brick palette`,source:"mosaic"});
 }
 export const intersects=piecesIntersect;
 export function addPiece(pieces:Piece[],part:PartId,color:ColorKey,x:number,y:number,z:number,rotated=false,face?:Face):Piece[]{
  const p:Piece={id:pieces.length,part,color,x,y,z,...partDimensions(part,rotated,face),stage:5};
  if(![x,y,z].every(Number.isInteger)||Math.min(x,y,z)<0||x+p.w>192||z+p.d>192||y+p.h>240)throw Error("Place bricks within 192 × 192 studs and 240 plate layers.");
  if(pieces.length>=16000)throw Error("This design has reached the 16,000 piece limit.");
- if(pieces.some(other=>intersects(p,other)))throw Error("That space is occupied. Choose another stud or height.");
+ const clash=pieces.find(other=>intersects(p,other));
+ if(clash)throw Error(cellsIntersect(p,clash)?"That space is occupied. Choose another stud or height.":"A door's handle needs that space behind its frame. Choose another stud or height.");
  // Preserve the editor's smooth-surface guard, but only beneath actual sockets.
  // An arch's empty opening must not be mistaken for a bottom connection.
  const sockets=bottomConnectorOffsets(p);
@@ -181,17 +217,20 @@ export function validateProject(raw:unknown):BuildModel{
   if(p.x+dimensions.w>192||p.z+dimensions.d>192||p.y+dimensions.h>240)throw Error("The project exceeds the supported dimensions.");
   // A minifigure keeps its leg and skin colors; other pieces never carry them.
   const figure=p.part==="minifig"?{...(Object.hasOwn(COLORS,String(p.legs))?{legs:p.legs}:{}),...(Object.hasOwn(COLORS,String(p.skin))?{skin:p.skin}:{})}:{};
-  return {id,part:p.part,color:p.color,x:p.x,y:p.y,z:p.z,...dimensions,stage:0,...figure,...(p.support===true?{support:true}:{})};
+  // A window or door frame keeps its glass or door colour; nothing else carries one.
+  const fitted=fittedElement(p.part)&&Object.hasOwn(COLORS,String(p.fitted))?{fitted:p.fitted}:{};
+  return {id,part:p.part,color:p.color,x:p.x,y:p.y,z:p.z,...dimensions,stage:0,...figure,...fitted,...(p.support===true?{support:true}:{})};
  });
  const occupied=new Set<string>();for(const p of pieces)forEachPieceCell(p,(x,y,z)=>{const k=voxelKey(x,y,z);if(occupied.has(k))throw Error("The project has overlapping pieces. Repair the file before importing.");occupied.add(k);if(occupied.size>350000)throw Error("The project is too complex. Import a smaller version.");});
- return finishModel(pieces,{name:typeof data.name==="string"?data.name.slice(0,80):"Imported project",description:typeof data.description==="string"?data.description.slice(0,500):"Your editable Bricks project",source:"custom",...readProjectMetadata(data,pieces)});
+ return migrateCaption(finishModel(pieces,{name:typeof data.name==="string"?data.name.slice(0,80):"Imported project",description:typeof data.description==="string"?clipSentence(data.description.slice(0,2000),500):"Your editable Bricks project",source:"custom",...readProjectMetadata(data,pieces)}));
 }
 export function supportLoosePieces(input:Piece[]):{pieces:Piece[];added:number}{
  let pieces=input.map((p,id)=>({...p,id})),added=0;
  for(let pass=0;pass<80;pass++){
   const audit=auditModel(pieces);if(!audit.disconnected.length)break;
   const occupied=new Map<string,Piece>(),studs=new Set<string>();
-  for(const p of pieces){forEachPieceCell(p,(x,y,z)=>occupied.set(voxelKey(x,y,z),p));for(const [x,y,z] of topConnectorOffsets(p))studs.add(voxelKey(p.x+x,p.y+y,p.z+z));}
+  // A door's handle cells count as taken, never studded, so no support column runs through them.
+  for(const p of pieces){forEachPieceCell(p,(x,y,z)=>occupied.set(voxelKey(x,y,z),p));for(const [x,y,z] of pieceClearanceOffsets(p))occupied.set(voxelKey(p.x+x,p.y+y,p.z+z),p);for(const [x,y,z] of topConnectorOffsets(p))studs.add(voxelKey(p.x+x,p.y+y,p.z+z));}
   let changed=false;
   for(const id of [...audit.disconnected].sort((a,b)=>pieces[a].y-pieces[b].y)){
    const p=pieces[id];if(p.y===0)continue;
@@ -228,9 +267,9 @@ export function smoothTops(pieces:Piece[],preserve?:ReadonlySet<Piece>):Piece[]{
   if(preserve?.has(p)){out.push(p);continue;}
   const exposed=p.h===1&&p.y>=2&&!p.support&&[...Array(p.w).keys()].every(a=>[...Array(p.d).keys()].every(c=>!occupied.has(voxelKey(p.x+a,p.y+1,p.z+c))));
   const tile=PLATE_TO_TILE[p.part];
-  if(exposed&&tile){out.push({...p,part:tile});continue;}
+  if(exposed&&tile&&partAllowsColor(tile,p.color)){out.push({...p,part:tile});continue;}
   // Wide top plates have no tile of their own; when every cell rests on something, they split into 2 x 4 tiles.
-  if(exposed&&(p.part==="3034"||p.part==="3035")&&[...Array(p.w).keys()].every(a=>[...Array(p.d).keys()].every(c=>occupied.has(voxelKey(p.x+a,p.y-1,p.z+c))))){
+  if(exposed&&(p.part==="3034"||p.part==="3035")&&partAllowsColor("87079",p.color)&&[...Array(p.w).keys()].every(a=>[...Array(p.d).keys()].every(c=>occupied.has(voxelKey(p.x+a,p.y-1,p.z+c))))){
    const along=p.w>=p.d?"x":"z";
    for(let a=0;a<(along==="x"?p.w:p.d);a+=4)for(let c=0;c<(along==="x"?p.d:p.w);c+=2){const x=along==="x"?p.x+a:p.x+c,z=along==="x"?p.z+c:p.z+a;out.push({...p,part:"87079",x,z,w:along==="x"?4:2,d:along==="x"?2:4,rotated:along!=="x"});}
    continue;

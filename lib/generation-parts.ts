@@ -1,4 +1,5 @@
 import {EXPANDED_PARTS,catalogPart} from "./part-catalog";
+import {partColors} from "./part-colors";
 import {PARTS,COLORS,studCells,isTile,isSlope,isWheel} from "./bridge";
 import type {ColorKey} from "./bridge";
 import type {DesignBrief} from "./design-project";
@@ -6,11 +7,13 @@ import type {ReferenceSheet} from "./design-research";
 import type {GeneratedScene} from "./generated-scene";
 
 type Cell=readonly [number,number,number];
-export type GenerationCatalogPart={name:string;w:number;d:number;h:number;family:string;colors:readonly ColorKey[];handedness?:"left"|"right";counterpart?:string;topStuds:readonly Cell[];bottomSockets:readonly Cell[];occupancy:readonly Cell[]};
+type Fitted={part:string;name:string;colors:readonly ColorKey[];default:ColorKey};
+export type GenerationCatalogPart={name:string;w:number;d:number;h:number;family:string;colors:readonly ColorKey[];handedness?:"left"|"right";counterpart?:string;topStuds:readonly Cell[];bottomSockets:readonly Cell[];occupancy:readonly Cell[];fitted?:Fitted};
 type Catalog=Readonly<Record<string,GenerationCatalogPart>>;
 export type PartSelectionInput={prompt:string;brief?:DesignBrief;research?:ReferenceSheet;previous?:GeneratedScene;feedback?:string[]};
 export type ConnectorLayout={cells:Cell[]}|{grids:{x:[number,number];y:number;z:[number,number]}[]};
-export type GenerationPart={id:string;name:string;family:string;size:[number,number,number];colors:readonly ColorKey[];topStuds:ConnectorLayout;bottomSockets:ConnectorLayout;handedness?:"left"|"right";counterpart?:string};
+// fitted: the glass or door that comes in a window or door frame; the shape's bg picks its colour.
+export type GenerationPart={id:string;name:string;family:string;size:[number,number,number];colors:readonly ColorKey[];topStuds:ConnectorLayout;bottomSockets:ConnectorLayout;handedness?:"left"|"right";counterpart?:string;fitted?:{id:string;name:string;colors:readonly ColorKey[];default:ColorKey}};
 
 // Rectangles are an exact, lossless encoding of connector locations. An arch's
 // missing middle and a curved wedge's raised sockets must never become a box.
@@ -27,6 +30,7 @@ export function compactConnectors(input:readonly Cell[]):ConnectorLayout{
  }
  return {grids};
 }
+const CONTEXTUAL=new Set(["window","door"]);
 const normalized=(s:string)=>s.toLowerCase().normalize("NFKD").replace(/[\u0300-\u036f]/g,"");
 const words=(s:string)=>new Set(normalized(s).match(/[a-z0-9]+/g)?.map(w=>w.length>4&&w.endsWith("s")?w.slice(0,-1):w)||[]);
 const intents:[RegExp,string[]][]=[
@@ -38,15 +42,20 @@ const intents:[RegExp,string[]][]=[
  [/\b(animal|character|dog|cat|bird|plant|tree|flower|creature|face|eye|robot|monument)\b/,["curved","round","round_plate","round_tile","wedge","slope"]],
  [/\b(window|glass|wall|fence|railing|balcony)\b/,["panel","support","arch"]],
 ];
+// Places people live, work, shop or travel through get real window frames with glass, doors, grilles and facade bricks;
+// rail cars get the frames. Only the idea and brief can name such a place, or a research sheet through its kind: the
+// sheet's free text also describes a car's "two-window profile", a roof rack's "cross bars" and a bridge's "towers".
+const PLACE=/\b(building|house|home|cottage|cabin|barn|apartment|townhouse|terrace|shop|store|bookshop|bookstore|workshop|storefront|shopfront|boutique|market|cafe|bakery|restaurant|diner|pub|hotel|office|bank|vault|station|terminal|depot|airport|garage|hospital|school|library|museum|church|chapel|temple|castle|palace|lighthouse|mill|village|modular|facade|architecture|skyscraper)s?\b/;
+const RAIL=/\b(train|tram|carriage|railway|locomotive)s?\b/,PLACE_KINDS=new Set(["building","site"]),OPENING=/\b(windows?|glazed|glazing|doors?|doorway|entrance|porch)\b/;
 function legacyPart(id:string):GenerationCatalogPart|undefined{
  const p=Object.hasOwn(PARTS,id)?PARTS[id]:undefined;if(!p)return;
  const top=studCells({part:id,w:p.w,d:p.d}).map(([x,z])=>[x,p.h,z] as Cell),bottom:Cell[]=[];
  if(!isWheel(id))for(let x=0;x<p.w;x++)for(let z=0;z<p.d;z++)bottom.push([x,0,z]);
- return {...p,family:isWheel(id)?"wheel":isSlope(id)?"slope":isTile(id)?"tile":p.h===1?"plate":"brick",colors:Object.keys(COLORS) as ColorKey[],topStuds:top,bottomSockets:bottom,occupancy:[]};
+ return {...p,family:isWheel(id)?"wheel":isSlope(id)?"slope":isTile(id)?"tile":p.h===1?"plate":"brick",colors:partColors(id),topStuds:top,bottomSockets:bottom,occupancy:[]};
 }
 const hasConnectors=(layout:ConnectorLayout)=>"cells" in layout?layout.cells.length>0:layout.grids.length>0;
 function entry(id:string,p:GenerationCatalogPart):GenerationPart{
- return {id,name:p.name,family:p.family,size:[p.w,p.h,p.d],colors:p.colors,topStuds:compactConnectors(p.topStuds),bottomSockets:compactConnectors(p.bottomSockets),...(p.handedness?{handedness:p.handedness}:{}),...(p.counterpart?{counterpart:p.counterpart}:{})};
+ return {id,name:p.name,family:p.family,size:[p.w,p.h,p.d],colors:p.colors,topStuds:compactConnectors(p.topStuds),bottomSockets:compactConnectors(p.bottomSockets),...(p.handedness?{handedness:p.handedness}:{}),...(p.counterpart?{counterpart:p.counterpart}:{}),...(p.fitted?{fitted:{id:p.fitted.part,name:p.fitted.name,colors:p.fitted.colors,default:p.fitted.default}}:{})};
 }
 
 // This search is local and deterministic: no extra AI call, whole-catalog prompt
@@ -55,8 +64,13 @@ function entry(id:string,p:GenerationCatalogPart):GenerationPart{
 export function buildGenerationPartCatalog(input:PartSelectionInput,catalog:Catalog=EXPANDED_PARTS,limit=40){
  const text=normalized([input.prompt,input.brief?.idea,input.brief?.composition,...(input.brief?.features||[]),input.research?.kind,input.research?.subject,input.research?.summary,input.research?.proportions,...(input.research?.silhouette||[]),...(input.research?.distinctive||[]),...(input.feedback||[])].filter(Boolean).join(" "));
  const query=words(text),requestedIds=new Set(text.match(/\b\d{3,}[a-z]?\b/g)||[]),familyWeight=new Map<string,number>();
- for(const [pattern,families] of intents)if(pattern.test(text))for(const family of families)familyWeight.set(family,(familyWeight.get(family)||0)+3);
- for(const family of [...new Set(Object.values(catalog).map(p=>p.family))])if(words(family.replace(/_/g," ")).size&&[...words(family.replace(/_/g," "))].every(w=>query.has(w)))familyWeight.set(family,(familyWeight.get(family)||0)+8);
+ const idea=normalized([input.prompt,input.brief?.idea,input.brief?.composition,...(input.brief?.features||[])].filter(Boolean).join(" ")),building=PLACE_KINDS.has(input.research?.kind||"")||PLACE.test(idea),place=building||RAIL.test(idea);
+ // Window and door frames, and their words, only count for a place (or when a part ID asks for one).
+ const offered=(family:string)=>place||!CONTEXTUAL.has(family);
+ const weigh=(families:readonly string[])=>{for(const family of families)familyWeight.set(family,(familyWeight.get(family)||0)+3);};
+ for(const [pattern,families] of intents)if(pattern.test(text))weigh(families);
+ if(place){weigh(building?[...CONTEXTUAL,"tile","brick"]:[...CONTEXTUAL]);if(OPENING.test(text))weigh([...CONTEXTUAL]);}
+ for(const family of [...new Set(Object.values(catalog).map(p=>p.family))])if(offered(family)&&words(family.replace(/_/g," ")).size&&[...words(family.replace(/_/g," "))].every(w=>query.has(w)))familyWeight.set(family,(familyWeight.get(family)||0)+8);
  const palette=new Set([...query,...words((input.research?.colors||[]).join(" "))].filter(c=>Object.hasOwn(COLORS,c))),ceiling=input.brief?{x:input.brief.maxWidth,y:input.brief.maxHeight,z:input.brief.maxDepth}:{x:80,y:160,z:80};
  const fits=(p:GenerationCatalogPart)=>p.h<=ceiling.y&&((p.w<=ceiling.x&&p.d<=ceiling.z)||(p.d<=ceiling.x&&p.w<=ceiling.z));
  const usable=(p:GenerationCatalogPart)=>p.colors.length>0&&p.occupancy.length>0&&(p.topStuds.length>0||p.bottomSockets.length>0)&&fits(p);
@@ -73,11 +87,11 @@ export function buildGenerationPartCatalog(input:PartSelectionInput,catalog:Cata
  // Seed the relevant families before filling by score, avoiding forty near-
  // identical slopes when the building also needs arches and round columns.
  const families=[...new Set(scored.map(({p})=>p.family))].sort((a,b)=>(familyWeight.get(b)||0)-(familyWeight.get(a)||0)||a.localeCompare(b));
- for(const family of families){if(chosen.size>=cap)break;const candidate=scored.find(c=>c.p.family===family&&!chosen.has(c.id));if(candidate)includePair(candidate.id,candidate.p);}
+ for(const family of families){if(chosen.size>=cap)break;if(!offered(family))continue;const candidate=scored.find(c=>c.p.family===family&&!chosen.has(c.id));if(candidate)includePair(candidate.id,candidate.p);}
  while(chosen.size<cap){
-  const next=scored.filter(c=>!chosen.has(c.id)).sort((a,b)=>b.score/(1+(familyCounts.get(b.p.family)||0)*.45)-a.score/(1+(familyCounts.get(a.p.family)||0)*.45)||a.id.localeCompare(b.id))[0];
+  const next=scored.filter(c=>!chosen.has(c.id)&&offered(c.p.family)).sort((a,b)=>b.score/(1+(familyCounts.get(b.p.family)||0)*.45)-a.score/(1+(familyCounts.get(a.p.family)||0)*.45)||a.id.localeCompare(b.id))[0];
   if(!next)break;includePair(next.id,next.p);
  }
- const parts=[...chosen].map(([id,p])=>entry(id,p)),example=parts.find(p=>!["brick","plate","tile"].includes(p.family)&&hasConnectors(p.bottomSockets))||parts[0];
+ const parts=[...chosen].map(([id,p])=>entry(id,p)),example=parts.find(p=>!["brick","plate","tile"].includes(p.family)&&!p.fitted&&hasConnectors(p.bottomSockets))||parts.find(p=>!p.fitted)||parts[0];
  return {availableParts:Object.keys(catalog).length,...(example?{placementExample:{note:"Syntax only: choose a position whose actual sockets meet supporting studs, with empty clearance around the real part.",shape:{i:"detail-1",c:"Signature detail",l:example.name.slice(0,80),k:"part",o:"add",a:null,col:example.colors[0],p:[4,2,4],s:example.size,e:null,r:null,rep:null,txt:null,face:"pz",bg:null,pid:example.id}}}:{}),units:"size [width studs,height plates,depth studs]; connectors local [x stud cell,y plate plane,z stud cell]",orientation:"pz is the canonical catalog orientation; px/nz/nx rotate it by 90/180/270 degrees. px/nx swap width and depth. Handedness is intrinsic: rotation does not mirror a part.",connectorEncoding:"cells are exact points. Each grids item includes every integer x and z in its inclusive ranges at the given y. Empty means no connectors; never infer missing studs or sockets.",parts};
 }

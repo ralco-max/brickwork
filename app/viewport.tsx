@@ -1,5 +1,5 @@
 "use client";
-import {useEffect,useMemo,useRef,useState} from "react";
+import {useEffect,useMemo,useRef,useState,useSyncExternalStore} from "react";
 import {ArrowDown,ArrowLeft,ArrowRight,ArrowUp,Scan} from "lucide-react";
 import * as THREE from "three";
 import {OrbitControls} from "three/addons/controls/OrbitControls.js";
@@ -9,8 +9,10 @@ import {reconcileArrivals,arrivalPose,brickIdentity,arrivalOpacity,arrivalEndTim
 import type {Arrival,ArrivalMode} from "@/lib/live-arrivals";
 import {assemblyPose,assemblyTracks,inspectionReach,inspectionTracks,type AssemblyTrack} from "@/lib/assembly";
 import {cameraPanOffset,advanceCameraMove,settledPieceBounds,cameraFramingSnapshot,cameraAutoFit,type CameraMove,type CameraFramingSnapshot} from "@/lib/camera-navigation";
-import {hasExactPartGeometry,partGeometriesReady} from "@/lib/part-meshes";
+import {fittedPartGeometry,hasExactPartGeometry,partGeometriesReady} from "@/lib/part-meshes";
+import {fittedColor,fittedElement} from "@/lib/part-catalog";
 import {isMinifig} from "@/lib/minifig";
+import {brickMaterial,finishColor,finishEnvironment,releaseFinishEnvironment} from "@/lib/brick-materials";
 import RegionMarker from "./region-marker";
 import {regionSamplePoints,regionBoundsForPieces} from "@/lib/region-selection";
 import type {RevisionRegion} from "@/lib/revision-region";
@@ -18,7 +20,7 @@ import {PreviewGeometryBuffer,type PreviewGeometry} from "@/lib/preview-geometry
 
 export type BrickHit={piece:Piece;point:{x:number;y:number;z:number};normal:{x:number;y:number;z:number}};
 export type RegionCapture=Pick<RevisionRegion,"image"|"polygon"|"bounds">;
-type Props={regionMode?:boolean;onRegion?:(region:RegionCapture)=>void;onCancelRegion?:()=>void;arrivals?:{epoch:number;paused:boolean;mode?:ArrivalMode};suspended?:boolean;light?:number;pieces:Piece[];length:number;width?:number;height?:number;modelKey?:string;editMode?:string;onBrick?:(hit:BrickHit)=>void;highlightIds?:number[];heat?:Map<number,number>;explode:number;stage:number;selected:string|null;view:string;reset:number;rotate:boolean;onPick:(key:string|null)=>void;assembly?:{time:()=>number;onFrame?:(canvas:HTMLCanvasElement,time:number)=>void;sweep?:boolean};presentation?:boolean;onCanvas?:(canvas:HTMLCanvasElement|null)=>void};
+type Props={regionMode?:boolean;onRegion?:(region:RegionCapture)=>void;onCancelRegion?:()=>void;arrivals?:{epoch:number;paused:boolean;mode?:ArrivalMode};suspended?:boolean;light?:number;pieces:Piece[];length:number;width?:number;height?:number;modelKey?:string;editMode?:string;onBrick?:(hit:BrickHit)=>void;highlightIds?:number[];heat?:Map<number,number>;explode:number;stage:number;selected:string|null;view:string;reset:number;rotate:boolean;onPick:(key:string|null)=>void;onPickPiece?:(pieceId:string)=>void;assembly?:{time:()=>number;onFrame?:(canvas:HTMLCanvasElement,time:number)=>void;sweep?:boolean};presentation?:boolean;onCanvas?:(canvas:HTMLCanvasElement|null)=>void};
 export default function Viewport(props:Props){
  const buffer=useRef<PreviewGeometryBuffer|null>(null);if(!buffer.current)buffer.current=new PreviewGeometryBuffer();
  const request=useMemo<PreviewGeometry>(()=>({pieces:props.pieces,length:props.length,width:props.width,height:props.height,modelKey:props.modelKey}),[props.pieces,props.length,props.width,props.height,props.modelKey]);
@@ -36,6 +38,9 @@ export default function Viewport(props:Props){
  </div>;
 }
 
+// Touch-first screens get touch wording; the server and the first client render assume a mouse.
+const COARSE="(pointer: coarse)",coarseNow=()=>window.matchMedia(COARSE).matches;
+function watchPointer(change:()=>void){const media=window.matchMedia(COARSE);media.addEventListener("change",change);return()=>media.removeEventListener("change",change);}
 // This component receives only complete geometry snapshots. Its scene, camera,
 // controls and animation stay alive while the wrapper loads the next update.
 function ReadyViewport(props:Props){
@@ -43,8 +48,8 @@ function ReadyViewport(props:Props){
  const rendererRef=useRef<THREE.WebGLRenderer|null>(null);
  const previousFraming=useRef({view:props.view,reset:props.reset,explode:props.explode});
  const arrivalState=useRef({epoch:-1,clock:0,entries:new Map<string,Arrival>()});
- const [error,setError]=useState(false),[touchActive,setTouchActive]=useState(false);const presentationProp=Boolean(props.presentation);const touchEnabled=useRef(touchActive);touchEnabled.current=touchActive;
- useEffect(()=>()=>{latest.current.onCanvas?.(null);const renderer=rendererRef.current;rendererRef.current=null;renderer?.dispose();renderer?.domElement.remove();},[]);
+ const [error,setError]=useState(false),[touchActive,setTouchActive]=useState(false);const coarsePointer=useSyncExternalStore(watchPointer,coarseNow,()=>false);const presentationProp=Boolean(props.presentation);const touchEnabled=useRef(touchActive);touchEnabled.current=touchActive;
+ useEffect(()=>()=>{latest.current.onCanvas?.(null);const renderer=rendererRef.current;rendererRef.current=null;if(renderer)releaseFinishEnvironment(renderer);renderer?.dispose();renderer?.domElement.remove();},[]);
  useEffect(()=>{
   if(!host.current)return;const node=host.current;let renderer:THREE.WebGLRenderer;
   // The assembly plays inside the same interactive view: orbit stays enabled, and the
@@ -149,20 +154,26 @@ function ReadyViewport(props:Props){
   for(const p of props.pieces){
    const entry=arrivalState.current.entries.get(brickIdentity(p));
    const arrival=props.arrivals?.mode==="revise"&&entry?.mode==="revise"&&arrivalState.current.clock<arrivalEndTime(entry)&&!reducedMotion.matches?entry:undefined;
-   const k=`${p.part}:${p.color}:${p.legs||""}:${p.skin||""}:${p.rotated}:${p.face||""}:${arrival?arrival.at:"solid"}`;
+   const k=`${p.part}:${p.color}:${p.legs||""}:${p.skin||""}:${fittedColor(p)||""}:${p.rotated}:${p.face||""}:${arrival?arrival.at:"solid"}`;
    const group=groups.get(k)||{pieces:[],arrival};group.pieces.push(p);groups.set(k,group);
   }
-  const batches:{body:THREE.InstancedMesh;studs:THREE.InstancedMesh|null;hubs:THREE.InstancedMesh|null;pieces:Piece[];studded:[number,number][];arrival?:Arrival;materials:THREE.MeshStandardMaterial[]}[]=[],meshes:THREE.InstancedMesh[]=[];
+  const batches:{body:THREE.InstancedMesh;studs:THREE.InstancedMesh|null;hubs:THREE.InstancedMesh|null;fitted:THREE.InstancedMesh|null;pieces:Piece[];studded:[number,number][];arrival?:Arrival;materials:THREE.MeshStandardMaterial[]}[]=[],meshes:THREE.InstancedMesh[]=[];
   for(const {pieces:list,arrival} of groups.values()){
    const reveal={opacity:arrival?arrivalOpacity(arrival,arrivalState.current.clock,reducedMotion.matches):1,alphaToCoverage:Boolean(arrival)&&coverage,alphaHash:Boolean(arrival)&&!coverage};
-   const p=list[0],material=new THREE.MeshStandardMaterial({color:0xffffff,roughness:.3,metalness:0,vertexColors:isMinifig(p.part),...reveal}),materials=[material],studded=hasExactPartGeometry(p.part)?[]:studCells(p);
+   // One material per colour group, with the colour's finish. Trans colours already blend, so a
+   // revision fade scales their opacity instead of using coverage.
+   const p=list[0],material=brickMaterial(finishColor(p),{roughness:.3,vertexColors:isMinifig(p.part),environment:()=>finishEnvironment(renderer)}),materials=[material],studded=hasExactPartGeometry(p.part)?[]:studCells(p);
+   if(material.transparent)material.opacity=material.userData.baseOpacity*reveal.opacity;else material.setValues(reveal);
    const body=new THREE.InstancedMesh(pieceGeometry(p),material,list.length);body.castShadow=true;body.receiveShadow=true;body.userData.pieces=list;meshes.push(body);scene.add(body);
    let studs:THREE.InstancedMesh|null=null;if(studded.length){studs=new THREE.InstancedMesh(new THREE.CylinderGeometry(.30,.30,.18,12),material,list.length*studded.length);studs.castShadow=true;studs.receiveShadow=true;scene.add(studs);}
    const hubShape=hubGeometry(p);let hubs:THREE.InstancedMesh|null=null;if(hubShape){const hubMaterial=new THREE.MeshStandardMaterial({color:0xa9b1b8,roughness:.5,metalness:.1,...reveal});materials.push(hubMaterial);hubs=new THREE.InstancedMesh(hubShape,hubMaterial,list.length);scene.add(hubs);}
-   if(presentation||cinematic){body.frustumCulled=false;body.instanceMatrix.setUsage(THREE.DynamicDrawUsage);if(studs){studs.frustumCulled=false;studs.instanceMatrix.setUsage(THREE.DynamicDrawUsage);}if(hubs){hubs.frustumCulled=false;hubs.instanceMatrix.setUsage(THREE.DynamicDrawUsage);}}
-   batches.push({body,studs,hubs,pieces:list,studded,arrival,materials});
+   // A frame's glass or door, in its own colour and finish, posed and picked with the frame.
+   const fittedShape=fittedPartGeometry(p),glazing=fittedColor(p);let fitted:THREE.InstancedMesh|null=null;
+   if(fittedShape&&glazing){const fittedMaterial=brickMaterial(glazing,{roughness:.3,environment:()=>finishEnvironment(renderer)});if(fittedMaterial.transparent)fittedMaterial.opacity=fittedMaterial.userData.baseOpacity*reveal.opacity;else fittedMaterial.setValues(reveal);materials.push(fittedMaterial);fitted=new THREE.InstancedMesh(fittedShape,fittedMaterial,list.length);fitted.castShadow=!fittedMaterial.transparent;fitted.receiveShadow=true;fitted.userData.pieces=list;meshes.push(fitted);scene.add(fitted);}
+   if(presentation||cinematic){body.frustumCulled=false;body.instanceMatrix.setUsage(THREE.DynamicDrawUsage);if(studs){studs.frustumCulled=false;studs.instanceMatrix.setUsage(THREE.DynamicDrawUsage);}if(hubs){hubs.frustumCulled=false;hubs.instanceMatrix.setUsage(THREE.DynamicDrawUsage);}if(fitted){fitted.frustumCulled=false;fitted.instanceMatrix.setUsage(THREE.DynamicDrawUsage);}}
+   batches.push({body,studs,hubs,fitted,pieces:list,studded,arrival,materials});
   }
-  const temp=new THREE.Object3D(),studLocal=new THREE.Matrix4(),studWorld=new THREE.Matrix4(),baseColor=new THREE.Color(),dimColor=new THREE.Color("#c2cbd0");
+  const temp=new THREE.Object3D(),studLocal=new THREE.Matrix4(),studWorld=new THREE.Matrix4(),baseColor=new THREE.Color(),fittedTint=new THREE.Color(),dimColor=new THREE.Color("#c2cbd0");
   let previousAssemblyTime:number|undefined;
   const update=(state:Props,time?:number)=>{
    controls.enabled=!state.regionMode&&(!coarse||touchEnabled.current);renderer.domElement.style.touchAction=coarse&&!touchEnabled.current?"pan-y":"none";
@@ -171,8 +182,9 @@ function ReadyViewport(props:Props){
    const assemblyTime=time??state.assembly?.time()??1,animationOnly=time!==undefined,highlighted=new Set(state.highlightIds||[]);
    const sunTarget=state.light??.38;placeSun(sunTarget);
    const reusePoses=animationOnly&&cinematic&&!state.arrivals&&state.explode===0&&previousAssemblyTime!==undefined;
-   for(const batch of batches){if(batch.arrival){const opacity=state.regionMode?1:arrivalOpacity(batch.arrival,arrivalState.current.clock,reducedMotion.matches);for(const material of batch.materials)material.opacity=opacity;}let studIndex=0,matrixChanged=!animationOnly;batch.pieces.forEach((p,i)=>{
-    const visible=p.stage<=state.stage,key=`${p.part}:${p.color}`,selected=!state.selected||state.selected===key;
+   const tint=(target:THREE.Color,hex:string,p:Piece,selected:boolean)=>{target.set(hex);if(state.heat){const r=state.heat.get(p.id);if(r===undefined)target.lerp(dimColor,.8);else target.set(r>1?"#e5484d":r>.5?"#f2b134":"#3f9d5a");}else if(highlighted.size){if(highlighted.has(p.id))target.set("#fb541e");else target.lerp(dimColor,.85);}else if(!selected)target.lerp(dimColor,.85);return target;};
+   for(const batch of batches){if(batch.arrival){const opacity=state.regionMode?1:arrivalOpacity(batch.arrival,arrivalState.current.clock,reducedMotion.matches);for(const material of batch.materials)material.opacity=opacity*(material.userData.baseOpacity??1);}let studIndex=0,matrixChanged=!animationOnly;batch.pieces.forEach((p,i)=>{
+    const visible=p.stage<=state.stage,key=`${p.part}:${p.color}`,glazing=fittedColor(p),selected=!state.selected||state.selected===key||Boolean(glazing)&&state.selected===`${fittedElement(p.part)!.part}:${glazing}`;
     const e=state.explode,y=p.y*.4,track=tracks.get(p.id)!;
     // Waiting and landed bricks have identical matrices; only active flights
     // need CPU transforms. Replay and reverse seeking still cross these bounds.
@@ -182,10 +194,10 @@ function ReadyViewport(props:Props){
     const px=p.x+p.w/2-L/2,py=y+p.h*.2,pz=p.z+p.d/2-centerZ;
     const pose=state.regionMode?null:entry?arrivalPose(entry,arrivalState.current.clock,reducedMotion.matches):e>0?assemblyPose(explodedTracks.get(p.id)!,1-e):cinematic?assemblyPose(track,assemblyTime):null;
     temp.position.set(px+(pose?.x??0),py+(pose?.y??0),pz+(pose?.z??0));temp.rotation.set(pose?.rx??0,pose?.ry??0,pose?.rz??0);temp.scale.setScalar(visible?(pose?.scale??1):0);temp.updateMatrix();batch.body.setMatrixAt(i,temp.matrix);
-    if(!animationOnly){baseColor.set(isMinifig(p.part)?"#ffffff":COLORS[p.color].hex);if(state.heat){const r=state.heat.get(p.id);if(r===undefined)baseColor.lerp(dimColor,.8);else baseColor.set(r>1?"#e5484d":r>.5?"#f2b134":"#3f9d5a");}else if(highlighted.size){if(highlighted.has(p.id))baseColor.set("#fb541e");else baseColor.lerp(dimColor,.85);}else if(!selected)baseColor.lerp(dimColor,.85);batch.body.setColorAt(i,baseColor);}
-    if(batch.hubs){batch.hubs.setMatrixAt(i,temp.matrix);}
+    if(!animationOnly){batch.body.setColorAt(i,tint(baseColor,isMinifig(p.part)?"#ffffff":COLORS[p.color].hex,p,selected));if(batch.fitted&&glazing)batch.fitted.setColorAt(i,tint(fittedTint,COLORS[glazing].hex,p,selected));}
+    if(batch.hubs){batch.hubs.setMatrixAt(i,temp.matrix);}if(batch.fitted)batch.fitted.setMatrixAt(i,temp.matrix);
     if(batch.studs)for(const [x,z] of batch.studded){studLocal.makeTranslation(x+.5-p.w/2,p.h*.2+.07,z+.5-p.d/2);studWorld.multiplyMatrices(temp.matrix,studLocal);batch.studs.setMatrixAt(studIndex,studWorld);if(!animationOnly)batch.studs.setColorAt(studIndex,baseColor);studIndex++;}
-   });batch.body.instanceMatrix.needsUpdate=matrixChanged;if(batch.hubs)batch.hubs.instanceMatrix.needsUpdate=matrixChanged;if(!animationOnly){if(batch.body.instanceColor)batch.body.instanceColor.needsUpdate=true;if(!presentation)batch.body.computeBoundingSphere();}if(batch.studs){batch.studs.instanceMatrix.needsUpdate=matrixChanged;if(!animationOnly){if(batch.studs.instanceColor)batch.studs.instanceColor.needsUpdate=true;if(!presentation)batch.studs.computeBoundingSphere();}}}
+   });batch.body.instanceMatrix.needsUpdate=matrixChanged;if(batch.hubs)batch.hubs.instanceMatrix.needsUpdate=matrixChanged;if(batch.fitted){batch.fitted.instanceMatrix.needsUpdate=matrixChanged;if(!animationOnly){if(batch.fitted.instanceColor)batch.fitted.instanceColor.needsUpdate=true;if(!presentation)batch.fitted.computeBoundingSphere();}}if(!animationOnly){if(batch.body.instanceColor)batch.body.instanceColor.needsUpdate=true;if(!presentation)batch.body.computeBoundingSphere();}if(batch.studs){batch.studs.instanceMatrix.needsUpdate=matrixChanged;if(!animationOnly){if(batch.studs.instanceColor)batch.studs.instanceColor.needsUpdate=true;if(!presentation)batch.studs.computeBoundingSphere();}}}
    previousAssemblyTime=cinematic&&!state.arrivals&&state.explode===0?assemblyTime:undefined;
   };
   update(latest.current);
@@ -217,10 +229,13 @@ function ReadyViewport(props:Props){
   };
   if(!props.presentation)renderer.domElement.addEventListener("keydown",keyboard);
   const ray=new THREE.Raycaster(),pointer=new THREE.Vector2(),activePointers=new Set<number>();let downX=0,downY=0,tapPointer:number|null=null;
-  const down=(e:PointerEvent)=>{cameraMove=null;activePointers.add(e.pointerId);if(e.button!==0||activePointers.size>1||(coarse&&!touchEnabled.current)){tapPointer=null;return;}tapPointer=e.pointerId;downX=e.clientX;downY=e.clientY;};
+  // While a phone scrolls the page, a plain tap still picks a part when the host asks for one (onPickPiece);
+  // inspection selection and brick edits wait for Explore model.
+  const touchLocked=()=>coarse&&!touchEnabled.current,tapBlocked=()=>touchLocked()&&!latest.current.onPickPiece;
+  const down=(e:PointerEvent)=>{cameraMove=null;activePointers.add(e.pointerId);if(e.button!==0||activePointers.size>1||tapBlocked()){tapPointer=null;return;}tapPointer=e.pointerId;downX=e.clientX;downY=e.clientY;};
   const move=(e:PointerEvent)=>{if(tapPointer===e.pointerId&&Math.hypot(e.clientX-downX,e.clientY-downY)>(e.pointerType==="touch"?8:5))tapPointer=null;};
   const cancelPointer=(e:PointerEvent)=>{activePointers.delete(e.pointerId);tapPointer=null;};
-  const pick=(e:PointerEvent)=>{const isTap=tapPointer===e.pointerId&&activePointers.size===1;activePointers.delete(e.pointerId);if(tapPointer===e.pointerId)tapPointer=null;if(!isTap||latest.current.regionMode||e.button!==0||(coarse&&!touchEnabled.current)||Math.hypot(e.clientX-downX,e.clientY-downY)>(e.pointerType==="touch"?8:5))return;const rect=node.getBoundingClientRect();pointer.set((e.clientX-rect.left)/rect.width*2-1,-(e.clientY-rect.top)/rect.height*2+1);ray.setFromCamera(pointer,camera);const hit=ray.intersectObjects(meshes)[0];if(hit&&hit.instanceId!==undefined){const p=hit.object.userData.pieces[hit.instanceId] as Piece;if(latest.current.editMode&&latest.current.editMode!=="inspect"&&latest.current.onBrick){const n=hit.face?.normal??new THREE.Vector3(0,1,0);latest.current.onBrick({piece:p,point:{x:hit.point.x+centerX,y:hit.point.y/.4,z:hit.point.z+centerZ},normal:{x:n.x,y:n.y,z:n.z}});return;}const key=`${p.part}:${p.color}`;latest.current.onPick(latest.current.selected===key?null:key);}else latest.current.onPick(null);};
+  const pick=(e:PointerEvent)=>{const isTap=tapPointer===e.pointerId&&activePointers.size===1;activePointers.delete(e.pointerId);if(tapPointer===e.pointerId)tapPointer=null;if(!isTap||latest.current.regionMode||e.button!==0||tapBlocked()||Math.hypot(e.clientX-downX,e.clientY-downY)>(e.pointerType==="touch"?8:5))return;const locked=touchLocked(),rect=node.getBoundingClientRect();pointer.set((e.clientX-rect.left)/rect.width*2-1,-(e.clientY-rect.top)/rect.height*2+1);ray.setFromCamera(pointer,camera);const hit=ray.intersectObjects(meshes)[0];if(hit&&hit.instanceId!==undefined){const p=hit.object.userData.pieces[hit.instanceId] as Piece;if(!locked&&latest.current.editMode&&latest.current.editMode!=="inspect"&&latest.current.onBrick){const n=hit.face?.normal??new THREE.Vector3(0,1,0);latest.current.onBrick({piece:p,point:{x:hit.point.x+centerX,y:hit.point.y/.4,z:hit.point.z+centerZ},normal:{x:n.x,y:n.y,z:n.z}});return;}latest.current.onPickPiece?.(String(p.id));if(locked)return;const key=`${p.part}:${p.color}`;latest.current.onPick(latest.current.selected===key?null:key);}else if(!locked)latest.current.onPick(null);};
   renderer.domElement.addEventListener("pointerdown",down);renderer.domElement.addEventListener("pointermove",move);renderer.domElement.addEventListener("pointerup",pick);renderer.domElement.addEventListener("pointercancel",cancelPointer);
   const lost=(e:Event)=>{e.preventDefault();latest.current.onCanvas?.(null);setError(true);};renderer.domElement.addEventListener("webglcontextlost",lost);
   let inView=true;const visibility=new IntersectionObserver(entries=>{inView=entries[0]?.isIntersecting??true;});visibility.observe(node);
@@ -233,15 +248,18 @@ const time=latest.current.assembly?.time();if(time!==undefined&&(time!==lastTime
  useEffect(()=>{api.current?.update(props);},[props.explode,props.stage,props.selected,props.rotate,props.highlightIds,props.heat,props.light,props.regionMode,touchActive]);
  useEffect(()=>{const old=previousFraming.current;previousFraming.current={view:props.view,reset:props.reset,explode:props.explode};if(old.view!==props.view||old.reset!==props.reset||old.explode!==props.explode)api.current?.camera(props.view);},[props.view,props.reset,props.explode]);
  return <div className={"canvas-host "+(props.editMode&&props.editMode!=="inspect"?"is-editing":"")} data-touch-active={touchActive} data-region-mode={Boolean(props.regionMode)} ref={host}>{!presentationProp&&!error&&!props.regionMode&&<>
+  {/* Fit is always shown; the arrow pad appears for keyboard users (focus on the model or the pad). */}
   <div className="camera-navigation" role="group" aria-label="Move the camera">
-   <span>Move view</span><div>
-    <button type="button" className="camera-pan" title="Move view left" aria-label="Move view left" onClick={()=>api.current?.pan(-1,0)}><ArrowLeft size={18}/></button>
-    <button type="button" className="camera-pan" title="Move view up" aria-label="Move view up" onClick={()=>api.current?.pan(0,1)}><ArrowUp size={18}/></button>
-    <button type="button" className="camera-pan" title="Move view down" aria-label="Move view down" onClick={()=>api.current?.pan(0,-1)}><ArrowDown size={18}/></button>
-    <button type="button" className="camera-pan" title="Move view right" aria-label="Move view right" onClick={()=>api.current?.pan(1,0)}><ArrowRight size={18}/></button>
+   <span className="camera-pad-label">Move view</span><div>
+    <span className="camera-pad">
+     <button type="button" className="camera-pan" title="Move view left" aria-label="Move view left" onClick={()=>api.current?.pan(-1,0)}><ArrowLeft size={18}/></button>
+     <button type="button" className="camera-pan" title="Move view up" aria-label="Move view up" onClick={()=>api.current?.pan(0,1)}><ArrowUp size={18}/></button>
+     <button type="button" className="camera-pan" title="Move view down" aria-label="Move view down" onClick={()=>api.current?.pan(0,-1)}><ArrowDown size={18}/></button>
+     <button type="button" className="camera-pan" title="Move view right" aria-label="Move view right" onClick={()=>api.current?.pan(1,0)}><ArrowRight size={18}/></button>
+    </span>
     <button type="button" className="camera-fit" title="Fit the whole model in view" aria-label="Fit the whole model in view" onClick={()=>api.current?.camera(latest.current.view)}><Scan size={18}/><span>Fit</span></button>
-   </div><small className="camera-gesture-hint">{touchActive?"Drag to rotate · Pinch to zoom · Two fingers to move":"Right-drag to pan · Scroll to zoom"}</small>
+   </div><small className="camera-gesture-hint">{coarsePointer?touchActive?"Drag to rotate · Pinch to zoom · Two fingers to move":"Tap Explore model to rotate and zoom":"Right-drag to pan · Scroll to zoom"}</small>
   </div>
   <button type="button" className="touch-model-toggle" aria-pressed={touchActive} aria-label={touchActive?"Done exploring model. Enable page scrolling":"Explore model. Enable touch rotation, zoom and movement"} onClick={()=>setTouchActive(v=>!v)}>{touchActive?"Done":"Explore model"}</button>
- </>}{props.regionMode&&!error&&<RegionMarker onSelect={polygon=>{if(!api.current)throw Error("Preview is not ready");props.onRegion?.(api.current.captureRegion(polygon));}} onCancel={()=>props.onCancelRegion?.()}/>} {error&&<div className="canvas-error"><strong>3D preview is unavailable in this browser.</strong><p>The parts audit and exports still work. Try opening the studio in Safari or Chrome with WebGL enabled.</p></div>}</div>;
+ </>}{props.regionMode&&!error&&<RegionMarker onSelect={polygon=>{if(!api.current)throw Error("Preview is not ready");props.onRegion?.(api.current.captureRegion(polygon));}} onCancel={()=>props.onCancelRegion?.()}/>} {error&&<div className="canvas-error"><strong>3D preview is unavailable in this browser.</strong><p>The parts list and downloads still work. Try opening the studio in Safari or Chrome with WebGL enabled.</p></div>}</div>;
 }

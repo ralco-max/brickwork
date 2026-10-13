@@ -7,8 +7,12 @@ import {MINIFIG_MESHES,isMinifig,minifigColors,minifigPlacements} from "./minifi
 type PartMesh={version:1;part:string;positions:number[];normals:number[];indices:number[]};
 const meshes=new Map<string,PartMesh>(),pending=new Map<string,Promise<void>>();
 
-// A catalog part has one mesh; a minifigure is assembled from its LDraw elements' meshes.
-const sources=(id:string):{key:string;part:string;url:string}[]=>isMinifig(id)?MINIFIG_MESHES.map(m=>({key:`minifig/${m.id}`,part:m.id,url:m.mesh})):catalogPart(id)?[{key:id,part:id,url:catalogPart(id)!.mesh}]:[];
+// A catalog part has one mesh, plus its fitted glass or door (already in the frame's box); a minifigure is
+// assembled from its LDraw elements' meshes.
+const sources=(id:string):{key:string;part:string;url:string}[]=>{
+ if(isMinifig(id))return MINIFIG_MESHES.map(m=>({key:`minifig/${m.id}`,part:m.id,url:m.mesh}));
+ const entry=catalogPart(id);return entry?[{key:id,part:id,url:entry.mesh},...(entry.fitted?[{key:`${id}/fitted`,part:entry.fitted.part,url:entry.fitted.mesh}]:[])]:[];
+};
 export const hasExactPartGeometry=(id:string)=>isMinifig(id)||Boolean(catalogPart(id));
 export const partGeometriesReady=(pieces:Pick<Piece,"part">[])=>pieces.every(p=>sources(p.part).every(s=>meshes.has(s.key)));
 
@@ -55,7 +59,12 @@ function minifigGeometry(p:Pick<Piece,"part"|"face"|"rotated"|"h"|"color"|"legs"
 /** Caller owns the returned geometry and can dispose it with the scene. */
 export function exactPartGeometry(p:Pick<Piece,"part"|"face"|"rotated">&Partial<Pick<Piece,"h"|"color"|"legs"|"skin">>):BufferGeometry{
  if(isMinifig(p.part))return minifigGeometry({...p,h:p.h??12,color:p.color??"red"});
- const mesh=meshes.get(p.part);if(!mesh)throw Error(`Load the exact geometry for part ${p.part} before rendering.`);
+ return turnedGeometry(p,p.part);
+}
+/** A frame's fitted glass or door, in the same placement box as the frame, or null for any other part. */
+export function fittedPartGeometry(p:Pick<Piece,"part"|"face"|"rotated">):BufferGeometry|null{return catalogPart(p.part)?.fitted?turnedGeometry(p,`${p.part}/fitted`):null;}
+function turnedGeometry(p:Pick<Piece,"part"|"face"|"rotated">,key:string):BufferGeometry{
+ const mesh=meshes.get(key);if(!mesh)throw Error(`Load the exact geometry for part ${p.part} before rendering.`);
  const geometry=new BufferGeometry();geometry.setAttribute("position",new Float32BufferAttribute(mesh.positions,3));geometry.setAttribute("normal",new Float32BufferAttribute(mesh.normals,3));geometry.setIndex(mesh.indices);
  const face=p.face||(p.rotated?"px":"pz"),angle=face==="px"?Math.PI/2:face==="nz"?Math.PI:face==="nx"?-Math.PI/2:0;
  if(angle)geometry.rotateY(angle);geometry.computeBoundingBox();geometry.computeBoundingSphere();return geometry;

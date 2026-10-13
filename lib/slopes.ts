@@ -1,5 +1,6 @@
 import {PARTS} from "./bridge";
 import type {ColorKey,Face,PartId,Piece} from "./bridge";
+import {partAllowsColor} from "./part-colors";
 import {voxelKey} from "./models";
 import type {VoxelMap} from "./models";
 
@@ -65,18 +66,20 @@ export function carveSlopes(voxels:VoxelMap,protect:Set<string>=new Set()):Piece
   let done=false;
   for(const d of DIRS){if(done)break;
    for(const pattern of patterns){
+    // Only slopes made in this colour; a single needs part1, a pair part2.
+    const single=pattern.part1&&partAllowsColor(pattern.part1,c),pair=partAllowsColor(pattern.part2,c);if(!single&&!pair)continue;
     const first=pattern.match(x,y,z,d,c);if(!first||first.cells.some(([cx,cy,cz])=>protect.has(voxelKey(cx,cy,cz))))continue;
-    let second=pattern.match(x+d.rx,y,z+d.rz,d,c);if(second&&second.cells.some(([cx,cy,cz])=>protect.has(voxelKey(cx,cy,cz))))second=null;
+    let second=pair?pattern.match(x+d.rx,y,z+d.rz,d,c):null;if(second&&second.cells.some(([cx,cy,cz])=>protect.has(voxelKey(cx,cy,cz))))second=null;
     // An inverted pair takes overhanging cells. A neighbouring overhang cell along the ridge that
     // will not become a slope itself must keep these cells to bridge back into the mass, so the
     // pair is refused rather than leaving a corner plate with nothing to hold it.
     if(pattern.part2==="3665"&&second){const flanks:[number,number][]=[[x-d.rx,z-d.rz],[x+2*d.rx,z+2*d.rz]];if(flanks.some(([fx,fz])=>has(fx,y,fz)&&!footed(fx,y,fz)&&!pattern.match(fx,y,fz,d,c)))continue;}
     if(second){
      // A 45 degree pair with a full column behind both becomes the 2 x 2 slope, whose back row keeps its studs.
-     if(pattern.part2==="3040"){const bx=x-d.dx,bz=z-d.dz,b2x=bx+d.rx,b2z=bz+d.rz;if(filled(bx,bz,y,3,c)&&filled(b2x,b2z,y,3,c)&&footed(bx,y,bz)&&footed(b2x,y,b2z)){place("3039",c,d,y,[first,second,{cells:[...column(bx,bz,y,3),...column(b2x,b2z,y,3)],columns:[[bx,bz],[b2x,b2z]]}]);done=true;break;}}
+     if(pattern.part2==="3040"&&partAllowsColor("3039",c)){const bx=x-d.dx,bz=z-d.dz,b2x=bx+d.rx,b2z=bz+d.rz;if(filled(bx,bz,y,3,c)&&filled(b2x,b2z,y,3,c)&&footed(bx,y,bz)&&footed(b2x,y,b2z)){place("3039",c,d,y,[first,second,{cells:[...column(bx,bz,y,3),...column(b2x,b2z,y,3)],columns:[[bx,bz],[b2x,b2z]]}]);done=true;break;}}
      place(pattern.part2,c,d,y,[first,second]);done=true;break;
     }
-    if(pattern.part1){place(pattern.part1,c,d,y,[first]);done=true;break;}
+    if(single){place(pattern.part1!,c,d,y,[first]);done=true;break;}
    }
   }
  }

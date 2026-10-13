@@ -1,0 +1,101 @@
+{
+ "synthetic":true,
+ "note":"SYNTHETIC: hand-authored stand-in for provider responses, not a recording. It exercises the harness plumbing (budget ledger, routes, compile, checks, review/judge parsing) at $0. Its scores say nothing about real model quality.",
+ "case":"design-3-retro-orange-record",
+ "idea":"A retro orange record player with its lid open",
+ "research":[
+  {
+   "reasoning":"Generic object.",
+   "searches":[],
+   "images":[],
+   "usage":{"reasoning_tokens":450,"search_content_tokens":0},
+   "sheet":{
+    "identity":{"status":"generic","location":"","question":""},
+    "contextAdequate":true,
+    "image_urls":[],
+    "included":["Body","Platter","Record","Tonearm","Lid","Control knobs","Speaker grille"],
+    "excluded":["Record sleeves","Table"],
+    "uncertainties":[],
+    "relations":[
+     {"from":"Record","relation":"above","to":"Platter"},
+     {"from":"Lid","relation":"behind","to":"Record"},
+     {"from":"Control knobs","relation":"in_front_of","to":"Platter"}
+    ],
+    "searchable":false,
+    "kind":"object",
+    "subject":"Retro orange record player with its lid open",
+    "summary":"A generic 1970s portable record player in orange with the dust lid standing open.",
+    "length_m":null,
+    "width_m":null,
+    "height_m":null,
+    "openness":null,
+    "proportions":"Body about 1.3:1 wide to deep and a third as tall as wide.",
+    "colors":["orange","black","gray (silver)","red (label)"],
+    "silhouette":["Low box with an upright lid at the back"],
+    "distinctive":[
+     "Black record with a coloured centre label",
+     "Silver tonearm resting beside the record",
+     "Two round knobs at the front",
+     "Speaker grille on the front face"
+    ],
+    "sources":[],
+    "hero":"Front three-quarter view from above.",
+    "layout":"Lid hinged at the back; knobs at the front (+z)."
+   }
+  }
+ ],
+ "design":{
+  "reasoning":"Body, platter and record as cylinders, lid upright behind.",
+  "usage":{"reasoning_tokens":3000},
+  "scene":{
+   "n":"Retro Record Player",
+   "d":"An orange portable record player with its lid open, a black record with a red label, a gray tonearm and two front knobs.",
+   "f":["Open dust lid standing at the back","Black record with red label","Gray tonearm resting beside the record"],
+   "dim":[32,30,28],
+   "rm":["display-foundation"],
+   "sh":[
+    {"i":"table","c":"Base","l":"Table top","k":"box","o":"add","col":"tan","p":[0,0,0],"s":[32,2,28]},
+    {"i":"body","c":"Body","l":"Body","k":"box","o":"add","col":"orange","p":[2,2,2],"s":[28,8,22]},
+    {"i":"platter","c":"Platter","l":"Platter","k":"cylinder","o":"add","a":null,"col":"gray","p":[5,10,4],"s":[18,1,18]},
+    {"i":"record","c":"Record","l":"Record","k":"cylinder","o":"add","a":null,"col":"black","p":[6,11,5],"s":[16,1,16]},
+    {"i":"label","c":"Record","l":"Centre label","k":"cylinder","o":"add","a":null,"col":"red","p":[12,11,11],"s":[4,1,4]},
+    {"i":"arm-base","c":"Tonearm","l":"Tonearm base","k":"box","o":"add","col":"gray","p":[24,10,6],"s":[3,3,3]},
+    {"i":"arm","c":"Tonearm","l":"Tonearm","k":"beam","o":"add","col":"gray","p":[25.5,13,7.5],"s":[1,1,1],"e":[18,13,15],"r":0.5},
+    {"i":"lid","c":"Lid","l":"Open lid","k":"box","o":"add","col":"orange","p":[2,10,1],"s":[28,16,2]},
+    {"i":"knobs","c":"Control knobs","l":"Front knobs","k":"cylinder","o":"add","a":null,"col":"black","p":[5,10,21],"s":[2,2,2],"rep":[2,4,0,0]},
+    {"i":"grille","c":"Speaker grille","l":"Speaker grille","k":"box","o":"add","col":"black","p":[20,4,23],"s":[8,4,1]}
+   ]
+  }
+ },
+ "review":{
+  "reasoning":"Top views show the record and arm.",
+  "usage":{"reasoning_tokens":700},
+  "review":{
+   "revision":{"status":"not_requested","evidence":"No revision was requested for this first build."},
+   "composition":{"status":"matches","evidence":"Player only with an open lid."},
+   "summary":"A clear retro record player: open lid, black record, tonearm and knobs.",
+   "recognizable":true,
+   "features":{
+    "Black vinyl record":{"status":"visible","evidence":"Black disc with red label (view 5)."},
+    "Silver tonearm":{"status":"visible","evidence":"Gray arm over the record edge; palette has no silver."},
+    "Two front control knobs":{"status":"visible","evidence":"Two black knobs at the front of the deck."},
+    "Open dust lid standing at the back":{"status":"visible","evidence":"Upright lid."},
+    "Black record with red label":{"status":"visible","evidence":"Label."},
+    "Gray tonearm resting beside the record":{"status":"visible","evidence":"Arm."}
+   },
+   "improvements":["Lid: thin the lid to one stud so it reads as a dust cover."]
+  }
+ },
+ "judge":{
+  "usage":{"reasoning_tokens":400},
+  "checks":{},
+  "features":{
+   "Black record with a coloured centre label":{"status":"present","evidence":"Label."},
+   "Silver tonearm resting beside the record":{"status":"present","evidence":"Gray arm."},
+   "Two round knobs at the front":{"status":"present","evidence":"Knobs."},
+   "Speaker grille on the front face":{"status":"present","evidence":"Grille."},
+   "Low box with an upright lid at the back":{"status":"present","evidence":"Lid."}
+  },
+  "summary":"All defining features present."
+ }
+}

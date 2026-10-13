@@ -16,4 +16,20 @@ export class FeedbackQueue<T>{
  // replace newer feedback submitted while that queued pass was running.
  restorePaused(previous:QueuedFeedback<T>){if(!this.pending)this.pending={...previous,status:"paused"};return this.pending;}
 }
+/**
+ * Try again after a failed pass. A queued (or panel-started) pass is retried as itself, never as the composer, which was
+ * cleared when it was queued; a pass with a kept partial or a finished design retries as before (Continue, Retry review),
+ * since those finish the same request. Either way the failed request's paused card goes, so it cannot run twice.
+ */
+export function retryFailed<T>(queue:FeedbackQueue<T>,failed:T|null|undefined,s:{reviewOnly:boolean;interrupted:boolean}):{submitted?:T}{
+ if(failed&&queue.pending?.value===failed)queue.cancel();
+ return failed&&!s.reviewOnly&&!s.interrupted?{submitted:failed}:{};
+}
 export function mayClearSubmittedFeedback(submittedVersion:number,currentVersion:number,reviewOnly:boolean){return !reviewOnly&&submittedVersion===currentVersion;}
+// The queue card shows one line for the next pass: what was typed, or what the pass will do without words.
+export function queuedLabel(v:{text:string;approved?:string[];region?:{components:string[]}},name=(component:string)=>component){
+ if(v.text.trim())return v.text.trim();
+ const n=v.approved?.length||0;if(n)return `Apply ${n} suggested change${n===1?"":"s"}`;
+ if(v.region?.components.length)return `Change the ${v.region.components.slice(0,3).map(c=>name(c).toLowerCase()).join(", ")}`;
+ return "Update the build with the attached photos";
+}

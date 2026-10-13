@@ -1,0 +1,120 @@
+{
+ "synthetic":true,
+ "note":"SYNTHETIC: hand-authored stand-in for provider responses, not a recording. It exercises the harness plumbing (budget ledger, routes, compile, checks, review/judge parsing) at $0. Its scores say nothing about real model quality.",
+ "case":"apollo-saturn-v",
+ "idea":"Apollo Saturn V rocket",
+ "research":[
+  {
+   "reasoning":"NASA page for the stage order; encyclopedic source for height and diameter.",
+   "searches":[
+    {
+     "query":"Saturn V Apollo height diameter stages",
+     "sources":["https://www.nasa.gov/learning-resources/for-kids-and-students/what-was-the-saturn-v-grades-5-8/","https://en.wikipedia.org/wiki/Saturn_V"]
+    }
+   ],
+   "images":[],
+   "usage":{"reasoning_tokens":600,"search_content_tokens":8000},
+   "sheet":{
+    "identity":{"status":"confirmed","location":"Kennedy Space Center, Florida, USA (Apollo configuration)","question":""},
+    "contextAdequate":true,
+    "image_urls":[],
+    "included":["S-IC first stage","S-II second stage","S-IVB third stage","Instrument unit","Apollo spacecraft","Launch escape tower"],
+    "excluded":["Launch umbilical tower","Mobile launcher platform","Crawler"],
+    "uncertainties":["Stage-length ratios are approximate; the consulted pages give overall height only."],
+    "relations":[
+     {"from":"S-II second stage","relation":"above","to":"S-IC first stage"},
+     {"from":"S-IVB third stage","relation":"above","to":"S-II second stage"},
+     {"from":"Apollo spacecraft","relation":"above","to":"Instrument unit"},
+     {"from":"Launch escape tower","relation":"above","to":"Apollo spacecraft"}
+    ],
+    "searchable":true,
+    "kind":"vehicle",
+    "subject":"Apollo Saturn V rocket",
+    "summary":"Three-stage Apollo Saturn V with the Apollo spacecraft and launch escape tower, 110.6 m tall and 10.1 m in diameter.",
+    "length_m":10.1,
+    "width_m":10.1,
+    "height_m":110.6,
+    "openness":0,
+    "proportions":"About 11:1 height to diameter; the third stage narrows to about two thirds of the base diameter.",
+    "colors":["white","black (roll pattern)","red (escape tower)"],
+    "silhouette":["Very slender cylinder about 11:1","Pointed tip formed by the escape tower"],
+    "distinctive":[
+     "Four fins and engine fairings at the base of the first stage",
+     "Black-and-white roll pattern on the first stage",
+     "Narrower third stage above a tapered interstage",
+     "Launch escape tower atop the conical command module"
+    ],
+    "sources":["https://www.nasa.gov/learning-resources/for-kids-and-students/what-was-the-saturn-v-grades-5-8/","https://en.wikipedia.org/wiki/Saturn_V"],
+    "hero":"Side view of the full stack.",
+    "layout":"y up the stack; +z front with the roll pattern facing the viewer."
+   }
+  }
+ ],
+ "design":{
+  "reasoning":"Target 6 x 158 x 6: stacked cylinders, third stage at 4 studs.",
+  "usage":{"reasoning_tokens":3600},
+  "scene":{
+   "n":"Saturn V",
+   "d":"The Apollo Saturn V as stacked white stages with black roll bands, a narrower third stage, the spacecraft and a red launch escape tower. Fins are omitted at this diameter.",
+   "f":["Three stacked stages narrowing at the S-IVB","Black roll-pattern bands on the first stage","Red launch escape tower on the capsule"],
+   "dim":[10,160,10],
+   "rm":["display-foundation"],
+   "sh":[
+    {"i":"base","c":"Base","l":"Display base","k":"box","o":"add","col":"gray","p":[0,0,0],"s":[10,2,10]},
+    {"i":"sic","c":"S-IC first stage","l":"First stage","k":"cylinder","o":"add","a":null,"col":"white","p":[2,2,2],"s":[6,60,6]},
+    {"i":"sic-band-low","c":"S-IC first stage","l":"Lower roll band","k":"cylinder","o":"add","a":null,"col":"black","p":[2,10,2],"s":[6,4,6]},
+    {"i":"sic-band-high","c":"S-IC first stage","l":"Upper roll band","k":"cylinder","o":"add","a":null,"col":"black","p":[2,48,2],"s":[6,4,6]},
+    {"i":"sii","c":"S-II second stage","l":"Second stage","k":"cylinder","o":"add","a":null,"col":"white","p":[2,62,2],"s":[6,36,6]},
+    {"i":"sii-ring","c":"S-II second stage","l":"Interstage line","k":"cylinder","o":"add","a":null,"col":"black","p":[2,62,2],"s":[6,2,6]},
+    {"i":"interstage","c":"S-IVB third stage","l":"Tapered interstage","k":"cylinder","o":"add","a":null,"col":"white","p":[2,98,2],"s":[6,3,6]},
+    {"i":"sivb","c":"S-IVB third stage","l":"Third stage","k":"cylinder","o":"add","a":null,"col":"white","p":[3,101,3],"s":[4,25,4]},
+    {"i":"sivb-band","c":"S-IVB third stage","l":"Third stage aft band","k":"cylinder","o":"add","a":null,"col":"black","p":[3,101,3],"s":[4,3,4]},
+    {"i":"iu","c":"Instrument unit","l":"Instrument unit","k":"cylinder","o":"add","a":null,"col":"white","p":[3,126,3],"s":[4,2,4]},
+    {"i":"sla","c":"Apollo spacecraft","l":"Spacecraft adapter","k":"cylinder","o":"add","a":null,"col":"white","p":[3,128,3],"s":[4,12,4]},
+    {"i":"sm","c":"Apollo spacecraft","l":"Service module","k":"cylinder","o":"add","a":null,"col":"gray","p":[3,140,3],"s":[4,6,4]},
+    {"i":"cm","c":"Apollo spacecraft","l":"Command module","k":"cylinder","o":"add","a":null,"col":"gray","p":[3,146,3],"s":[4,3,4]},
+    {"i":"cm-apex","c":"Apollo spacecraft","l":"Command module apex","k":"cylinder","o":"add","a":null,"col":"gray","p":[4,149,4],"s":[2,1,2]},
+    {"i":"les-tower","c":"Launch escape tower","l":"Escape tower truss","k":"box","o":"add","col":"red","p":[4,150,4],"s":[2,4,2]},
+    {"i":"les-motor","c":"Launch escape tower","l":"Escape motor","k":"cylinder","o":"add","a":null,"col":"white","p":[4,154,4],"s":[2,6,2]}
+   ]
+  }
+ },
+ "review":{
+  "reasoning":"Stage order bottom to top checked in view 1.",
+  "usage":{"reasoning_tokens":800},
+  "review":{
+   "revision":{"status":"not_requested","evidence":"No revision was requested for this first build."},
+   "composition":{"status":"matches","evidence":"Rocket only on a minimal base; Apollo stack with three stages and the escape tower."},
+   "summary":"A slender three-stage stack in the right order with the spacecraft and escape tower. Roll pattern is simplified to full bands; fins are missing.",
+   "recognizable":true,
+   "features":{
+    "Three propulsion stages in order":{"status":"visible","evidence":"S-IC, S-II and narrower S-IVB from the bottom (view 1)."},
+    "Apollo spacecraft":{"status":"visible","evidence":"Gray service module and conical command module."},
+    "Launch escape tower":{"status":"visible","evidence":"Red truss and white motor at the tip."},
+    "Black and white roll markings":{"status":"uncertain","evidence":"Full black bands instead of quadrant roll pattern."},
+    "Three stacked stages narrowing at the S-IVB":{"status":"visible","evidence":"Step from 6 to 4 studs."},
+    "Black roll-pattern bands on the first stage":{"status":"visible","evidence":"Two bands."},
+    "Red launch escape tower on the capsule":{"status":"visible","evidence":"Tip."}
+   },
+   "improvements":["S-IC: replace the full black bands with the quadrant roll pattern.","S-IC base: add four fins and engine fairings."]
+  }
+ },
+ "judge":{
+  "usage":{"reasoning_tokens":500},
+  "checks":{
+   "Apollo configuration rather than two-stage Skylab":{"status":"pass","evidence":"Three stages plus escape tower."},
+   "Correct vertical component order":{"status":"pass","evidence":"Order matches the sheet."},
+   "No launch infrastructure counted in rocket bounds":{"status":"pass","evidence":"No tower or platform."},
+   "111-metre overall height is not assigned to a single stage":{"status":"pass","evidence":"Stages share the 158-plate height."}
+  },
+  "features":{
+   "Four fins and engine fairings at the base of the first stage":{"status":"missing","evidence":"No fins."},
+   "Black-and-white roll pattern on the first stage":{"status":"uncertain","evidence":"Bands only."},
+   "Narrower third stage above a tapered interstage":{"status":"present","evidence":"Step visible."},
+   "Launch escape tower atop the conical command module":{"status":"present","evidence":"Tip."},
+   "Very slender cylinder about 11:1":{"status":"present","evidence":"6 x 158."},
+   "Pointed tip formed by the escape tower":{"status":"present","evidence":"Tip."}
+  },
+  "summary":"Correct stack; base details missing."
+ }
+}

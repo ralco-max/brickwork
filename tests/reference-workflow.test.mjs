@@ -135,3 +135,14 @@ test('genuine conflicting landmark evidence still asks after bounded research an
  },design:async()=>{designed=true;return scene;},compile:async()=>({pieces:[]}),review:async()=>({})}),/two different monuments/);
  assert.equal(designed,false);assert.equal(requests.length,2);assert.match(requests[1].instructions,/earlier unnecessary namesake question does not require a user answer/);
 });
+
+test('the review rubric, a critical mismatch, a targeted scope, the designer-facing history and the auto-repair log survive export and reopen',()=>{
+ const review={summary:'The terminal reads well.',recognizable:false,criticalMismatch:true,features:[],rubric:[{feature:'Glass facade',kind:'distinctive',status:'missing',evidence:'No glass.'},{feature:'Curved roof',kind:'silhouette',status:'visible',evidence:'Roof sags.'}],improvements:[],scope:'targeted'};
+ const design={brief:{...brief,autoRepair:false},reference,manual:m.emptyManual(),locked:[],revisions:[{request:'Dulles main terminal',summary:'The Dulles terminal under its sweeping roof.',builder:'The terminal reads well. Tower height estimated.',at:'2026-10-13T00:00:00.000Z'}],review,autoRepairs:[{at:'2026-10-13T00:00:00.000Z',reasons:['Missing Glass facade'],kept:false,fixed:0,cost:.1234,checked:false}]};
+ const model={...m.compileScene(scene,{smooth:true}),generation:scene,libraryId:'rubric-fixture',design};
+ const back=m.validateProject(JSON.parse(m.projectJSON(model,m.emptyShopping())));
+ assert.deepEqual(back.design.review,review);assert.deepEqual(back.design.autoRepairs,design.autoRepairs);assert.equal(back.design.revisions[0].builder,design.revisions[0].builder);assert.equal(back.design.brief.autoRepair,false);
+ assert.equal(m.unpackDesign(m.packDesign(model,'draft')).design.autoRepairs[0].reasons[0],'Missing Glass facade');
+ // The rubric is a separate field: the brief's features, and so the research key, never change.
+ assert.equal(m.referenceKey(design.brief),reference.briefKey);
+});

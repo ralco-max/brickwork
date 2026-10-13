@@ -1,13 +1,71 @@
-// Only unambiguous, local appearance/size edits may bypass a fresh lookup.
-// Unknown wording deliberately falls back to research; identity, photo, scope,
-// feature-list and readiness checks still run in the caller.
+import {referenceReady} from "./design-research";
+import type {ReferenceSheet} from "./design-research";
+import type {GeneratedScene} from "./generated-scene";
+import {COLORS} from "./colors";
+import {collectReferencePhotos} from "./reference-photos";
+
+// Unambiguous local edits the review re-checks in targeted mode: a color change anywhere, or resizing a small part
+// (windows, doors, the sign). Resizing the building, its roof, a tower or the whole model changes the proportions and
+// layout, which only a full review against the reference can judge.
 export function isLocalDesignEdit(feedback:string):boolean{
  const text=feedback.trim().toLowerCase().replace(/[.!]+$/,"").replace(/\s+/g," ").replace(/^please /,"");
- const target="(?:the )?(?:roof|walls?|windows?|doors?|base|building|tower|sign|facade|model)";
+ const target="(?:the )?(?:roof|walls?|windows?|doors?|base|building|tower|sign|facade|model)",small="(?:the )?(?:windows?|doors?|sign)";
  const color="(?:(?:dark|light) )?(?:blue|green|red|gray|grey|brown|tan|yellow|orange|pink|purple|black|white)";
- return new RegExp(`^make ${target} (?:a (?:little|bit) )?(?:darker|lighter|taller|shorter|wider|narrower|thicker|thinner|larger|smaller|${color})$`).test(text)
+ return new RegExp(`^make ${target} (?:a (?:little|bit) )?(?:darker|lighter|${color})$`).test(text)
+  ||new RegExp(`^make ${small} (?:a (?:little|bit) )?(?:taller|shorter|wider|narrower|thicker|thinner|larger|smaller)$`).test(text)
   ||new RegExp(`^(?:paint|recolor) ${target} (?:${color})$`).test(text)
   ||new RegExp(`^change (?:the )?(?:color|colour) of ${target} to ${color}$`).test(text);
+}
+
+// A revision reuses the saved research sheet unless the feedback brings new evidence about what the subject is:
+// a link, an identity statement, or a proper noun the sheet and the model do not already name. A lookup costs
+// $0.06-0.13 and can re-derive the target and the review rubric, while "make the train silver", "make the roof Navy
+// blue" or "this is 10 studs too long" never changes the subject. New or changed photos, a new place hint, a changed
+// brief and an unready sheet are checked by the caller, which always re-researches for them.
+const URL_CUE=/https?:\/\/|\bwww\.|\b[a-z0-9-]+\.(?:com|org|net|gov|edu|io|co|uk|info)\b/i;
+const IDENTITY_CUES=[/\bwrong (?:building|place|structure|landmark|station|bridge|tower|location|city|one)\b/i,/\blocated (?:in|at|on|near)\b/i,/\bactually\b/i,/\b[Tt]his is (?:not )?(?:the |a |an )?(?:real |actual )?[A-Z]/];
+const nameWords=(text:string)=>text.toLowerCase().match(/[a-z0-9][a-z0-9'’-]*/g)||[];
+// Capitalized words that never name a subject: the palette's colors and LEGO's color names, the brand and its parts,
+// and directions.
+const NOT_NAMES=new Set([...nameWords(Object.entries(COLORS).flatMap(([key,c])=>[key,c.name]).join(" ")),..."i i'm i'd i've i'll ok okay please thanks lego technic duplo minifig minifigs minifigure minifigures bricklink brick bricks plate plates tile tiles stud studs grey silver gold golden metallic pearl trans transparent clear sand olive lime azure medium teal maroon beige cream ivory coral lavender magenta purple violet turquoise aqua bronze copper chrome nougat north south east west northern southern eastern western".split(" ")]);
+export function needsFreshResearch(feedback:string,sheet?:ReferenceSheet,scene?:GeneratedScene):boolean{
+ const text=feedback.trim();if(!text)return false;if(!sheet)return true;
+ if(URL_CUE.test(text)||IDENTITY_CUES.some(cue=>cue.test(text)))return true;
+ const known=new Set(nameWords([sheet.subject,sheet.hero,sheet.summary,sheet.layout,sheet.identity?.location,...(sheet.included||[]),...(sheet.excluded||[]),...sheet.distinctive,...sheet.silhouette,scene?.name,...(scene?.shapes||[]).flatMap(s=>[s.component,s.label,s.text])].filter(Boolean).join(" ")));
+ // Capitalized words that do not start a sentence: "Union Station", "the Smithsonian"; ALL-CAPS words are sign text or emphasis.
+ for(const m of text.matchAll(/[A-Z][a-z][A-Za-z'’-]*/g)){
+  const raw=text.slice(0,m.index),before=raw.trimEnd(),word=m[0].toLowerCase();
+  if(!before||/[.!?:;"“(]$/.test(before)||/\n\s*$/.test(raw)||/[A-Za-z0-9'’]$/.test(raw))continue;
+  if(!NOT_NAMES.has(word)&&!known.has(word.replace(/['’]s$/,"")))return true;
+ }
+ return false;
+}
+
+// After a lookup: a ready sheet is used. An unready one asks its question, unless the caller passes a fallback: the
+// confirmed sheet for the same brief, photos and place hint, when only the typed feedback forced the lookup. The pass
+// then continues on it (the question is still shown) instead of stopping on a doubt the text raised. New photos or a
+// new hint are never given a fallback: their evidence must be answered, not silently recorded as researched.
+export function lookupOutcome(sheet:ReferenceSheet,fallback?:{sheet?:ReferenceSheet}):"ready"|"fallback"|"ask"{
+ return referenceReady(sheet)?"ready":fallback?.sheet&&referenceReady(fallback.sheet)?"fallback":"ask";
+}
+// What a pass may do with the saved reference: reuse it (no lookup), or, when only the typed feedback forces a lookup,
+// keep it as that lookup's fallback (and the sheet it refines). Either needs the same brief, photos and place hint and
+// a ready sheet; anything new is looked up, and an unready answer to new evidence asks its question.
+type SavedReference={sheet?:ReferenceSheet;photo?:string;photos?:string[];identityHint?:string;briefKey:string};
+export function savedReference<R extends SavedReference>(saved:R|undefined,now:{briefKey:string;photo?:string;photos?:string[];identityHint:string},refresh:boolean):{reusable?:R;fallback?:R}{
+ const same=saved&&saved.briefKey===now.briefKey&&JSON.stringify(collectReferencePhotos(saved.photo,saved.photos))===JSON.stringify(collectReferencePhotos(now.photo,now.photos))&&(saved.identityHint||"").trim()===now.identityHint.trim()&&referenceReady(saved.sheet);
+ return !same?{}:refresh?{fallback:saved}:{reusable:saved};
+}
+
+// Output ceilings sized to the request: they set the ledger hold, and a stop settles below them. A first build (or a
+// continuation) may write the contract's 240 shapes at about 80 tokens each plus a 2k header; a revision may re-emit
+// every shape it was given ("make it bigger", "change all windows"), never less than 14k; reasoning gets its effort's
+// allowance (unset effort is the provider's medium). Never above the 32k the ledger accepts.
+export const SHAPE_LIMIT=240,TOKENS_PER_SHAPE=80;
+export const reasoningAllowance=(effort?:string)=>effort==="none"||effort==="minimal"?2000:effort==="low"?6000:effort==="high"?16000:12000;
+export function designOutputLimit(previousShapes:number,effort?:string,first=false):number{
+ const allowance=reasoningAllowance(effort);
+ return Math.min(32000,first?2000+TOKENS_PER_SHAPE*SHAPE_LIMIT+allowance:Math.max(14000,TOKENS_PER_SHAPE*previousShapes+allowance));
 }
 
 // Null fields in the compact scene mean "not applicable". Omit them only in

@@ -5,6 +5,8 @@ import {Box,Check,ChevronDown,ChevronLeft,ChevronRight,Layers3,Search,RotateCw,X
 import {COLORS,PARTS} from "@/lib/bridge";
 import type {ColorKey,Face,PartId} from "@/lib/bridge";
 import {catalogPart} from "@/lib/part-catalog";
+import {partColors} from "@/lib/part-colors";
+import {colorSwatch} from "@/lib/colors";
 import {catalogOptions,familyLabel,partColorAllowed,partPage,searchParts,PART_PICKER_PAGE_SIZE} from "./part-picker-data";
 
 const faces:Face[]=["pz","px","nz","nx"];
@@ -17,7 +19,7 @@ export default function PartPicker({value,onChange,color,onColorChange,face,onFa
  const id=useId(),searchId=`${id}-search`,panelId=`${id}-catalog`,trigger=useRef<HTMLButtonElement>(null),searchInput=useRef<HTMLInputElement>(null),resultsList=useRef<HTMLUListElement>(null);
  const [open,setOpen]=useState(false),[query,setQuery]=useState(""),[family,setFamily]=useState("all"),[requestedPage,setPage]=useState(0);
  const options=useMemo(()=>catalogOptions(),[]),families=useMemo(()=>Array.from(new Set(options.map(part=>part.family))).sort((a,b)=>a.localeCompare(b)),[options]);
- const results=useMemo(()=>searchParts(options,query,family),[options,query,family]),page=partPage(results,requestedPage),part=PARTS[value],catalog=catalogPart(value),selected=options.find(option=>option.id===value),colorAllowed=partColorAllowed(value,color),knownColors=catalog?.colors;
+ const results=useMemo(()=>searchParts(options,query,family),[options,query,family]),page=partPage(results,requestedPage),part=PARTS[value],catalog=catalogPart(value),selected=options.find(option=>option.id===value),colorAllowed=partColorAllowed(value,color),knownColors=partColors(value);
  useEffect(()=>{if(open)searchInput.current?.focus();},[open]);
  useEffect(()=>{if(resultsList.current)resultsList.current.scrollTop=0;},[query,family,requestedPage]);
  const close=()=>{setOpen(false);trigger.current?.focus();};
@@ -34,7 +36,7 @@ export default function PartPicker({value,onChange,color,onColorChange,face,onFa
    {page.pages>1&&<nav className="part-picker-pagination" aria-label="Catalog pages"><button type="button" className="button secondary" disabled={page.page===0} onClick={()=>setPage(page.page-1)}><ChevronLeft size={16}/>Previous</button><span>Page {page.page+1} of {page.pages}</span><button type="button" className="button secondary" disabled={page.page===page.pages-1} onClick={()=>setPage(page.page+1)}>Next<ChevronRight size={16}/></button></nav>}
   </section>}
   <div className="part-picker-details"><div className="part-picker-specs"><span>{selected?familyLabel(selected.family):"Part"}</span><span>{part.w} × {part.d} studs · {part.h} plates high</span>{catalog&&<span>{catalog.topStuds.length} top studs · {catalog.bottomSockets.length} underside sockets</span>}{catalog?.handedness&&<span>{catalog.handedness} handed</span>}{counterpart&&<button type="button" onClick={()=>onChange(counterpart)}>Use counterpart #{counterpart}<ChevronRight size={13}/></button>}</div>
-   <fieldset className="part-picker-colors"><legend>{knownColors?"Catalog colors for this part":"Model color"}<span> · {COLORS[color].name}</span></legend><div>{(knownColors||Object.keys(COLORS) as ColorKey[]).map(key=>Object.hasOwn(COLORS,key)&&<button key={key} type="button" aria-label={COLORS[key].name} title={COLORS[key].name} aria-pressed={color===key} onClick={()=>onColorChange(key)} style={{"--part-color":COLORS[key].hex} as CSSProperties}>{color===key&&<Check size={15}/>}</button>)}</div></fieldset>
+   <fieldset className="part-picker-colors"><legend>{catalog?"Catalog colors for this part":"Colors for this part"}<span> · {COLORS[color].name}</span></legend><div>{knownColors.map(key=>Object.hasOwn(COLORS,key)&&<button key={key} type="button" aria-label={COLORS[key].name} title={COLORS[key].name} aria-pressed={color===key} onClick={()=>onColorChange(key)} style={{"--part-color":colorSwatch(key)} as CSSProperties}>{color===key&&<Check size={15}/>}</button>)}</div></fieldset>
    {!colorAllowed&&<p className="part-picker-color-warning" role="status">{COLORS[color].name} is not recorded for this part. Choose a catalog color above before placing it.</p>}
    <p className="part-picker-guidance">Place upright on stud connections. Rotate to choose the front; clips and hinges do not auto-connect. <a href="/parts/about.html" target="_blank" rel="noreferrer">Part data &amp; credits</a></p>
   </div>

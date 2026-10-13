@@ -6,6 +6,8 @@ import type {CompactScene} from "./generated-scene";
 // subject so the designer imitates a concrete pattern instead of following a rule.
 export type DesignExample={id:string;about:string;tags:string[];scene:CompactScene};
 const box=(i:string,c:string,l:string,col:string,p:[number,number,number],s:[number,number,number],extra:Partial<CompactScene["sh"][number]>={})=>({i,c,l,k:"box" as const,o:"add" as const,a:null,col:col as CompactScene["sh"][number]["col"],p,s,e:null,r:null,rep:null,...extra});
+// A real window or door frame with its fitted glass or door (bg; null = trans-clear). Its outside faces -z at pz.
+const frame=(i:string,c:string,l:string,pid:string,col:string,p:[number,number,number],s:[number,number,number],face:"pz"|"nz"|"px"|"nx",bg:string|null,rep:[number,number,number,number]|null=null)=>({i,c,l,k:"part" as const,o:"add" as const,a:null,col:col as CompactScene["sh"][number]["col"],p,s,e:null,r:null,rep,face,bg:bg as CompactScene["sh"][number]["col"]|null,pid});
 export const DESIGN_EXAMPLES:DesignExample[]=[
  {id:"car",about:"A compact hatchback, 20 studs long, designed in the round: real wheel elements in carved arches on black axle boxes that reach up into the body, a body 2.3 times as long as wide with ground clearance, a nose with grille, headlights, bumper and a hood step, a cabin set back behind a raked windscreen lean with wing mirrors rooted in the pillars, and a tail with hatch window, tail lights and bumper.",tags:["vehicle","car","truck","bus","van","wheel"],scene:{n:"Hatchback",d:"A small red hatchback: body, set-back cabin, four wheel elements in arches on axle boxes, headlights and tail lights.",f:["long low body with carved wheel arches","raked windscreen and set-back cabin","four black wheels with grey hubs"],dim:[26,24,14],rm:[],sh:[
   box("base","Base","Display base","gray",[0,0,0],[26,2,14]),
@@ -27,18 +29,19 @@ export const DESIGN_EXAMPLES:DesignExample[]=[
   box("bumper-front","Nose","Front bumper, one stud proud, tucked under the body","gray",[2,6,3],[3,2,8]),
   box("headlights","Nose","Headlights","yellow",[3,11,4],[1,2,1],{rep:[2,0,0,5]}),
   box("hood-step","Nose","Hood stepping down to the grille","red",[3,13,4],[2,1,6]),
-  box("bumper-rear","Tail","Rear bumper, one stud proud, tucked under the body","gray",[21,6,3],[3,2,8]),
+  box("bumper-rear","Tail","Rear bumper, one stud proud, tucked under the body","gray",[22,6,3],[2,2,8]),
   box("taillights","Tail","Tail lights","orange",[22,11,4],[1,2,1],{rep:[2,0,0,5]}),
   box("hatch-window","Tail","Rear hatch window","navy",[21,15,4],[1,3,6]),
   box("mirror-l","Cabin","Wing mirror rooted in the pillar","black",[11,15,2],[1,1,2]),
   box("mirror-r","Cabin","Wing mirror rooted in the pillar","black",[11,15,10],[1,1,2]),
  ]}},
- {id:"cottage",about:"A brick cottage: walls with inset windows and a door, a pitched roof built as stepped courses (one stud in per three plates) with eaves that overhang the walls by one stud, and a chimney.",tags:["building","house","cottage","home","roof","barn","church"],scene:{n:"Cottage",d:"A tan cottage with a red pitched roof, inset windows, a door and a chimney.",f:["pitched roof with overhanging eaves","inset windows either side of the door","chimney on the ridge"],dim:[24,40,20],rm:[],sh:[
+ {id:"cottage",about:"A brick cottage: walls with real window frames (glazed) and a door frame with its door opening into a carved hall, a pitched roof built as stepped courses (one stud in per three plates) with eaves that overhang the walls by one stud, and a chimney.",tags:["building","house","cottage","home","roof","barn","church"],scene:{n:"Cottage",d:"A tan cottage with a red pitched roof, inset windows, a door and a chimney.",f:["pitched roof with overhanging eaves","inset windows either side of the door","chimney on the ridge"],dim:[24,40,20],rm:[],sh:[
   box("base","Base","Display base","green",[0,0,0],[24,2,20]),
   box("walls","Walls","Walls","tan",[4,2,4],[16,18,12]),
-  box("door","Openings","Front door","brown",[10,2,15],[3,8,1]),
-  box("window-l","Openings","Front windows","navy",[6,8,15],[2,4,1],{rep:[2,9,0,0]}),
-  box("window-b","Openings","Back windows","navy",[6,8,4],[2,4,1],{rep:[3,5,0,0]}),
+  frame("door","Openings","Front door in its frame, outside facing the street","60596","white",[10,2,15],[4,18,1],"nz","brown"),
+  box("hall","Openings","Hall behind the door: room for its handle and to swing open","tan",[10,2,11],[4,18,4],{o:"subtract"}),
+  frame("window-l","Openings","Front windows, glazed","60592","white",[6,8,15],[2,6,1],"nz",null,[2,9,0,0]),
+  frame("window-b","Openings","Back windows, glazed","60592","white",[6,8,4],[2,6,1],"pz",null,[3,5,0,0]),
   box("roof-0","Roof","Roof course 1 with eaves","red",[3,20,3],[18,3,14]),
   box("roof-1","Roof","Roof course 2","red",[3,23,4],[18,3,12]),
   box("roof-2","Roof","Roof course 3","red",[3,26,5],[18,3,10]),
@@ -47,16 +50,16 @@ export const DESIGN_EXAMPLES:DesignExample[]=[
   box("ridge","Roof","Ridge","red",[3,35,8],[18,2,4]),
   box("chimney","Roof","Chimney","gray",[16,30,8],[2,10,2]),
  ]}},
- {id:"lattice",about:"An open lattice tower 24 studs square and 100 plates tall: four splayed legs as leans, X braces as one-stud leans with air between them, two platforms, a tapering upper shaft and a mast, a Core of piers under the platforms.",tags:["tower","lattice","monument","bridge","crane","pylon","eiffel","mast"],scene:{n:"Lattice tower",d:"An open iron lattice tower: four splayed leg leans, X braces, two platforms, a tapering shaft and a mast.",f:["four splayed legs meeting under the first platform","open crisscross bracing with air between members","tapering shaft to a needle mast"],dim:[28,110,28],rm:[],sh:[
+ {id:"lattice",about:"An open lattice tower 24 studs square and 100 plates tall: four splayed legs as leans, X braces as one-stud leans footed on the base with air between them, two platforms, a tapering upper shaft and a mast, a Core of piers under the platforms.",tags:["tower","lattice","monument","bridge","crane","pylon","eiffel","mast"],scene:{n:"Lattice tower",d:"An open iron lattice tower: four splayed leg leans, X braces, two platforms, a tapering shaft and a mast.",f:["four splayed legs meeting under the first platform","open crisscross bracing with air between members","tapering shaft to a needle mast"],dim:[28,110,28],rm:[],sh:[
   box("base","Base","Display base","gray",[0,0,0],[28,2,28]),
   {i:"leg-1",c:"Legs",l:"Leg",k:"lean",o:"add",a:null,col:"darkbrown",p:[4,2,4],s:[2,3,0],e:[10,40,10],r:null,rep:null},
   {i:"leg-2",c:"Legs",l:"Leg",k:"lean",o:"add",a:null,col:"darkbrown",p:[24,2,4],s:[2,3,0],e:[18,40,10],r:null,rep:null},
   {i:"leg-3",c:"Legs",l:"Leg",k:"lean",o:"add",a:null,col:"darkbrown",p:[4,2,24],s:[2,3,0],e:[10,40,18],r:null,rep:null},
   {i:"leg-4",c:"Legs",l:"Leg",k:"lean",o:"add",a:null,col:"darkbrown",p:[24,2,24],s:[2,3,0],e:[18,40,18],r:null,rep:null},
-  {i:"brace-f1",c:"Bracing",l:"Front X brace",k:"lean",o:"add",a:null,col:"darkbrown",p:[5,8,5],s:[1,3,0],e:[19,32,9],r:null,rep:null},
-  {i:"brace-f2",c:"Bracing",l:"Front X brace",k:"lean",o:"add",a:null,col:"darkbrown",p:[23,8,5],s:[1,3,0],e:[9,32,9],r:null,rep:null},
-  {i:"brace-b1",c:"Bracing",l:"Back X brace",k:"lean",o:"add",a:null,col:"darkbrown",p:[5,8,23],s:[1,3,0],e:[19,32,19],r:null,rep:null},
-  {i:"brace-b2",c:"Bracing",l:"Back X brace",k:"lean",o:"add",a:null,col:"darkbrown",p:[23,8,23],s:[1,3,0],e:[9,32,19],r:null,rep:null},
+  {i:"brace-f1",c:"Bracing",l:"Front X brace, footed on the base",k:"lean",o:"add",a:null,col:"darkbrown",p:[5,2,5],s:[1,3,0],e:[19,32,9],r:null,rep:null},
+  {i:"brace-f2",c:"Bracing",l:"Front X brace, footed on the base",k:"lean",o:"add",a:null,col:"darkbrown",p:[23,2,5],s:[1,3,0],e:[9,32,9],r:null,rep:null},
+  {i:"brace-b1",c:"Bracing",l:"Back X brace, footed on the base",k:"lean",o:"add",a:null,col:"darkbrown",p:[5,2,23],s:[1,3,0],e:[19,32,19],r:null,rep:null},
+  {i:"brace-b2",c:"Bracing",l:"Back X brace, footed on the base",k:"lean",o:"add",a:null,col:"darkbrown",p:[23,2,23],s:[1,3,0],e:[9,32,19],r:null,rep:null},
   box("platform-1","Platforms","First platform","darkbrown",[7,40,7],[14,2,14]),
   box("core-1","Core","Pier under the first platform","darkbrown",[12,2,12],[4,38,4]),
   {i:"shaft-1",c:"Shaft",l:"Shaft edge",k:"lean",o:"add",a:null,col:"darkbrown",p:[8,42,8],s:[1,3,0],e:[13,96,13],r:null,rep:null},
@@ -68,11 +71,12 @@ export const DESIGN_EXAMPLES:DesignExample[]=[
   box("summit","Shaft","Summit room","darkbrown",[12,96,12],[4,4,4]),
   {i:"mast",c:"Shaft",l:"Mast",k:"beam",o:"add",a:null,col:"gray",p:[14,100,14],s:[1,1,1],e:[14,108,14],r:.5,rep:null},
  ]}},
- {id:"animal",about:"A standing dog 20 studs long: a body as an ellipsoid, four legs as boxes that reach the base, a head with muzzle, ears, eyes as single accents and a tail as a lean, in two analogous colours with one accent.",tags:["animal","dog","cat","horse","dinosaur","creature"],scene:{n:"Dog",d:"A standing brown dog with a white chest, floppy ears, a raised tail and black eyes and nose.",f:["four legs planted on the base","raised tail","floppy ears and a muzzle"],dim:[24,30,14],rm:[],sh:[
+ {id:"animal",about:"A standing dog 20 studs long: a body as an ellipsoid over a solid core box that roots its curved sides, four legs as boxes that reach the base, a head with muzzle, ears, eyes as single accents and a tail as a lean, in two analogous colours with one accent.",tags:["animal","dog","cat","horse","dinosaur","creature"],scene:{n:"Dog",d:"A standing brown dog with a white chest, floppy ears, a raised tail and black eyes and nose.",f:["four legs planted on the base","raised tail","floppy ears and a muzzle"],dim:[24,30,14],rm:[],sh:[
   box("base","Base","Display base","green",[0,0,0],[24,2,14]),
   box("legs","Legs","Legs","brown",[6,2,3],[3,8,3],{rep:[2,9,0,0]}),
   box("legs-b","Legs","Far legs","brown",[6,2,8],[3,8,3],{rep:[2,9,0,0]}),
   {i:"body",c:"Body",l:"Body",k:"ellipsoid",o:"add",a:null,col:"brown",p:[4,8,2],s:[15,11,10],e:null,r:null,rep:null},
+  box("core","Body","Solid core box rooting the curved sides of the body","brown",[5,10,3],[13,3,8]),
   box("chest","Body","White chest","white",[5,9,5],[3,6,4]),
   {i:"head",c:"Head",l:"Head",k:"ellipsoid",o:"add",a:null,col:"brown",p:[2,15,3],s:[7,9,8],e:null,r:null,rep:null},
   box("muzzle","Head","Muzzle","tan",[1,16,5],[3,4,4]),
@@ -82,11 +86,13 @@ export const DESIGN_EXAMPLES:DesignExample[]=[
   box("ear-r","Head","Floppy ear, rooted in the head","brown",[6,17,10],[2,6,2]),
   {i:"tail",c:"Tail",l:"Raised tail",k:"lean",o:"add",a:null,col:"brown",p:[19,14,7],s:[1,3,0],e:[22,24,7],r:null,rep:null},
  ]}},
-{id:"minifigs",about:"A corner shop at minifig scale: two real minifigures standing on the base studs (a shopkeeper at the door facing out, a customer turned toward her), a door 3 studs wide and 15 plates high, windows, a roof that overhangs as an awning, and a lamp post. The whole scene is sized around the 12-plate figures instead of building people from boxes.",tags:["person","people","figure","minifig","crew","character","worker","passenger","shop","street","town"],scene:{n:"Corner shop",d:"A tan corner shop with a red awning roof, a shopkeeper in the doorway, a customer and a street lamp.",f:["two minifigures on the street","door and windows sized for the figures","overhanging awning roof"],dim:[20,24,12],rm:[],sh:[
+{id:"minifigs",about:"A corner shop at minifig scale: two real minifigures standing on the base studs (a shopkeeper at the door facing out, a customer turned toward her), a real 1 x 4 x 6 door frame with its door (the floor behind it carved clear) and glazed shop windows facing the street, a roof that overhangs as an awning, and a lamp post. The whole scene is sized around the 12-plate figures instead of building people from boxes.",tags:["person","people","figure","minifig","crew","character","worker","passenger","shop","street","town"],scene:{n:"Corner shop",d:"A tan corner shop with a red awning roof, a shopkeeper in the doorway, a customer and a street lamp.",f:["two minifigures on the street","door and windows sized for the figures","overhanging awning roof"],dim:[20,24,12],rm:[],sh:[
   box("base","Base","Display base","gray",[0,0,0],[20,2,12]),
   box("walls","Shop","Shop walls","tan",[1,2,1],[18,18,4]),
-  box("door","Shop","Door, 3 studs wide and 15 plates high","brown",[7,2,4],[3,15,1]),
-  box("windows","Shop","Shop windows","navy",[2,7,4],[4,6,1],{rep:[2,11,0,0]}),
+  frame("door","Shop","Shop door in its frame, 4 studs wide and 18 plates high","60596","white",[7,2,4],[4,18,1],"nz","brown"),
+  box("hall","Shop","Shop floor behind the door, clear of its handle","tan",[7,2,2],[4,18,2],{o:"subtract"}),
+  frame("window-l","Shop","Left shop window, two glazed frames","60593","white",[2,5,4],[2,9,1],"nz",null,[2,2,0,0]),
+  frame("window-r","Shop","Right shop window, two glazed frames","60593","white",[13,5,4],[2,9,1],"nz",null,[2,2,0,0]),
   box("awning","Shop","Roof overhanging the street as an awning","red",[1,20,1],[18,1,6]),
   box("lamp-post","Street","Lamp post","black",[17,2,9],[1,18,1]),
   box("lamp","Street","Lamp","yellow",[17,20,9],[1,2,1]),

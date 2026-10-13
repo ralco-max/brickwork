@@ -53,7 +53,7 @@ test('shared projects keep the creation and drop photos, marked areas, hints and
 test('shared projects never carry the words the creator typed, and still open as projects',()=>{
  // The share dialog promises this list; it must name only what the sanitizer really removes.
  const note=readFileSync('app/share-dialog.tsx','utf8').match(/<DialogDescription>([^<]*)<\/DialogDescription>/)?.[1]||'';
- assert.match(note,/Your photos, location hint, brief wording, change requests, review and shopping list are not included\./);
+ assert.match(note,/Your photos, location hint, research sources and notes, brief wording, change requests, review and shopping list are not included\./);
  const data=project(),idea='PRIVATE-IDEA Recreate my apartment at 12 Example St',feedback='PRIVATE-FEEDBACK make my daughter Emma in the window',request='PRIVATE-REQUEST add my name JOHN SMITH on the sign';
  data.design.brief={...data.design.brief,idea,size:'large',maxPieces:900,quality:'best',composition:'PRIVATE-COMPOSITION my parents house at 42 Elm St',features:['PRIVATE-FEATURE grandma Ruth in the window','Red door'],style:'PRIVATE-STYLE like the Hendersons porch',signText:'JOHN SMITH'};
  const sheet={identity:{status:'confirmed',location:'PRIVATE-LOCATION 42 Elm St, Springfield',question:'PRIVATE-QUESTION is this Ruth\'s house?'},contextAdequate:true,searchable:true,kind:'building',subject:'Harbor house',summary:'A two-story house with dormers.',length_m:null,width_m:null,height_m:null,proportions:'Boxy',colors:['red'],silhouette:['Gable roof'],distinctive:['Dormers'],sources:['https://example.com/house']};
@@ -69,7 +69,7 @@ test('shared projects never carry the words the creator typed, and still open as
  assert.equal(brief.size,'large');assert.equal(brief.maxPieces,900);assert.equal(brief.quality,'best');assert.equal(brief.hollow,false,'size and build settings are not words and stay; hollow and finish also rebuild the bricks');
  assert.equal(out.design.reviewRequest,undefined);assert.equal(out.design.review,undefined);assert.equal(out.design.reviewStale,undefined);assert.deepEqual(out.design.revisions,[]);
  assert.equal(out.design.privateNotes,undefined);assert.equal(out.libraryId,undefined);
- assert.equal(out.design.reference.sheet.subject,'Harbor house');assert.equal(out.design.reference.sheet.identity.status,'confirmed');assert.equal(out.design.reference.sheet.identity.location,'');
+ assert.equal(out.design.reference.sheet.subject,'Harbor house');assert.equal(out.design.reference.sheet.identity,undefined);assert.equal(out.design.reference.sheet.searchable,false);assert.deepEqual(out.design.reference.sheet.sources,[]);
  assert.equal(out.design.reference.briefKey,m.referenceKey(brief),'the research sheet key follows the shared brief, so a remix can reuse it');
  const reopened=m.validateProject(out);assert.equal(reopened.pieces.length,shared.pieceCount);assert.equal(reopened.design.brief.idea,'Harbor house');
  const tiny=project('Ox');tiny.design.brief.idea=idea;assert.equal(JSON.parse(m.sanitizeSharedProject(tiny).project).design.brief.idea,'Shared creation','a name too short for a brief idea gets a neutral stand-in');
@@ -99,7 +99,7 @@ test('creating, reading and previewing a share round-trips through D1',async t=>
  assert.equal(preview.headers.get('cache-control'),'public, max-age=3600','previews of deleted links must expire, so they are not immutable');
  assert.equal((await m.projectGET(new Request('https://bricks.test/api/share/ZZZZZZZZZZ'),params('ZZZZZZZZZZ'))).status,404);
  assert.equal((await m.imageGET(new Request('https://bricks.test/api/share/x'),params('../../x'))).status,404);
- const summary=await m.readShareSummary(m.testEnv.DB,id);assert.match(m.shareDescription(summary),/pieces\. Built with Bricks\.$/);
+ const summary=await m.readShareSummary(m.testEnv.DB,id);assert.match(m.shareDescription(summary),/^\d[\d,]*-piece brick model · A small house by the water\.$/);
 });
 
 test('sharing the same creation again returns its existing link without a new row or token',async t=>{
@@ -184,8 +184,41 @@ test('the built /s/:id page serves preview tags and the shared name, and missing
  assert.match(html,/<meta name="twitter:card" content="summary_large_image"/);
  assert.match(html,/<meta property="og:title" content="Harbor &lt;Lighthouse&gt; &amp; &quot;Pier&quot;"/);
  assert.match(html,/<meta name="robots" content="noindex/);
- // The first paint names the shared creation instead of the default landmark.
- assert.match(html,/aria-label="Model name"[^>]*value="Harbor &lt;Lighthouse&gt; &amp; &quot;Pier&quot;"/);assert.doesNotMatch(html,/value="Golden Gate Bridge"/);assert.doesNotMatch(html,/3,208/);
+ // The first paint names the shared creation instead of the default landmark, in the lean viewer (no editor chrome).
+ assert.match(html,/<h1 id="viewer-title">Harbor &lt;Lighthouse&gt; &amp; &quot;Pier&quot;<\/h1>/);assert.doesNotMatch(html,/class="command-bar"|aria-label="Model name"/);assert.doesNotMatch(html,/value="Golden Gate Bridge"/);assert.doesNotMatch(html,/3,208/);
  assert.match(html,new RegExp(`Loading ${shared.pieceCount} pieces`));
  for(const path of ['/s/ZZZZZZZZZZ','/s/bad']){const missing=await visit(path);assert.equal(missing.status,404,path);assert.match(await missing.text(),/This shared creation isn’t here/);}
+});
+
+test('a shared hand-edited build keeps its "Your edition" mark and a sentence-safe description',()=>{
+ const data=project();data.edited=true;data.description='A harbor house with a red roof. '+'Extra detail sentence. '.repeat(30);
+ const shared=m.sanitizeSharedProject(data),stored=JSON.parse(shared.project);
+ assert.equal(stored.edited,true);
+ assert.ok(shared.description.length<=300);assert.match(shared.description,/[.!?…]$/);
+});
+
+test('a shared research sheet keeps the subject’s shape but nothing that names the place it was looked up by',()=>{
+ const data=project('Oak cottage'),hint='42 Oak Lane',slug='42-Oak-Ln-Springfield';
+ const sheet={identity:{status:'confirmed',location:`${hint}, Springfield`,question:''},contextAdequate:true,photoEvidence:true,searchable:true,kind:'building',subject:`The house at ${hint}, Springfield`,summary:`Two-storey colonial at ${hint}, Springfield, IL, per listing photos.`,hero:`Front porch facing ${hint}`,layout:`+z faces ${hint}`,uncertainties:[`Rear of ${hint} not visible`],length_m:12,width_m:9,height_m:8,openness:.2,proportions:'Wider than tall, steep roof',colors:['white clapboard','black shutters'],silhouette:['Gable roof','Central chimney'],distinctive:['Dormers','Columned porch'],sources:[`https://www.zillow.com/homedetails/${slug}-IL-62704/1234_zpid/`],images:[{url:`https://photos.zillowstatic.com/${slug}.jpg`,source:`https://www.zillow.com/homedetails/${slug}-IL-62704/1234_zpid/`,caption:`Front of ${hint}`}],included:[`Porch at ${hint}`],relations:[{from:`Porch at ${hint}`,relation:'in_front_of',to:'House'}],minFeature:'Porch columns',minFeature_m:.3,target:{x:30,y:24,z:22,vertical:1}};
+ data.design={...data.design,reference:{...data.design.reference,identityHint:`${hint}, Springfield`,sheet,briefKey:m.referenceKey(data.design.brief)}};
+ data.generation={...data.generation,notes:[`Porch simplified at ${hint}`]};
+ assert.ok(m.validateProject({...data,shopping:undefined}).design.reference.sheet.images.length,'the planted sheet and notes are valid ones');
+ const shared=m.sanitizeSharedProject(data),out=JSON.parse(shared.project),kept=out.design.reference.sheet;
+ for(const secret of ['Oak L','Oak-Ln','Springfield','zillow'])assert.ok(!shared.project.includes(secret),`the shared project must not contain ${secret}`);
+ assert.deepEqual({kind:kept.kind,length_m:kept.length_m,height_m:kept.height_m,colors:kept.colors,silhouette:kept.silhouette,distinctive:kept.distinctive,minFeature_m:kept.minFeature_m,target:kept.target},{kind:'building',length_m:12,height_m:8,colors:sheet.colors,silhouette:sheet.silhouette,distinctive:sheet.distinctive,minFeature_m:.3,target:sheet.target},'what a remix plans and checks from stays');
+ assert.equal(kept.searchable,false,'without its sources it is a generic reference, so a remix does not ask where it is');assert.equal(out.generation.notes,undefined,'the builder’s private notes stay private');
+ const reopened=m.validateProject(out);assert.equal(reopened.design.reference.sheet.subject,'Oak cottage');assert.equal(reopened.pieces.length,shared.pieceCount);
+});
+
+test('shares stop at a site-wide daily size and before the database fills, so the spend ledger always has room',async t=>{
+ const {db}=setup(t),shared=m.sanitizeSharedProject(project());
+ const one={...shared,image},bytes=one.project.length+one.image.length;
+ const first=await m.createShare(db,one,'visitor-a',Date.now(),{bytesPerDay:bytes*2+10});assert.ok(first.ownerToken);
+ const second=await m.createShare(db,{...one,name:'Second'},'visitor-b',Date.now(),{bytesPerDay:bytes*2+10});assert.ok(second.ownerToken&&second.id!==first.id,'a second visitor fits in the day');
+ const third=await m.createShare(db,{...one,project:one.project.replace('Harbor house','Third house')},'visitor-c',Date.now(),{bytesPerDay:bytes*2+10});assert.deepEqual(third,{limited:'site'},'any number of visitors share one daily allowance');
+ assert.ok((await m.createShare(db,{...one,project:one.project.replace('Harbor house','Next day')},'visitor-c',Date.now()+86_400_001,{bytesPerDay:bytes*2+10})).ownerToken,'a day on, sharing opens again');
+ // D1 reports the database size with each query: past the storage limit, no new share is written.
+ const full={prepare:sql=>{const statement=db.prepare(sql);return {...statement,bind(...values){const bound=statement.bind(...values);return {...bound,all:async()=>({...(await bound.all()),meta:{size_after:7_999_999_900}})};}};}};
+ assert.deepEqual(await m.createShare(full,{...one,project:one.project.replace('Harbor house','Full house')},'visitor-d'),{limited:'site'});
+ const route=readFileSync('app/api/share/route.ts','utf8');assert.match(route,/created\.limited==="creator"\?/);assert.match(route,/SHARE_STORAGE_LIMIT_MB/);
 });

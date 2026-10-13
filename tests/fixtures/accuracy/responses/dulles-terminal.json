@@ -1,0 +1,132 @@
+{
+ "synthetic":true,
+ "note":"SYNTHETIC: hand-authored stand-in for provider responses, not a recording. It exercises the harness plumbing (budget ledger, routes, compile, checks, review/judge parsing) at $0. Its scores say nothing about real model quality.",
+ "case":"dulles-terminal",
+ "idea":"Washington Dulles International Airport's expanded main terminal and original Saarinen control tower",
+ "research":[
+  {
+   "reasoning":"Searched the airport history for the 1996 expansion length and an aerial view for the tower position.",
+   "searches":[
+    {
+     "query":"Dulles main terminal 1996 expansion length Saarinen",
+     "sources":["https://www.flydulles.com/about-airport/history","https://en.wikipedia.org/wiki/Washington_Dulles_International_Airport"]
+    },
+    {
+     "query":"Dulles original control tower position terminal aerial photo",
+     "sources":["https://en.wikipedia.org/wiki/Washington_Dulles_International_Airport"]
+    }
+   ],
+   "images":[
+    {
+     "image_url":"https://example.org/accuracy-fixture/dulles-terminal-landside.jpg",
+     "source_website_url":"https://en.wikipedia.org/wiki/Washington_Dulles_International_Airport",
+     "caption":"Landside facade of the expanded main terminal (synthetic fixture image URL)"
+    }
+   ],
+   "usage":{"reasoning_tokens":700,"search_content_tokens":11000},
+   "sheet":{
+    "identity":{"status":"confirmed","location":"Dulles, Virginia, USA","question":""},
+    "contextAdequate":true,
+    "image_urls":["https://example.org/accuracy-fixture/dulles-terminal-landside.jpg"],
+    "included":["Main terminal","Landside colonnade","Catenary roof","Glass curtain wall","Original control tower"],
+    "excluded":["Runways","Midfield concourses","Parking lots","AeroTrain stations"],
+    "uncertainties":[
+     "Tower offset behind the terminal is estimated from an aerial photo; the 95 m depth includes it.",
+     "Exact roof cross-section is not dimensioned in the consulted sources."
+    ],
+    "relations":[
+     {"from":"Original control tower","relation":"behind","to":"Main terminal"},
+     {"from":"Catenary roof","relation":"above","to":"Glass curtain wall"},
+     {"from":"Landside colonnade","relation":"in_front_of","to":"Glass curtain wall"}
+    ],
+    "searchable":true,
+    "kind":"building",
+    "subject":"Washington Dulles main terminal (1996 expansion) and original control tower",
+    "summary":"The expanded Saarinen main terminal, about 1,240 ft long after the 1996 extension, with the original control tower standing airside behind its centre.",
+    "length_m":378,
+    "width_m":95,
+    "height_m":59,
+    "openness":0.35,
+    "proportions":"Terminal about 6:1 length to depth and about a third of the tower height; the roof dips between a taller landside edge and a lower airside edge.",
+    "colors":["white (concrete piers and roof)","gray (roof underside)","navy (glazing)"],
+    "silhouette":["Long low terminal whose roof dips between its front and back edges","Slender tower rising well above the terminal"],
+    "distinctive":[
+     "Hammock-like catenary roof hung between two rows of piers",
+     "Outward-leaning landside piers taller than the airside piers",
+     "Continuous glass curtain wall between the piers",
+     "Saarinen control tower with a flared cab"
+    ],
+    "sources":["https://www.flydulles.com/about-airport/history","https://en.wikipedia.org/wiki/Washington_Dulles_International_Airport"],
+    "hero":"Landside front view: the colonnade and dipping roof with the tower behind.",
+    "layout":"x runs along the terminal; +z is the landside curb (front); the original tower stands airside behind the centre."
+   }
+  }
+ ],
+ "design":{
+  "reasoning":"Scale follows the target: 78 studs of terminal, tower 30 plates. Roof as four stepped slabs falling from the landside piers to the airside piers.",
+  "usage":{"reasoning_tokens":5200},
+  "scene":{
+   "n":"Dulles Main Terminal",
+   "d":"The expanded Dulles main terminal with its stepped catenary roof on landside and airside piers, a glazed hall, and the original control tower airside behind the centre.",
+   "f":["Catenary roof stepping down from the landside colonnade","Tall landside piers","Original control tower behind the terminal"],
+   "dim":[80,34,24],
+   "rm":["display-foundation"],
+   "sh":[
+    {"i":"base","c":"Base","l":"Display base","k":"box","o":"add","col":"gray","p":[0,0,0],"s":[80,2,24]},
+    {"i":"hall","c":"Glass curtain wall","l":"Glazed terminal hall","k":"box","o":"add","col":"navy","p":[2,2,10],"s":[76,8,12]},
+    {"i":"piers-front","c":"Landside colonnade","l":"Landside piers","k":"box","o":"add","col":"white","p":[1,2,22],"s":[1,10,1],"rep":[16,5,0,0]},
+    {"i":"piers-back","c":"Main terminal","l":"Airside piers","k":"box","o":"add","col":"white","p":[1,2,8],"s":[1,7,1],"rep":[16,5,0,0]},
+    {"i":"roof-back","c":"Catenary roof","l":"Roof airside edge","k":"box","o":"add","col":"white","p":[0,9,7],"s":[80,1,5]},
+    {"i":"roof-mid2","c":"Catenary roof","l":"Roof low point","k":"box","o":"add","col":"gray","p":[0,10,11],"s":[80,1,5]},
+    {"i":"roof-mid1","c":"Catenary roof","l":"Roof rising to landside","k":"box","o":"add","col":"gray","p":[0,11,15],"s":[80,1,5]},
+    {"i":"roof-front","c":"Catenary roof","l":"Roof landside edge","k":"box","o":"add","col":"white","p":[0,12,19],"s":[80,1,5]},
+    {"i":"tower-shaft","c":"Original control tower","l":"Tower shaft","k":"cylinder","o":"add","a":null,"col":"white","p":[38,2,2],"s":[3,24,3]},
+    {"i":"tower-cab","c":"Original control tower","l":"Tower cab","k":"box","o":"add","col":"navy","p":[37,26,1],"s":[5,4,5]},
+    {"i":"tower-cap","c":"Original control tower","l":"Tower cap","k":"box","o":"add","col":"gray","p":[37,30,1],"s":[5,2,5]}
+   ]
+  }
+ },
+ "review":{
+  "reasoning":"Compared the overhead view with the aerial reference: tower behind the centre, no airfield.",
+  "usage":{"reasoning_tokens":1100},
+  "review":{
+   "revision":{"status":"not_requested","evidence":"No revision was requested for this first build."},
+   "composition":{
+    "status":"matches",
+    "evidence":"Terminal and tower only; overhead view places the tower airside behind the centre as in the reference. No runways or concourses."
+   },
+   "summary":"A long glazed terminal under a stepped roof that dips toward the airside, with the original tower behind. Reads as Dulles; pier taper is missing.",
+   "recognizable":true,
+   "features":{
+    "Sweeping curved terminal roof":{"status":"visible","evidence":"Four roof slabs step down from the landside edge (views 1, 2, 4)."},
+    "Glazed terminal facade":{"status":"visible","evidence":"Navy glazing fills the hall between the piers (view 1)."},
+    "Original control tower":{"status":"visible","evidence":"Tower with a dark cab rises behind the centre (views 2, 3, 5)."},
+    "Catenary roof stepping down from the landside colonnade":{"status":"visible","evidence":"Slabs fall from y12 at the front to y9 at the back."},
+    "Tall landside piers":{"status":"visible","evidence":"Sixteen white piers along the front."},
+    "Original control tower behind the terminal":{"status":"visible","evidence":"Overhead view: tower behind the centre."}
+   },
+   "improvements":[
+    "Landside colonnade: lean the piers outward toward the roof edge as in the reference photo.",
+    "Catenary roof: add an intermediate course so the dip reads as a curve rather than four steps."
+   ]
+  }
+ },
+ "judge":{
+  "usage":{"reasoning_tokens":600},
+  "checks":{
+   "No airfield invented around the terminal":{"status":"pass","evidence":"Only the terminal, tower and base are present."},
+   "Terminal and tower heights are distinct":{"status":"pass","evidence":"Tower top 32 plates vs roof edge 13 plates."},
+   "Front/back arrangement follows the actual references":{"status":"uncertain","evidence":"Tower is behind the centre; the source gives no exact offset."},
+   "The expanded terminal is not assigned the original terminal's length":{"status":"pass","evidence":"Terminal spans the full 78-stud target length."}
+  },
+  "features":{
+   "Hammock-like catenary roof hung between two rows of piers":{"status":"present","evidence":"Stepped slabs between front and back piers."},
+   "Outward-leaning landside piers taller than the airside piers":{"status":"missing","evidence":"Piers are vertical."},
+   "Continuous glass curtain wall between the piers":{"status":"present","evidence":"Navy hall face."},
+   "Saarinen control tower with a flared cab":{"status":"uncertain","evidence":"Cab is a plain box."},
+   "Long low terminal whose roof dips between its front and back edges":{"status":"present","evidence":"Side view shows the dip."},
+   "Slender tower rising well above the terminal":{"status":"present","evidence":"Tower more than twice the roof height."}
+  },
+  "summary":"Layout and scope correct; pier lean and cab flare missing."
+ }
+}

@@ -2,7 +2,8 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import {createRequire} from 'node:module';
 import {build} from 'esbuild';
-const bundle=await build({stdin:{contents:'export * from "./lib/design-library";export * from "./lib/models";export {projectJSON,emptyShopping} from "./lib/design-project";',resolveDir:process.cwd(),loader:'ts'},bundle:true,platform:'node',format:'esm',write:false,logLevel:'error'});
+import {createHash} from 'node:crypto';
+const bundle=await build({stdin:{contents:'export * from "./lib/design-library";export * from "./lib/models";export {projectJSON,emptyShopping,defaultBrief,emptyManual} from "./lib/design-project";export {compileScene} from "./lib/generated-scene";export {sanitizeSharedProject} from "./lib/share";',resolveDir:process.cwd(),loader:'ts'},bundle:true,platform:'node',format:'esm',write:false,logLevel:'error'});
 const m=await import('data:text/javascript;base64,'+Buffer.from(bundle.outputFiles[0].text).toString('base64'));
 test('a design packs to a project file and unpacks with its id, name and bricks intact',()=>{
  const model={...m.generateRecipe('lighthouse','small'),libraryId:'abc',name:'My light',source:'custom'};
@@ -191,16 +192,61 @@ test('recently viewed shares are a separate small list that tolerates broken sto
  assert.deepEqual(m.viewedShares(),[]);assert.doesNotThrow(()=>m.rememberViewedShare({id:'y',name:'y',pieceCount:1}));
 });
 
-test('the drawer separates featured builds from recent designs and keeps the landmark choices',async()=>{
- const rendered=await build({stdin:{contents:'import React from "react";import {renderToStaticMarkup} from "react-dom/server";import DesignsDrawer from "./app/designs-drawer";export const render=(props)=>renderToStaticMarkup(<DesignsDrawer {...props}/>);',resolveDir:process.cwd(),loader:'tsx'},bundle:true,platform:'node',format:'cjs',write:false,logLevel:'error'});
+test('My builds is a visual grid: pinned and recent apart, one Open per card, the rest in a ⋯ menu, no landmarks',async()=>{
+ const rendered=await build({stdin:{contents:'import React from "react";import {renderToStaticMarkup} from "react-dom/server";import DesignsDrawer,{isAIDesign,withDeleted} from "./app/designs-drawer";export {isAIDesign,withDeleted};export const render=(props)=>renderToStaticMarkup(<DesignsDrawer {...props}/>);',resolveDir:process.cwd(),loader:'tsx'},bundle:true,platform:'node',format:'cjs',write:false,logLevel:'error'});
  const loaded={exports:{}};new Function('require','module','exports',rendered.outputFiles[0].text)(createRequire(import.meta.url),loaded,loaded.exports);
- const noop=()=>{},html=loaded.exports.render({open:true,model:{recipe:'bridge'},designs:[{...savedFixture('favorite'),featured:true},savedFixture('recent')],onClose:noop,onChoose:noop,onOpenSaved:noop,onContinueSaved:noop,onShopSaved:noop,onDeleteSaved:noop,onFeatureSaved:noop});
- const featured=html.slice(html.indexOf('aria-label="Featured designs"'),html.indexOf('LANDMARKS'));
- const recent=html.slice(html.indexOf('aria-label="Recent designs"'));
- assert.match(featured,/Build favorite/);assert.doesNotMatch(featured,/Build recent/);
+ const noop=()=>{},props={open:true,onClose:noop,onOpenSaved:noop,onContinueSaved:noop,onShopSaved:noop,onDeleteSaved:noop,onFeatureSaved:noop};
+ const html=loaded.exports.render({...props,designs:[{...savedFixture('favorite'),featured:true},savedFixture('recent'),{...savedFixture('pictured'),thumbnail:'data:image/jpeg;base64,AAAA'}]});
+ const pinned=html.slice(html.indexOf('aria-label="Pinned builds"'),html.indexOf('aria-label="Recent builds"')),recent=html.slice(html.indexOf('aria-label="Recent builds"'));
+ assert.match(pinned,/Build favorite/);assert.doesNotMatch(pinned,/Build recent/);
  assert.match(recent,/Build recent/);assert.doesNotMatch(recent,/Build favorite/);
- assert.match(featured,/aria-label="Unfeature Build favorite" aria-pressed="true"/);
- assert.match(recent,/aria-label="Feature Build recent" aria-pressed="false"/);
- for(const name of ['Golden Gate','Neuschwanstein','Cape Hatteras','Saturn V'])assert.ok(html.includes(name));
- assert.equal((html.match(/>Open<\/button>/g)||[]).length,2);
+ // One click target per card; pin, refine, pieces and delete wait in its menu.
+ assert.equal((html.match(/class="design-card-open"/g)||[]).length,3);assert.equal((html.match(/aria-label="More for Build /g)||[]).length,3);
+ for(const name of ['favorite','recent'])assert.match(html,new RegExp(`aria-label="Open Build ${name}" aria-describedby="design-meta-${name}"`));
+ // The visible piece count and status are announced too, not replaced by the Open label.
+ assert.match(html,/<small id="design-meta-recent">1 pieces · /);
+ assert.doesNotMatch(html,/>Feature<|>Continue with AI<|>Delete<|aria-label="Delete /);
+ // A stored picture shows; a build without one gets its initial on a tinted tile.
+ assert.match(html,/<img src="data:image\/jpeg;base64,AAAA"/);assert.match(html,/--thumb-hue:\d+/);assert.match(html,/<span aria-hidden="true">B<\/span>/);
+ for(const name of ['Golden Gate','Neuschwanstein','Cape Hatteras','Saturn V'])assert.ok(!html.includes(name),`${name} belongs to Presets`);
+ assert.match(html,/href="\/gallery"/);
+ const empty=loaded.exports.render({...props,designs:[]});assert.match(empty,/Nothing here yet/);assert.doesNotMatch(empty,/Pinned builds|Recent builds/);
+ // Delete leaves an Undo tile in the card's slot (no timed toast): same section, same place, described by name.
+ const {withDeleted}=loaded.exports,[a,b,c]=['a','b','c'].map(id=>savedFixture(id));
+ assert.deepEqual(withDeleted([a,c],{design:b,index:1}).map(d=>[d.id,Boolean(d.deleted)]),[['a',false],['b',true],['c',false]]);
+ assert.deepEqual(withDeleted([a,b,c],{design:b,index:1}).map(d=>d.id),['a','b','c'],'no ghost while the card is still listed');
+ assert.deepEqual(withDeleted([],{design:b,index:4}).map(d=>d.id),['b']);assert.equal(withDeleted([a],null).length,1);
+ const undoHtml=loaded.exports.render({...props,designs:[savedFixture('recent')],deleted:{design:{...savedFixture('gone'),featured:true},index:0}});
+ const pinnedUndo=undoHtml.slice(undoHtml.indexOf('aria-label="Pinned builds"'),undoHtml.indexOf('aria-label="Recent builds"'));
+ assert.match(pinnedUndo,/<button type="button" class="design-undo-button" aria-describedby="design-gone-gone design-name-gone">/);
+ assert.match(pinnedUndo,/<span id="design-gone-gone">Deleted<\/span>/);assert.match(pinnedUndo,/<strong id="design-name-gone" title="Build gone">Build gone<\/strong>/);
+ assert.doesNotMatch(pinnedUndo,/aria-label="Open Build gone"|More for Build gone/);
+ const lastUndo=loaded.exports.render({...props,designs:[],deleted:{design:savedFixture('only'),index:0}});
+ assert.match(lastUndo,/design-undo-button/);assert.doesNotMatch(lastUndo,/Nothing here yet/);
+ assert.equal(loaded.exports.render({...props,designs:[],deleted:null}).includes('design-undo-button'),false);
+ // Refine with AI is offered only for builds that have an AI scene.
+ assert.equal(loaded.exports.isAIDesign(savedFixture('plain')),false);assert.equal(loaded.exports.isAIDesign({...savedFixture('ai'),project:JSON.stringify({generation:{shapes:[]}},null,2)}),true);
+});
+
+test('a re-share after a private-only change finds the same link: links are keyed by the content the server stores',async t=>{
+ useMemoryStorage(t);
+ const box=(id,position,size,color)=>({id,component:id,label:id,kind:'box',operation:'add',color,position,size,end:{x:0,y:0,z:0},radius:1,repeat:{count:1,offset:{x:0,y:0,z:0}}});
+ const scene={name:'Harbor house',description:'A small house by the water.',dimensions:{x:12,y:12,z:10},shapes:[box('Base',{x:0,y:0,z:0},{x:12,y:2,z:10},'gray'),box('House',{x:2,y:2,z:2},{x:8,y:9,z:6},'red')]};
+ const review={summary:'A house.',recognizable:true,features:[],improvements:['Add a chimney.']};
+ const model={...m.compileScene(scene,{smooth:true}),generation:scene,design:{brief:m.defaultBrief('A small house'),manual:m.emptyManual(),locked:[],revisions:[],review}},hash=await m.shareProjectHash(model);
+ // Review again, a new kept version or a history entry changes only what a share leaves out.
+ for(const design of [{...model.design,review:{...review,summary:'Reviewed again: still a house.'}},{...model.design,reviewStale:true},{...model.design,revisions:[{request:'My words',summary:'Done.',at:'2026-10-12T00:00:00.000Z'}]},{...model.design,brief:{...model.design.brief,idea:'my house at 42 Oak Lane'}}])
+  assert.equal(await m.shareProjectHash({...model,design}),hash,'the same shared content keeps its link and owner token');
+ assert.notEqual(await m.shareProjectHash({...model,name:'Harbor house at dusk'}),hash,'a change that is shared is a new link');
+ const server=createHash('sha256').update(m.sanitizeSharedProject(JSON.parse(m.projectJSON(model,m.emptyShopping()))).project).digest('hex');
+ assert.equal(hash,server,'the same key the server dedupes and the gallery compares by');
+ // A build's links are found by its id, newest first, with the tokens this browser holds; a repeat keeps the build.
+ const link=(shareId,createdAt,extra={})=>({projectHash:shareId.padEnd(64,'0'),shareId,url:`https://bricks.test/s/${shareId}`,createdAt,...extra});
+ await m.rememberSharedLink(link('OldLink001','2026-10-01T00:00:00.000Z',{ownerToken:'t1',designId:'cafe'}));
+ await m.rememberSharedLink(link('NewLink002','2026-10-05T00:00:00.000Z',{ownerToken:'t2',designId:'cafe'}));
+ await m.rememberSharedLink(link('NoToken003','2026-10-06T00:00:00.000Z',{designId:'cafe'}));
+ await m.rememberSharedLink(link('Elsewhere4','2026-10-07T00:00:00.000Z',{ownerToken:'t4',designId:'other'}));
+ assert.deepEqual((await m.linksForDesign('cafe')).map(l=>[l.shareId,l.ownerToken]),[['NewLink002','t2'],['OldLink001','t1']]);
+ await m.rememberSharedLink({...link('OldLink001','2026-10-01T00:00:00.000Z'),projectHash:'e'.repeat(64)});
+ assert.equal((await m.findSharedLink('e'.repeat(64))).designId,'cafe');
 });

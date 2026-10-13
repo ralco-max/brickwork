@@ -1,0 +1,82 @@
+{
+ "synthetic":true,
+ "note":"SYNTHETIC: hand-authored stand-in for provider responses, not a recording. It exercises the harness plumbing (budget ledger, routes, compile, checks, review/judge parsing) at $0. Its scores say nothing about real model quality.",
+ "case":"dulles-whole-airport",
+ "idea":"Washington Dulles International Airport as a complete airport site",
+ "research":[
+  {
+   "reasoning":"Only the terminal map was found; it does not show runways.",
+   "searches":[
+    {"query":"Dulles airport map terminals concourses","sources":["https://www.flydulles.com/travel-information/airport-and-terminal-maps"]},
+    {"query":"Dulles airfield diagram runways","sources":["https://www.flydulles.com/travel-information/airport-and-terminal-maps"]}
+   ],
+   "images":[],
+   "usage":{"reasoning_tokens":800,"search_content_tokens":12000},
+   "sheet":{
+    "identity":{
+     "status":"confirmed",
+     "location":"Dulles, Virginia, USA",
+     "question":"Can you attach a current Dulles airfield diagram (for example the FAA airport diagram) so the runway layout is exact?"
+    },
+    "contextAdequate":false,
+    "image_urls":[],
+    "included":["Main terminal","Concourse A/B","Concourse C/D","Runway 1R/19L","Runway 1C/19C","Runway 1L/19R","Runway 12/30"],
+    "excluded":["Parking lots","Cargo area","Hotels"],
+    "uncertainties":["Runway orientations and spacing need a dated airfield diagram; the terminal map does not show them."],
+    "relations":[{"from":"Concourse A/B","relation":"behind","to":"Main terminal"},{"from":"Concourse C/D","relation":"behind","to":"Concourse A/B"}],
+    "searchable":true,
+    "kind":"site",
+    "subject":"Washington Dulles International Airport (whole site)",
+    "summary":"The full airport site: main terminal, midfield concourses and four runways. A passenger terminal map was found but no dated airfield plan.",
+    "length_m":null,
+    "width_m":null,
+    "height_m":null,
+    "openness":null,
+    "proportions":"Not established: the airfield layout is unknown at this point.",
+    "colors":["gray","white","black"],
+    "silhouette":["Long terminal with parallel midfield concourses"],
+    "distinctive":["Parallel north-south runways with one diagonal runway"],
+    "sources":["https://www.flydulles.com/travel-information/airport-and-terminal-maps"],
+    "hero":"Overhead site plan.",
+    "layout":"x east-west; +z south (front). Runway placement unresolved."
+   }
+  },
+  {
+   "reasoning":"Targeted search for an airfield diagram returned no viewable plan.",
+   "searches":[
+    {"query":"IAD FAA airport diagram PDF","sources":["https://www.flydulles.com/travel-information/airport-and-terminal-maps"]},
+    {"query":"Dulles runway layout 1R 1C 1L 12 30 map","sources":["https://www.flydulles.com/travel-information/airport-and-terminal-maps"]}
+   ],
+   "images":[],
+   "usage":{"reasoning_tokens":900,"search_content_tokens":12000},
+   "sheet":{
+    "identity":{
+     "status":"confirmed",
+     "location":"Dulles, Virginia, USA",
+     "question":"Please attach a current Dulles airfield diagram (FAA airport diagram or an overhead photo) so the runways and concourses are placed exactly."
+    },
+    "contextAdequate":false,
+    "image_urls":[],
+    "included":["Main terminal","Concourse A/B","Concourse C/D","Runway 1R/19L","Runway 1C/19C","Runway 1L/19R","Runway 12/30"],
+    "excluded":["Parking lots","Cargo area","Hotels"],
+    "uncertainties":["Runway orientations and spacing need a dated airfield diagram; the terminal map does not show them."],
+    "relations":[{"from":"Concourse A/B","relation":"behind","to":"Main terminal"},{"from":"Concourse C/D","relation":"behind","to":"Concourse A/B"}],
+    "searchable":true,
+    "kind":"site",
+    "subject":"Washington Dulles International Airport (whole site)",
+    "summary":"The full airport site: main terminal, midfield concourses and four runways. A passenger terminal map was found but no dated airfield plan.",
+    "length_m":null,
+    "width_m":null,
+    "height_m":null,
+    "openness":null,
+    "proportions":"Not established: the airfield layout is unknown at this point.",
+    "colors":["gray","white","black"],
+    "silhouette":["Long terminal with parallel midfield concourses"],
+    "distinctive":["Parallel north-south runways with one diagonal runway"],
+    "sources":["https://www.flydulles.com/travel-information/airport-and-terminal-maps"],
+    "hero":"Overhead site plan.",
+    "layout":"x east-west; +z south (front). Runway placement unresolved."
+   }
+  }
+ ]
+}

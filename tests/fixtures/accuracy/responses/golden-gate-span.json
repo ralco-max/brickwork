@@ -1,0 +1,164 @@
+{
+ "synthetic":true,
+ "note":"SYNTHETIC: hand-authored stand-in for provider responses, not a recording. It exercises the harness plumbing (budget ledger, routes, compile, checks, review/judge parsing) at $0. Its scores say nothing about real model quality.",
+ "case":"golden-gate-span",
+ "idea":"Golden Gate Bridge suspension span, two towers and cables",
+ "research":[
+  {
+   "reasoning":"Used the bridge district statistics for span lengths and tower height.",
+   "searches":[
+    {
+     "query":"Golden Gate Bridge suspension span main span side span tower height statistics",
+     "sources":["https://www.goldengate.org/bridge/history-research/statistics-data/design-construction-stats/","https://en.wikipedia.org/wiki/Golden_Gate_Bridge"]
+    }
+   ],
+   "images":[],
+   "usage":{"reasoning_tokens":650,"search_content_tokens":9000},
+   "sheet":{
+    "identity":{"status":"confirmed","location":"San Francisco, California, USA","question":""},
+    "contextAdequate":true,
+    "image_urls":[],
+    "included":["North tower","South tower","Main cables","Hangers","Roadway deck","Anchorages"],
+    "excluded":["Approach viaducts","Fort Point","Marin headlands","Toll plaza"],
+    "uncertainties":["Deck width (90 ft) sets the depth; at this scale it rounds to about one stud."],
+    "relations":[
+     {"from":"North tower","relation":"left_of","to":"South tower"},
+     {"from":"Main cables","relation":"above","to":"Roadway deck"},
+     {"from":"Hangers","relation":"below","to":"Main cables"}
+    ],
+    "searchable":true,
+    "kind":"bridge",
+    "subject":"Golden Gate Bridge suspension span",
+    "summary":"The 6,450 ft suspension portion: a 4,200 ft main span between two towers and two 1,125 ft side spans, measured without approaches.",
+    "length_m":1966,
+    "width_m":27,
+    "height_m":227,
+    "openness":0.92,
+    "proportions":"Main span about 3.73 times each side span; towers 746 ft above water, deck about 220 ft above water.",
+    "colors":["red (International Orange)","blue (water)"],
+    "silhouette":["Two tall towers with a deep catenary between them","Side spans much shorter than the main span"],
+    "distinctive":[
+     "Art Deco tower setbacks with recessed vertical ribbing",
+     "Two main cables passing over the tower tops",
+     "Vertical suspender ropes at regular intervals",
+     "International Orange colour throughout"
+    ],
+    "sources":["https://www.goldengate.org/bridge/history-research/statistics-data/design-construction-stats/","https://en.wikipedia.org/wiki/Golden_Gate_Bridge"],
+    "hero":"Broadside view from the east with both towers.",
+    "layout":"x runs north (left) to south (right); +z faces the bay (front)."
+   }
+  }
+ ],
+ "design":{
+  "reasoning":"Target depth is 1 stud; towers need two legs so the deck is 4 studs. Cables as stepped leans in two planes.",
+  "usage":{"reasoning_tokens":4300},
+  "scene":{
+   "n":"Golden Gate Span",
+   "d":"The Golden Gate suspension span: two red towers with portal struts, main cables stepping down to mid-span in two planes, hangers and a continuous deck between gray anchorages.",
+   "f":["Towers with portal struts","Main cables sagging to mid-span","Side spans about a quarter of the main span"],
+   "dim":[80,28,10],
+   "rm":["display-foundation"],
+   "sh":[
+    {"i":"water","c":"Base","l":"Bay water","k":"box","o":"add","col":"blue","p":[0,0,0],"s":[80,2,10]},
+    {"i":"anchor-n","c":"Anchorages","l":"North anchorage","k":"box","o":"add","col":"gray","p":[0,2,3],"s":[3,7,4]},
+    {"i":"anchor-s","c":"Anchorages","l":"South anchorage","k":"box","o":"add","col":"gray","p":[77,2,3],"s":[3,7,4]},
+    {"i":"deck","c":"Roadway deck","l":"Roadway deck","k":"box","o":"add","col":"red","p":[0,7,3],"s":[80,2,4]},
+    {"i":"tower-n-legs","c":"North tower","l":"North tower legs","k":"box","o":"add","col":"red","p":[14,2,3],"s":[2,23,1],"rep":[2,0,0,3]},
+    {"i":"tower-s-legs","c":"South tower","l":"South tower legs","k":"box","o":"add","col":"red","p":[64,2,3],"s":[2,23,1],"rep":[2,0,0,3]},
+    {"i":"tower-n-struts","c":"North tower","l":"North portal struts","k":"box","o":"add","col":"red","p":[14,15,3],"s":[2,1,4],"rep":[2,0,7,0]},
+    {"i":"tower-s-struts","c":"South tower","l":"South portal struts","k":"box","o":"add","col":"red","p":[64,15,3],"s":[2,1,4],"rep":[2,0,7,0]},
+    {
+     "i":"cable-n-side",
+     "c":"Main cables",
+     "l":"North side-span cables",
+     "k":"lean",
+     "o":"add",
+     "col":"red",
+     "p":[2,9,3],
+     "s":[1,1,0],
+     "e":[14,24,3],
+     "rep":[2,0,0,3]
+    },
+    {
+     "i":"cable-main-n",
+     "c":"Main cables",
+     "l":"Main span cables, north half",
+     "k":"lean",
+     "o":"add",
+     "col":"red",
+     "p":[40,10,3],
+     "s":[1,1,0],
+     "e":[16,24,3],
+     "rep":[2,0,0,3]
+    },
+    {
+     "i":"cable-main-s",
+     "c":"Main cables",
+     "l":"Main span cables, south half",
+     "k":"lean",
+     "o":"add",
+     "col":"red",
+     "p":[40,10,3],
+     "s":[1,1,0],
+     "e":[64,24,3],
+     "rep":[2,0,0,3]
+    },
+    {
+     "i":"cable-s-side",
+     "c":"Main cables",
+     "l":"South side-span cables",
+     "k":"lean",
+     "o":"add",
+     "col":"red",
+     "p":[78,9,3],
+     "s":[1,1,0],
+     "e":[66,24,3],
+     "rep":[2,0,0,3]
+    },
+    {"i":"hangers-outer","c":"Hangers","l":"Outer hangers","k":"box","o":"add","col":"red","p":[28,9,3],"s":[1,8,1],"rep":[2,24,0,0]},
+    {"i":"hangers-inner","c":"Hangers","l":"Inner hangers","k":"box","o":"add","col":"red","p":[34,9,3],"s":[1,4,1],"rep":[2,12,0,0]}
+   ]
+  }
+ },
+ "review":{
+  "reasoning":"Checked spans against the statistics in the sheet.",
+  "usage":{"reasoning_tokens":900},
+  "review":{
+   "revision":{"status":"not_requested","evidence":"No revision was requested for this first build."},
+   "composition":{"status":"matches","evidence":"Suspension span only, two towers, anchorages at each end; no approaches or scenery."},
+   "summary":"Two red towers carry stepped main cables over a continuous deck; spans read in the right ratio. Hangers are sparse and the towers are posts rather than Art Deco frames.",
+   "recognizable":true,
+   "features":{
+    "Two main towers":{"status":"visible","evidence":"Two red towers at x14 and x64 (views 1, 2)."},
+    "Two main suspension cables":{"status":"visible","evidence":"Two cable planes in the overhead view."},
+    "Vertical hangers":{"status":"uncertain","evidence":"Only four hangers per plane are visible."},
+    "Continuous roadway":{"status":"visible","evidence":"Deck runs anchorage to anchorage."},
+    "Towers with portal struts":{"status":"visible","evidence":"Two struts per tower."},
+    "Main cables sagging to mid-span":{"status":"visible","evidence":"Cables meet the deck near x40."},
+    "Side spans about a quarter of the main span":{"status":"visible","evidence":"14 vs 48 studs."}
+   },
+   "improvements":[
+    "Hangers: add evenly spaced vertical hangers along the main span.",
+    "Towers: widen the legs and add stepped setbacks so they read as Art Deco towers."
+   ]
+  }
+ },
+ "judge":{
+  "usage":{"reasoning_tokens":600},
+  "checks":{
+   "Exactly two towers":{"status":"pass","evidence":"Two towers."},
+   "Main span about 3.73 times either side span":{"status":"pass","evidence":"48 / 14 = 3.4, within stud rounding."},
+   "Cables and roadway remain distinct":{"status":"pass","evidence":"Cables rise above the deck except at mid-span."},
+   "Tower height above road is not confused with height above water":{"status":"pass","evidence":"Deck at 7-9 plates, tower tops at 25 plates above the water base."}
+  },
+  "features":{
+   "Art Deco tower setbacks with recessed vertical ribbing":{"status":"missing","evidence":"Plain legs."},
+   "Two main cables passing over the tower tops":{"status":"present","evidence":"Two planes."},
+   "Vertical suspender ropes at regular intervals":{"status":"uncertain","evidence":"Sparse."},
+   "International Orange colour throughout":{"status":"present","evidence":"All red."},
+   "Two tall towers with a deep catenary between them":{"status":"present","evidence":"Side view."},
+   "Side spans much shorter than the main span":{"status":"present","evidence":"Side view."}
+  },
+  "summary":"Proportions right; tower detail and hangers missing."
+ }
+}

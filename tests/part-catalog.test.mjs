@@ -3,10 +3,14 @@ import test from 'node:test';
 import {readFile} from 'node:fs/promises';
 
 const json=async path=>JSON.parse(await readFile(new URL(path,import.meta.url),'utf8'));
-const [catalog,elements,selection,attribution]=await Promise.all([
- json('../lib/data/parts-catalog.json'),json('../lib/data/lego-elements.json'),json('../scripts/part-catalog-selection.json'),json('../public/parts/attribution.json'),
+const [catalog,elements,selection,attribution,colorEvidence,publicCatalog]=await Promise.all([
+ json('../lib/data/parts-catalog.json'),json('../lib/data/lego-elements.json'),json('../scripts/part-catalog-selection.json'),json('../public/parts/attribution.json'),json('../scripts/part-color-evidence.json'),json('../public/parts/catalog.json'),
 ]);
+// Colours added after the classic palette are evidenced by refresh-part-colors.mjs, not by element IDs.
+const added=new Set(catalog.colorEvidence.colors),evidenced=(part,color)=>{const e=colorEvidence.combos[`${part}:${color}`];return Array.isArray(e)&&(e[0]>0||e[1]>0);};
 const parts=Object.entries(catalog.parts),chosen=new Map(selection.parts.map(p=>[p.id,p])),palette=new Set(Object.keys(selection.colorIds));
+// Parts enabled after the LEGO element snapshot are offered in every colour, classic ones too, on production evidence alone.
+const lookedUp=new Set([...Object.keys(elements.elements),...elements.missing].map(key=>key.slice(0,key.lastIndexOf(':'))));
 const unique=(values,label)=>assert.equal(new Set(values).size,values.length,`${label}: duplicate entries`);
 const triple=(cell,label)=>assert.ok(Array.isArray(cell)&&cell.length===3&&cell.every(Number.isFinite),`${label}: finite xyz tuple`);
 const cellKey=cell=>cell.join(',');
@@ -33,11 +37,15 @@ test('the catalog contains hundreds of source-backed usable parts with exact int
  }
 });
 
-test('every offered catalog color has an exact sourced element match, with no stock claims',()=>{
+test('every offered catalog color has an exact sourced element match or recorded production evidence, with no stock claims',()=>{
  for(const [id,p] of parts){
   assert.ok(p.colors.length,`${id}: no evidenced colors`);unique(p.colors,`${id}: colors`);
   assert.deepEqual(p.colors,chosen.get(id).colors,`${id}: selection color provenance`);
-  for(const color of p.colors){assert.ok(palette.has(color),`${id}: unknown color ${color}`);assert.ok(elements.elements[`${id}:${color}`]?.length,`${id}:${color}: unsupported element match`);assert.ok(!elements.missing.includes(`${id}:${color}`));}
+  for(const color of p.colors){
+   assert.ok(palette.has(color),`${id}: unknown color ${color}`);
+   if(added.has(color)||!lookedUp.has(id)){assert.ok(evidenced(id,color),`${id}:${color}: no production evidence`);assert.equal(elements.elements[`${id}:${color}`],undefined,`${id}:${color}: no substituted element ID`);continue;}
+   assert.ok(elements.elements[`${id}:${color}`]?.length,`${id}:${color}: unsupported element match`);assert.ok(!elements.missing.includes(`${id}:${color}`));
+  }
  }
  assert.equal(Object.hasOwn(catalog,'stock'),false);assert.equal(Object.hasOwn(catalog,'availability'),false);assert.match(attribution.prices,/estimate/i);
 });
@@ -81,4 +89,26 @@ test('rounded LDraw primitives do not inflate nominal body dimensions by a whole
   const p=catalog.parts[id];assert.ok(p,`${id}: regression part present`);assert.deepEqual([p.w,p.d,p.h],expected,id);
  }
  const round=catalog.parts['6141'];assert.deepEqual(round.topStuds,[[0,1,0]],'documented compound cylinder still exposes its ordinary top stud');
+});
+
+test('added colours are offered only where evidenced and their provenance is recorded and provisional',()=>{
+ const meta=catalog.colorEvidence;assert.equal(meta.source,'rebrickable-2022-elements+2026-inventories');assert.equal(meta.provisional,true);assert.equal(meta.evidence,'scripts/part-color-evidence.json');
+ assert.deepEqual(publicCatalog.colorEvidence,meta);assert.deepEqual(publicCatalog.legacyColors,catalog.legacyColors);assert.deepEqual(selection.colorEvidence.colors,meta.colors);assert.equal(selection.colorEvidence.provisional,true);
+ assert.equal(colorEvidence.source,meta.source);assert.equal(colorEvidence.provisional,true);
+ for(const file of colorEvidence.files){assert.match(file.sha256,/^[a-f0-9]{64}$/);assert.match(file.url,/^https:\/\/(raw\.githubusercontent\.com\/rfordatascience\/tidytuesday\/|registry\.npmjs\.org\/lego-oracle\/)/);}
+ // Selection colour IDs are Rebrickable IDs: trans-light blue is 41 (LDraw 43 would be Trans-Very Lt Blue).
+ assert.equal(selection.colorIds.translightblue,41);assert.equal(colorEvidence.colorIds.translightblue,41);
+ for(const key of meta.colors)assert.equal(selection.colorIds[key],colorEvidence.colorIds[key]);
+ const classic=Object.keys(selection.colorIds).filter(k=>!added.has(k));assert.equal(classic.length,13);
+ let offered=0;
+ for(const p of selection.parts)for(const color of p.colors)if(added.has(color)){assert.ok(evidenced(p.id==='3040b'?'3040':p.id,color),`${p.id}:${color}: selection colour without evidence`);offered++;}
+ assert.ok(offered>1000);
+ for(const [id,list] of Object.entries(catalog.legacyColors)){
+  unique(list,`${id}: legacy colors`);assert.deepEqual(list.slice(0,13).sort(),[...classic].sort(),`${id}: legacy parts keep every classic colour`);
+  for(const color of list.slice(13)){assert.ok(added.has(color));assert.ok(evidenced(id,color),`${id}:${color}: legacy colour without evidence`);}
+ }
+ for(const combo of Object.keys(colorEvidence.combos)){const [id,color]=combo.split(':');assert.ok(added.has(color)||!lookedUp.has(id),`${combo}: classic colours need element IDs once the element snapshot covers the part`);assert.ok(evidenced(id,color));assert.ok((catalog.parts[id]?.colors||catalog.legacyColors[id]||chosen.get(id).colors).includes(color),`${combo}: evidence not applied`);}
+ // Sparse finishes stay sparse: no 4 x 8 plate in pearl gold or trans-clear.
+ assert.ok(!catalog.legacyColors['3035'].includes('pearlgold'));assert.ok(!catalog.legacyColors['3035'].includes('transclear'));
+ assert.ok(catalog.legacyColors['3024'].includes('translightblue')&&catalog.legacyColors['3024'].includes('pearlgold'));
 });

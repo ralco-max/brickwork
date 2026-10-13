@@ -47,6 +47,107 @@ do not establish current LEGO Pick a Brick availability or pricing. Element IDs
 are part-and-color identifiers; design IDs identify shapes and must not be
 substituted for element IDs in a shopping export.
 
+## Colors added after the classic palette (provisional)
+
+The palette grew from 13 to 25 colors on 2026-10-13: dark bluish gray, dark tan,
+dark red, sand green, dark green, medium azure (instead of the nearly retired
+medium blue), lime, medium nougat, trans-clear, trans-light blue, pearl gold and
+flat silver. `lib/colors.ts` gives each its LDraw code, BrickLink ID,
+**Rebrickable ID** and LEGO's own color ID, which ties the others together. Equal
+numbers are not the same color:
+
+- Trans-Light Blue is Rebrickable 41, LDraw 43 and BrickLink 15, while Rebrickable
+  43 is Trans-Very Lt Blue (BrickLink 113).
+- Flat Silver is Rebrickable 179 and BrickLink 95, LEGO 315 "Silver Metallic", so
+  its LDraw code is **315** (`Flat_Silver` in `LDConfig.ldr`). LDraw 179 is
+  `Pearl_Silver` (LEGO 179 "Silver Flip-flop"), even though Rebrickable's own
+  color table still lists LDraw 179 for Flat Silver.
+
+Source data is always joined on the Rebrickable ID, never on the LDraw code; a
+join on the LDraw code silently picks up the wrong color. Each LDraw code is the
+`LDConfig.ldr` color whose `LEGOID` comment is the color's LEGO ID, and each
+BrickLink ID is the one Rebrickable lists for that LEGO ID.
+`scripts/refresh-color-sources.mjs` checks all 25 colors this way and saves the rows
+`tests/palette.test.mjs` re-checks in `tests/fixtures/color-sources.json`:
+
+```sh
+node scripts/refresh-color-sources.mjs --ldconfig /path/to/ldraw/LDConfig.ldr \
+  --rebrickable colors.json [--rebrickable another-cache.json] [--check]
+```
+
+`LDConfig.ldr` is from the pinned LDraw mirror commit above (update 2026-05-29).
+Each `--rebrickable` file is a saved response of the Rebrickable colors API
+(`https://rebrickable.com/api/v3/lego/colors/`, which needs an API key); the
+fixture was built from three independent caches of it (bkfunk/brickdata,
+fjmoeller/flosrocketbricks and domdfcoding/rebrickable-db), which must agree.
+
+A part is offered in one of these colors only where that exact part number is
+evidenced in it. Legacy core parts keep every classic color (as before) and gain
+only their evidenced new colors, recorded in `legacyColors` in the catalog.
+
+Evidence is an element ID or a non-spare inventory of a released set. Rebrickable's
+**Database Sets** theme is never evidence: its `DATABASE-*` "Unused Parts Database
+Set" inventories record parts LEGO catalogued but never shipped, and `*DBASE*` sets
+hold print variants. Both refresh modes drop them (by set number and by theme), and
+`placeholderOnly` in `scripts/part-color-evidence.json` lists the 24 combinations
+that only such placeholders mention (for example 1 x 1 to 2 x 4 plates and bricks in
+flat silver, from `DATABASE-2012` alone), which are therefore not offered.
+
+Availability decides what can be **made**: AI generation (repair, then a fresh-scene
+check), placing and painting in the studio, and packing. It never decides whether a
+saved project, share or library design **opens**: those load without re-checking it,
+because the data is provisional and a refresh may add or drop a pair. A saved scene that
+now packs into other parts or colours keeps the bricks it was saved with, as long as they
+fill exactly the scene's cells (`readProjectContent` in `lib/design-project.ts`). In shopping, an added
+color the part is evidenced in says "No exact LEGO element yet — verify on
+BrickLink", while a part/color pair the catalog does not list at all (an imported
+piece) says "Not listed in this color".
+
+The official downloads at `cdn.rebrickable.com` were unreachable when these were
+added, so the current evidence is a **provisional offline substitute**, marked
+`colorEvidence: {source: "rebrickable-2022-elements+2026-inventories",
+provisional: true}` in `scripts/part-catalog-selection.json`,
+`lib/data/parts-catalog.json` and `public/parts/catalog.json`:
+
+- Rebrickable `colors.csv.gz` and `elements.csv.gz` as mirrored by TidyTuesday on
+  2022-09-06:
+  <https://raw.githubusercontent.com/rfordatascience/tidytuesday/master/data/2022/2022-09-06/>
+- non-spare set inventories (sets up to 2026) from the Rebrickable SQLite snapshot
+  bundled in the `lego-oracle` 0.1.2 npm package
+  (<https://registry.npmjs.org/lego-oracle/-/lego-oracle-0.1.2.tgz>, npm shasum
+  `44cbaad151fcdf4395cd5fb72cb848e82f92dfe5`). Its `is_trans` flags are all 0, so
+  transparency is checked against the 2022 color table.
+
+Inventories in Rebrickable's Database Sets theme are left out, as described above.
+Calibrated on the classic colors,
+this substitute finds about 93% of the official part/color combinations with
+about 1% extra. Per-combination evidence (2022 element-ID count, set count, last
+set year) and SHA-256 digests of the files used are in
+`scripts/part-color-evidence.json`. The provisional data was produced with:
+
+```sh
+node scripts/refresh-part-colors.mjs --from-local /path/to/snapshot
+```
+
+where the directory holds `tidytuesday-2022/{colors,elements}.csv.gz` and
+`lego-oracle-0.1.2/package/dist/data/lego.sqlite`. With network access, replace
+it with official data (element IDs and non-spare set inventories, joined on the
+Rebrickable color ID) and review the diff:
+
+```sh
+node scripts/refresh-part-colors.mjs                       # downloads from cdn.rebrickable.com
+node scripts/refresh-part-colors.mjs --source-dir /path    # decompressed colors, elements,
+                                                           # inventory_parts, inventories, sets, themes CSVs
+node scripts/refresh-part-colors.mjs --check               # fails if anything would change
+```
+
+The script owns only the added colors; classic colors keep their element-ID
+evidence from `refresh-part-catalog-selection.py`, which preserves the added
+colors' lists, and `compile-part-catalog.mjs` carries `colorEvidence` and
+`legacyColors` over when it rebuilds the catalog. LEGO element IDs for the added
+colors come only from `scripts/refresh-lego-elements.mjs` (see
+`docs/lego-elements.md`); this evidence never supplies an element ID.
+
 ## Reproducing metadata
 
 Extract the pinned LDraw library and decompress the Rebrickable CSVs, then run:
@@ -98,6 +199,100 @@ It also identifies prices as planning estimates rather than seller quotes.
 Use the full rebuild command above for a release. The compiler's `--ids` and
 `--limit` options are diagnostics: they write a partial catalog and must be
 followed by a full rebuild before deployment.
+
+### Without the archives: a per-file mirror
+
+Where the archives and the GitHub API cannot be reached, `scripts/fetch-part-sources.mjs`
+mirrors exactly the files the compiler reads from the two pinned commits on
+`raw.githubusercontent.com`: every selected part, each subfile and primitive it
+references, each one's shadow file, the shadow-only files their `SNAP_INCL` metas name,
+and each frame's fitted element and LDraw shortcut. The shadow repository's
+`.gitattributes` checks `.dat` files out with CRLF line endings, so the mirror writes them
+that way too; its files then hash exactly as a checkout does. A mirror is not a git
+checkout, so the compiler is told the shadow commit:
+
+```sh
+NODE_USE_ENV_PROXY=1 node scripts/fetch-part-sources.mjs --out /tmp/part-sources
+node scripts/compile-part-catalog.mjs --ldraw /tmp/part-sources/ldraw \
+  --shadow /tmp/part-sources/shadow --shadow-commit 9b1131fb1991f8c0bfc072325e4e12f6271aba35
+```
+
+On 2026-10-13 this mirror matched every hash recorded in `public/parts/attribution.json`
+(1,164 LDraw and 479 shadow files), and a full rebuild from it reproduced the 438 parts
+then enabled byte for byte before any candidate was added.
+
+### Studs drawn inline
+
+A part's height comes from its body, which excludes the subtrees of stud primitives. A
+few parts draw a stud inline instead: the notched outer studs of `60594` (Window 1 x 4 x 3)
+and `60596` (Door Frame 1 x 4 x 6) are `3-4cyli`/`3-4disc` primitives, which would count as
+body and make the frame one plate too tall, with its top cells blocked. Geometry lying
+entirely inside a stud the shadow library documents (radius 6, 4 LDU above the stud's
+base) is therefore treated as stud, not body. This changed none of the 438 parts compiled
+before it.
+
+### Fitted glass and doors
+
+Glass and doors have no studs or anti-studs; they clip or hinge into a frame, so the
+compiler rejects them as parts of their own (`fittedIn` in the rejected list). A candidate
+with `fitted` is compiled with its element in place instead:
+
+- `60592` Window 1 x 2 x 2 Flat Front with `60601` glass and `60593` Window 1 x 2 x 3
+  Flat Front with `60602` glass, placed as the official LDraw shortcuts `60592c01` and
+  `60593c01` place them (both at the frame's origin);
+- `60596` Door Frame 1 x 4 x 6 with `60616b` Door 1 x 4 x 6 (chamfered handle plinth),
+  hung where the shadow library's finger snaps meet: the frame's `[group=door]` slot
+  `seq=2 132 2` at (-32, 70, 5) and the door's 132 LDU knuckle at (0, 70, 0), so the door
+  sits at (-32, 0, 5) in the frame.
+
+The element's mesh is compiled in the frame's placement box
+(`public/parts/ldraw/<frame>-<element>.json`), so it renders, turns, collides and exports
+with the frame. The frame's collision cells include it: a closed window or door fills its
+whole box. The door's inner stud handle stands 2.75 LDU proud of the frame's inside face,
+so it is not body: the compiler records the cells outside the box that the element's drawn
+studs reach as the frame's `clearance` (for `60596`, the 2 x 2 cells at plates 8-9 just
+behind the frame). No other piece may fill them: placement and the overlap audit treat a
+piece there as a clash, a scene that puts a part or minifigure there is rejected (repair
+removes it), and when a wall is drawn behind a door the compiler leaves those cells empty.
+The prompt and the worked examples carve a hall behind each door instead, so the inward-
+opening door has room to swing. A piece's `fitted` field is the element's colour (default trans-clear, the
+element's most-made colour); scenes set it with a frame shape's `bg`. Inventories, CSV,
+BrickLink XML and LDraw exports list the element as its own part in its own colour. Like
+minifigures, frames follow LDraw's convention that a part's front faces -z: the glass of a
+flat-front window sits 3 LDU behind its front face and a door sits back in its frame, so a
+frame in a model's front (+z) wall is placed with face `nz`.
+
+### Building-detail parts added 2026-10-13
+
+Enabled: the three frames above, `2412b` Tile 1 x 2 Grille, `2877` Brick 1 x 2 with
+Grille, `98283` Brick 1 x 2 with Masonry Brick Profile and `4216` Brick 1 x 2 with Groove.
+Each compiles on the 20/8 LDU grid with one socket per bottom cell and (except the tile)
+one stud per top cell. `3070b`, `3069b` and `3068b` tiles were already core parts, and
+LDraw has moved `4073` to `6141` (Plate Round 1 x 1), already enabled.
+
+Left out, deliberately:
+
+- **Jumper plates** (`3794b`, and `15573` which replaced it): the single stud sits half a
+  stud off the grid, so the compiler would keep the two sockets and drop the stud, leaving
+  a studless plate that looks studded. They wait for half-stud offsets.
+- **`60594` Window 1 x 4 x 3**: the frame compiles, but no LDraw shortcut or shadow snap
+  places its glass (`60603`, an alias of `86210`), and an empty frame is not a window.
+  Two `60593` side by side make the same opening.
+- **Train windows `4033`/`4035`**: their LDraw shortcuts exist, but both are retired
+  (`4033` last appeared in a 2006 set and its glass `4034` in 2011; `4036`, the glass for
+  `4035`, has no element ID in the 2022 snapshot).
+- **`30044` Window 1 x 2 x 2 2/3 with rounded top**: its one stud is centred between grid
+  positions, so nothing can be stacked on it.
+- **`57894` 1 x 4 x 6 and `2493b` 1 x 4 x 5 windows**: no LDraw shortcut places their glass.
+
+Colours: these parts were enabled after the LEGO element snapshot, so they have no element
+IDs for their classic colours either. Every colour they and their fitted elements are
+offered in comes from the production evidence above (an element ID in the 2022 snapshot
+or a non-spare inventory of a released set), and `scripts/refresh-part-colors.mjs` records
+those classic combinations in `scripts/part-color-evidence.json` too. Their names come from
+the Rebrickable snapshot in `lego-oracle` 0.1.2. The next official refresh of
+`lib/data/lego-elements.json` covers them, after which their classic colours follow the
+element-ID rule like every other part.
 
 ## Requested new shells
 

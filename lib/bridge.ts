@@ -1,5 +1,5 @@
-import {EXPANDED_PARTS,catalogPart} from "./part-catalog";
-import {forEachPieceCell,topConnectorOffsets,bottomConnectorOffsets} from "./part-spatial";
+import {EXPANDED_PARTS,catalogPart,fittedColor} from "./part-catalog";
+import {forEachPieceCell,topConnectorOffsets,bottomConnectorOffsets,pieceClearanceOffsets} from "./part-spatial";
 import {MINIFIG,MINIFIG_SPEC,isMinifig,minifigColors,minifigPlacements} from "./minifig";
 import {COLORS} from "./colors";
 import type {ColorKey} from "./colors";
@@ -12,6 +12,9 @@ export const LEGACY_PARTS = {
 };
 export type PartSpec={name:string;w:number;d:number;h:number;price:number};
 export const PARTS:Record<string,PartSpec>={...EXPANDED_PARTS,...LEGACY_PARTS,[MINIFIG]:MINIFIG_SPEC};
+// Everything a parts list can name: the placeable parts plus the glass and doors fitted into frames,
+// which are bought as their own elements but only ever placed with their frame.
+export const ELEMENTS:Record<string,PartSpec>={...PARTS,...Object.fromEntries(Object.values(EXPANDED_PARTS).flatMap(p=>p.fitted?[[p.fitted.part,{name:p.fitted.name,w:p.w,d:p.d,h:p.h,price:p.fitted.price}]]:[]))};
 export type PartId = string;
 export const TILES=new Set<string>(["3068b","3069b","3070b","2431","6636","4162","87079"]);
 export const isTile=(part:string)=>TILES.has(part);
@@ -35,7 +38,8 @@ export const isWheel=(part:string)=>Object.hasOwn(WHEELS,part);
 // True when nothing can be attached on top of this part: tiles and studless slopes.
 export const studless=(part:string)=>!Object.hasOwn(LEGACY_PARTS,part)?(catalogPart(part)?.topStuds.length??0)===0:isTile(part)||isWheel(part)||(isSlope(part)&&!SLOPES[part].studded);
 // A minifig piece is one assembled figure: color is its torso, legs its hips and legs, skin its head and hands.
-export interface Piece {id:number;part:PartId;color:ColorKey;x:number;y:number;z:number;w:number;d:number;h:number;rotated:boolean;stage:number;support?:boolean;face?:Face;legs?:ColorKey;skin?:ColorKey;}
+// A window or door frame carries its fitted glass or door: fitted is that element's colour (fittedColor).
+export interface Piece {id:number;part:PartId;color:ColorKey;x:number;y:number;z:number;w:number;d:number;h:number;rotated:boolean;stage:number;support?:boolean;face?:Face;legs?:ColorKey;skin?:ColorKey;fitted?:ColorKey;}
 // The cells of a piece's top that carry studs, as offsets within its world footprint.
 // Bricks and plates are studded everywhere, tiles nowhere, and a studded slope only on
 // the flat rows behind its slope (an inverted slope is studded across its whole top).
@@ -88,6 +92,8 @@ export function auditModel(pieces:Piece[]) {
  const occupied=new Map<string,number>();let overlaps=0;const parent=pieces.map((_,i)=>i);
  function root(i:number):number{while(parent[i]!==i){parent[i]=parent[parent[i]];i=parent[i];}return i;}const join=(a:number,b:number)=>{parent[root(a)]=root(b);};
  pieces.forEach((p,i)=>forEachPieceCell(p,(x,y,z)=>{const k=`${x},${y},${z}`;if(occupied.has(k))overlaps++;occupied.set(k,i);}));
+ // A hung door's handle stands proud of its frame: a piece filling that clearance clashes with it like an overlap.
+ pieces.forEach(p=>{for(const [x,y,z] of pieceClearanceOffsets(p))if(occupied.has(`${p.x+x},${p.y+y},${p.z+z}`))overlaps++;});
  const contacts=pieces.map(()=>0),bottom=pieces.map(()=>[] as number[]),sockets=new Map<string,number[]>();
  pieces.forEach((p,i)=>{for(const [x,y,z] of bottomConnectorOffsets(p)){const k=`${p.x+x},${p.y+y},${p.z+z}`,list=sockets.get(k)||[];list.push(i);sockets.set(k,list);}});
  pieces.forEach((p,i)=>{for(const [x,y,z] of topConnectorOffsets(p)){for(const other of sockets.get(`${p.x+x},${p.y+y},${p.z+z}`)||[]){if(other===i)continue;join(i,other);contacts[other]++;bottom[other].push(i);}}});
@@ -112,7 +118,7 @@ export function auditModel(pieces:Piece[]) {
 }
 export function partsCSV(rows:InventoryRow[],owned:Record<string,number>={},prices:Record<string,number>={}){
  const csv=(value:string|number)=>/[",\r\n]/.test(String(value))?`"${String(value).replaceAll('"','""')}"`:String(value);
- return ["Design ID,Part,Color,Required,Owned,To buy,Estimated unit USD",...rows.map(r=>[r.part,PARTS[r.part].name,COLORS[r.color].name,r.quantity,Math.min(r.quantity,owned[r.key]||0),Math.max(0,r.quantity-(owned[r.key]||0)),prices[r.key]??PARTS[r.part].price].map(csv).join(","))].join("\n");
+ return ["Design ID,Part,Color,Required,Owned,To buy,Estimated unit USD",...rows.map(r=>[r.part,ELEMENTS[r.part].name,COLORS[r.color].name,r.quantity,Math.min(r.quantity,owned[r.key]||0),Math.max(0,r.quantity-(owned[r.key]||0)),prices[r.key]??ELEMENTS[r.part].price].map(csv).join(","))].join("\n");
 }
 // Minifigures are assemblies of several elements with no single BrickLink part number, so they are left out.
 export function bricklinkXML(rows:InventoryRow[],owned:Record<string,number>={}){return `<INVENTORY>\n${rows.filter(r=>!isMinifig(r.part)&&r.quantity>(owned[r.key]||0)).map(r=>` <ITEM><ITEMTYPE>P</ITEMTYPE><ITEMID>${r.part}</ITEMID><COLOR>${COLORS[r.color].bricklink}</COLOR><MINQTY>${Math.max(0,r.quantity-(owned[r.key]||0))}</MINQTY></ITEM>`).join("\n")}\n</INVENTORY>`;}
@@ -129,6 +135,11 @@ function ldrawPlacement(p:Piece):string{
  const [ox,oy,oz]=definition.ldrawOffset,w=definition.w*20,d=definition.d*20;
  const x=face==="px"?oz:face==="nx"?d-oz:face==="nz"?w-ox:ox;
  const z=face==="px"?w-ox:face==="nx"?ox:face==="nz"?d-oz:oz;
- return `1 ${COLORS[p.color].ldraw} ${p.x*20+x} ${-p.y*8+oy} ${p.z*20+z} ${matrix} ${definition.sourcePart}.dat`;
+ const at=[p.x*20+x,-p.y*8+oy,p.z*20+z],line=`1 ${COLORS[p.color].ldraw} ${at.join(" ")} ${matrix} ${definition.sourcePart}.dat`,fit=definition.fitted;
+ if(!fit)return line;
+ // The fitted glass or door keeps its place in the frame's own LDraw coordinates, turned with the frame.
+ const r=matrix.split(" ").map(Number),[fx,fy,fz]=fit.ldraw.position,m=fit.ldraw.matrix;
+ const position=[0,1,2].map(i=>at[i]+r[i*3]*fx+r[i*3+1]*fy+r[i*3+2]*fz),turned=[0,1,2].flatMap(i=>[0,1,2].map(c=>r[i*3]*m[c]+r[i*3+1]*m[3+c]+r[i*3+2]*m[6+c]));
+ return `${line}\n1 ${COLORS[fittedColor(p)!].ldraw} ${position.join(" ")} ${turned.join(" ")} ${fit.sourcePart}.dat`;
 }
 export function ldrawFile(pieces:Piece[],name="Golden Gate Bridge",stages=STAGES){return [`0 ${name.replace(/[\r\n]/g," ")} - Bricks custom concept`,"0 Physical stability and assembly not tested.",...stages.flatMap((s,i)=>["0 STEP",`0 ${s.title}`,...pieces.filter(p=>p.stage===i).map(ldrawPlacement)])].join("\n");}
