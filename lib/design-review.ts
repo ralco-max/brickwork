@@ -26,7 +26,7 @@ export function reviewRubric(brief:Pick<DesignBrief,"features">,sheet?:Pick<Refe
 export const reviewSummary=(text:string)=>clipSentence(splitSentences(text)[0]||text,SUMMARY_MAX);
 const STATUSES:FeatureStatus[]=["visible","missing","uncertain"];
 export type ReviewOptions={mode?:"full"|"targeted";signature?:string[];rubric?:RubricItem[]};
-// targeted (a local or marked-area revision, or the auto-repair's re-check): three smaller views, and the source images
+// targeted (a local or marked-area revision; the client merges it with the previous full review): three smaller views, and the source images
 // and photos, which have not changed, are not sent again; the composition check is then not required.
 export async function reviewDesign(brief:DesignBrief,images:string[],key:string,model:string,signal:AbortSignal,fetcher:typeof fetch=fetch,revision="",onUsage?:(usage:unknown)=>Promise<void>,reference?:{sheet?:ReferenceSheet;photo?:string;photos?:string[]},region?:RevisionRegion,options:ReviewOptions={}):Promise<VisualReview>{
  const targeted=options.mode==="targeted",photos=targeted?[]:collectReferencePhotos(reference?.photo,reference?.photos),sheet=targeted?undefined:reference?.sheet;
@@ -44,8 +44,9 @@ Assess the revision request separately; not_requested is only for no revision. R
  const {rubric:answers,...raw}=JSON.parse(text) as Record<string,unknown>;
  const thinking=reasoningSummary(data.output),review:VisualReview={...reviewSchema.parse(raw),...(thinking?{thinking}:{})};if((revision||region)&&(!review.revision||review.revision.status==="not_requested"))throw Error("The review did not assess your requested change.");
  if(!targeted&&(reference?.sheet||photos.length)&&(!review.composition||review.composition.status==="not_applicable"))throw Error("The review did not assess the reference composition. Run the review again.");
- review.summary=reviewSummary(review.summary);if(review.criticalMismatch!==true)delete review.criticalMismatch;
- if(review.criticalMismatch||review.composition&&["mismatch","uncertain"].includes(review.composition.status))review.recognizable=false;
+ review.summary=reviewSummary(review.summary);if(review.criticalMismatch!==true)delete review.criticalMismatch;if(targeted)review.scope="targeted";
+ // A targeted check has no reference, so its doubt about the layout is not a finding; only a mismatch these views show is.
+ if(review.criticalMismatch||review.composition&&(review.composition.status==="mismatch"||!targeted&&review.composition.status==="uncertain"))review.recognizable=false;
  if(review.features.length!==brief.features.length||review.features.some((f,i)=>f.feature!==brief.features[i]))throw Error("Visual review did not cover every required feature. Run the review again.");
  // Matched by position: the item text the model echoes is never trusted, and an unanswered item stays uncertain rather than failing a paid review.
  const list=Array.isArray(answers)?answers as {status?:unknown;evidence?:unknown}[]:[];

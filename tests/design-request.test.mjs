@@ -67,6 +67,16 @@ test('revision feedback is the checks, corrections and approved items, never the
  assert.deepEqual(m.flaggedReviewItems({...review,revision:{status:'uncertain',evidence:'The door is hard to see.'}}),['Clock tower: No tower on the roof.','Requested change not yet visible: The door is hard to see.']);
 });
 
+test('approved items are never blank and never longer than the route takes',()=>{
+ // A targeted check of a local edit: unrecognizable (a critical mismatch), composition not_applicable with no evidence.
+ const review={summary:'The roof is red.',recognizable:false,criticalMismatch:true,features:[{feature:'Clock tower',status:'missing',evidence:'No tower.'},{feature:'Arches',status:'uncertain',evidence:''}],improvements:[],composition:{status:'not_applicable',evidence:''},revision:{status:'uncertain',evidence:' '}};
+ assert.deepEqual(m.flaggedReviewItems(review),['Clock tower: No tower.','Arches','Requested change not yet visible']);
+ assert.deepEqual(m.flaggedReviewItems({...review,composition:{status:'mismatch',evidence:'  '}}),['Clock tower: No tower.','Arches','Requested change not yet visible']);
+ assert.ok(m.flaggedReviewItems({...review,composition:{status:'mismatch',evidence:'Wings missing.'}}).includes('Wings missing.'));
+ const approved=m.approvedFeedback({approved:['',' ','Add a red door',`Make the clock ${'very '.repeat(150)}large`],repairing:true,review});
+ assert.ok(approved.every(a=>a.trim()&&a.length<=500),JSON.stringify(approved));assert.equal(approved.length,5);assert.equal(approved[0],'Add a red door');
+});
+
 test('a fixable shape is repaired before validation and the corrections are reported; locks keep the build area',async()=>{
  const brief=m.defaultBrief('A small station'),bad={...sceneOf(3),shapes:[...sceneOf(3).shapes,box('awning',36,2,0,6,2,2)]};
  const r=await design({prompt:brief.idea,detail:'medium',brief,previous:m.foundationScene(brief)},'gpt-6.1-sol',bad);
@@ -88,6 +98,11 @@ test('the generate route accepts approved items and up to five model views of an
  assert.equal(ok.status,200);await Array.fromAsync(m.readEvents(ok.body));
  const sent=JSON.parse(bodies[0].input.find(x=>x.role==='user'&&JSON.parse(x.content[0].text).repairFeedback!==undefined)?.content[0].text||bodies[0].input.at(-1).content[0].text);
  assert.deepEqual(sent.repairFeedback,['Approved by the user: Clock tower: not visible']);
+ // A blank or overlong approved item is dropped or clipped; it never rejects the whole paid design.
+ bodies.length=0;const loose=await post({prompt:'Fix the flagged checks',detail:'medium',brief,previous:sceneOf(20),approved:['Clock tower: No tower.','','   ',`Arches ${'tall '.repeat(200)}`]});
+ assert.equal(loose.status,200);await Array.fromAsync(m.readEvents(loose.body));
+ const looseSent=JSON.parse(bodies[0].input.flatMap(x=>Array.isArray(x.content)?x.content:[]).find(c=>c.type==='input_text'&&c.text.startsWith('{')&&JSON.parse(c.text).repairFeedback).text).repairFeedback;
+ assert.equal(looseSent.length,2);assert.equal(looseSent[0],'Approved by the user: Clock tower: No tower.');assert.ok(looseSent[1].length<=521,String(looseSent[1].length));
  assert.equal((await post({prompt:'Fix it',detail:'medium',brief,previous:sceneOf(20),renders:Array(6).fill(view(1))})).status,400);
  assert.equal((await post({prompt:'A station',detail:'medium',brief,renders:[view(1)]})).status,400,'model views need an existing design');
 });
@@ -118,7 +133,12 @@ test('a targeted review sends three views without the unchanged sources and may 
  const images=body.input[0].content.filter(c=>c.type==='input_image');
  assert.equal(images.length,3);assert.equal(data.mode,'targeted');assert.equal(data.referenceSheet,undefined);assert.equal(data.sourcePhotoCount,0);
  assert.match(body.input[0].content.filter(c=>c.type==='input_text').at(-1).text,/view 3 \(overhead\)/);
- assert.equal(r.composition.status,'not_applicable');assert.equal(r.revision.status,'visible');
+ assert.equal(r.composition.status,'not_applicable');assert.equal(r.revision.status,'visible');assert.equal(r.scope,'targeted');
+ // Without the reference, a targeted check's doubt about the layout is no finding; a mismatch it can see still is.
+ const unsure=await review(answer({composition:{status:'uncertain',evidence:'Cannot compare without the reference.'},revision:{status:'visible',evidence:'Door added.'}}),{mode:'targeted',revision:'Add a door'},[view(1),view(2),view(5)]);
+ assert.equal(unsure.r.recognizable,true);
+ const seen=await review(answer({composition:{status:'mismatch',evidence:'The tower moved to the front.'},revision:{status:'visible',evidence:'Door added.'}}),{mode:'targeted',revision:'Add a door'},[view(1),view(2),view(5)]);
+ assert.equal(seen.r.recognizable,false);assert.equal((await review(answer({composition:{status:'uncertain',evidence:'Rear hidden.'}}))).r.recognizable,false,'a full review stays strict');assert.equal((await review(answer())).r.scope,undefined);
  await assert.rejects(()=>review(answer({composition:{status:'not_applicable',evidence:''}})),/reference composition/,'a full review still must assess composition');
 });
 

@@ -41,8 +41,8 @@ export function loadLib(){
  return libPromise??=(async()=>{
   const {build}=await import('esbuild');
   const contents=['export {POST as researchPOST} from "./app/api/research/route";','export {POST as generatePOST} from "./app/api/generate/route";','export {POST as reviewPOST} from "./app/api/review/route";','export {env as accuracyEnv} from "cloudflare:workers";',
-   'export {compileScene,validateScene,expandCompactHeader,expandCompactShape,compactShapeSchema,componentBudget} from "./lib/generated-scene";','export {designChecks,proportionCheck,defaultBrief,briefSchema,referenceKey,emptyManual,emptyShopping,projectJSON} from "./lib/design-project";',
-   'export {targetExtents,planTarget,referenceReady,referenceClarification,referenceSheetSchema} from "./lib/design-research";','export {addSupports} from "./lib/scene-repair";','export {repairMetrics,materialFailures,autoRepairAllowed,compareRepair,revisionFeedback} from "./lib/design-workflow";','export {foundationScene} from "./lib/live-arrivals";','export {readEvents} from "./lib/generation-stream";',
+   'export {compileScene,validateScene,expandCompactHeader,expandCompactShape,compactShapeSchema,componentBudget} from "./lib/generated-scene";','export {designChecks,proportionCheck,defaultBrief,briefSchema,referenceKey,emptyManual,emptyShopping,projectJSON,sceneDiff} from "./lib/design-project";',
+   'export {targetExtents,planTarget,referenceReady,referenceClarification,referenceSheetSchema} from "./lib/design-research";','export {addSupports} from "./lib/scene-repair";','export {repairMetrics,materialFailures,autoRepairAllowed,compareRepair,repairNeedsReview,revisionFeedback} from "./lib/design-workflow";','export {foundationScene} from "./lib/live-arrivals";','export {readEvents} from "./lib/generation-stream";',
    'export {budgetedProvider,budgetSnapshot,keyFingerprint,BUDGET_NANOS,BUDGET_MODEL,QUALITY_MODELS} from "./lib/ai-budget";','export {DESIGN_EXAMPLES} from "./lib/design-examples";','export {generateRecipe,RECIPES,supportLoosePieces,finishModel,validateProject} from "./lib/models";'].join('\n');
   const result=await build({stdin:{contents,resolveDir:ROOT,loader:'ts'},bundle:true,platform:'node',format:'esm',write:false,logLevel:'error',plugins:[{name:'accuracy-env',setup(b){b.onResolve({filter:/^cloudflare:workers$/},()=>({path:'env',namespace:'accuracy-env'}));b.onLoad({filter:/.*/,namespace:'accuracy-env'},()=>({contents:'export const env=globalThis.__brickworkAccuracyEnv??={};',loader:'js'}));}}]});
   return import('data:text/javascript;base64,'+Buffer.from(result.outputFiles[0].text).toString('base64'));
@@ -293,15 +293,18 @@ async function runCase(lib,ctx,c){
    t=performance.now();const r=await reviewOf('review',model,scene,images,'full');review=r.review;if(r.error)detail.reviewError=r.error;times.review=ms(t);
    // One automatic repair on material failures, gated and kept exactly as the generator does.
    const remaining=(await ctx.ledger.state()).remaining;
-   const reasons=review&&lib.autoRepairAllowed({enabled:b.autoRepair!==false,eligible:true,remaining,clarification:false})?lib.materialFailures(lib.repairMetrics(checks,review,model.pieces.length,b.maxPieces)):[];
+   const before=review?lib.repairMetrics(checks,review,model,b.maxPieces):null;
+   const reasons=review&&lib.autoRepairAllowed({enabled:b.autoRepair!==false,eligible:true,remaining,clarification:false})?lib.materialFailures(before):[];
    if(reasons.length){
     t=performance.now();detail.autoRepair={reasons};
     try{
      const fixed=await design('repair',{prompt:`Fix the problems the checks and the review found in this build, using the CURRENT MODEL VIEWs, with the smallest edits that keep everything else. ${reasons.join(' ')}`.slice(0,2000),previous:scene,renders:images.slice(0,5),feedback:lib.revisionFeedback({reasons,issues:checks.issues,corrections:first.corrections}),budget:{limit:b.maxPieces,used:model.pieces.length,remaining:b.maxPieces-model.pieces.length,byComponent:lib.componentBudget(scene,model)}});
-     const nextPacked=pack(fixed.scene,'repair'),nextChecks=lib.designChecks(nextPacked.model,b,sheet.target,sheet.scaleConflict),nextImages=await views(nextPacked.model,true),next=await reviewOf('repair',nextPacked.model,fixed.scene,nextImages,'targeted');
-     const verdict=next.review?lib.compareRepair(lib.repairMetrics(checks,review,model.pieces.length,b.maxPieces),lib.repairMetrics(nextChecks,next.review,nextPacked.model.pieces.length,b.maxPieces)):{keep:false,fixed:0};
-     Object.assign(detail.autoRepair,{kept:verdict.keep,fixed:verdict.fixed,corrections:fixed.corrections});row.autoRepair=verdict.keep?'kept':'discarded';row.repairFixed=verdict.keep?verdict.fixed:0;
-     if(verdict.keep){scene=fixed.scene;packed=nextPacked;model=nextPacked.model;checks=nextChecks;review=next.review;writeFileSync(join(dir,'scene.json'),JSON.stringify(scene,null,1));images=await views(model);if(ctx.renderer)await saveRenders(ctx.renderer,join(dir,'renders'),images);}
+     const nextPacked=pack(fixed.scene,'repair'),nextChecks=lib.designChecks(nextPacked.model,b,sheet.target,sheet.scaleConflict),diff=lib.sceneDiff(scene,fixed.scene);
+     // The re-check is paid for only when the local measures leave the verdict open, and it sees what the first review saw.
+     let verdict={keep:false,fixed:0},nextReview=null;const checkedRepair=lib.repairNeedsReview(before,lib.repairMetrics(nextChecks,null,nextPacked.model,b.maxPieces),diff.added+diff.changed+diff.removed>0);
+     if(checkedRepair){const next=await reviewOf('repair',nextPacked.model,fixed.scene,await views(nextPacked.model),'full');nextReview=next.review;if(nextReview)verdict=lib.compareRepair(before,lib.repairMetrics(nextChecks,nextReview,nextPacked.model,b.maxPieces));}
+     Object.assign(detail.autoRepair,{kept:verdict.keep,fixed:verdict.fixed,checked:checkedRepair,corrections:fixed.corrections});row.autoRepair=verdict.keep?'kept':checkedRepair?'discarded':'discarded unchecked';row.repairFixed=verdict.keep?verdict.fixed:0;
+     if(verdict.keep){scene=fixed.scene;packed=nextPacked;model=nextPacked.model;checks=nextChecks;review=nextReview;writeFileSync(join(dir,'scene.json'),JSON.stringify(scene,null,1));images=await views(model);if(ctx.renderer)await saveRenders(ctx.renderer,join(dir,'renders'),images);}
     }catch(e){row.autoRepair='failed';detail.autoRepair.error={code:e.code||'REPAIR_FAILED',message:String(e.message||e).slice(0,300)};if(String(e.code).startsWith('BUDGET_'))ctx.stopped=`Stopped after the spending cap was reached (${e.code}).`;}
     times.repair=ms(t);
    }

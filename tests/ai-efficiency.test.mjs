@@ -5,7 +5,9 @@ const bundle=await build({stdin:{contents:'export * from "./lib/ai-efficiency";e
 const {isLocalDesignEdit,needsFreshResearch,designOutputLimit,reasoningAllowance,lookupOutcome,compactSceneContext,cacheStableContext,compactScene,foundationScene,defaultBrief}=await import('data:text/javascript;base64,'+Buffer.from(bundle.outputFiles[0].text).toString('base64'));
 
 test('only complete unambiguous local edits count as local (targeted review)',()=>{
- for(const text of ['Make the roof darker','Please make the building a little taller.','Paint the walls dark blue','Change the color of the windows to black','Make the sign wider!'])assert.equal(isLocalDesignEdit(text),true,text);
+ for(const text of ['Make the roof darker','Paint the walls dark blue','Change the color of the windows to black','Make the sign wider!','Please make the windows a little larger.','Make the building red'])assert.equal(isLocalDesignEdit(text),true,text);
+ // Resizing the building, a tower, the roof or the whole model changes proportions: it gets a full review against the reference.
+ for(const text of ['Please make the building a little taller.','Make the model smaller','Make the tower taller','Make the building wider','Make the roof thinner'])assert.equal(isLocalDesignEdit(text),false,text);
  for(const text of ['', 'Actually this is Skymark in Reston','Make the roof darker like the Baltimore monument','Make the roof darker and use a different building','Add the courtyard from this photo','Make the building Washington Monument','Research the roof color','Make the roof the correct color','Use this new layout'])assert.equal(isLocalDesignEdit(text),false,text);
 });
 

@@ -4,7 +4,7 @@ import {useEffect,useMemo,useRef,useState} from "react";
 import {ArrowRight,Check,LoaderCircle,RotateCcw,Send,Square,Sparkles,LockKeyhole,Eye,Play,Pause,SlidersHorizontal,Maximize2,ShoppingBag,LassoSelect,X,Box,MessageSquare,Wrench,KeyRound} from "lucide-react";
 import {Dialog,DialogContent,DialogHeader,DialogTitle,DialogDescription} from "@/components/ui/dialog";
 import AIConnection from "./ai-connection";
-import {isLocalDesignEdit,needsFreshResearch,lookupOutcome} from "@/lib/ai-efficiency";
+import {isLocalDesignEdit,needsFreshResearch,lookupOutcome,savedReference} from "@/lib/ai-efficiency";
 import RunUsage from "./run-usage";
 import type {UsageStage,RunUsageEntry} from "./run-usage";
 import type {BudgetSnapshot,RequestUsage} from "@/lib/ai-budget";
@@ -15,7 +15,7 @@ import type {RevisionRegion} from "@/lib/revision-region";
 import {saveDesign,packDesign,newDesignId} from "@/lib/design-library";
 import type {ReferenceSheet} from "@/lib/design-research";
 import {planTarget,referenceSheetSchema,referenceReady,referenceClarification} from "@/lib/design-research";
-import {runDesignWorkflow,repairMetrics,materialFailures,autoRepairAllowed,compareRepair,approvedFeedback,revisionFeedback} from "@/lib/design-workflow";
+import {runDesignWorkflow,repairMetrics,materialFailures,autoRepairAllowed,compareRepair,repairNeedsReview,mergeTargetedReview,approvedFeedback,revisionFeedback} from "@/lib/design-workflow";
 import {clipSentence} from "@/lib/utils";
 import {FeedbackQueue,mayClearSubmittedFeedback} from "@/lib/feedback-queue";
 import type {QueuedFeedback} from "@/lib/feedback-queue";
@@ -158,7 +158,7 @@ export default function Generator({open,onOpenChange,initialPrompt,initialPhotos
  function restore(){const last=lastComplete.current;setDraft(last?.model||null);setScene(last?.scene||null);setReview(last?.reference===referencePack.current&&sameBrief(last?.brief,brief)?last?.review||null:null);if(last){reviewRequest.current=last.reviewRequest||"";reviewRegion.current=last.reviewRegion;if(last.manual)keepManual(last.manual);}}
  function stop(){setMarkingRegion(false);if(activeFeedback.current&&composerVersion.current===activeFeedback.current.version){setPrompt(activeFeedback.current.text);setRegion(activeFeedback.current.region);setApproved(activeFeedback.current.approved||[]);}activeFeedback.current=null;pauseQueue();previewQueue.current?.cancel();requestId.current++;controller.current?.abort();running.current=false;setBusy(false);setPhase("");if(partialDraft.current){const saved=partialDraft.current;reviewRequest.current=saved.reviewRequest||"";reviewRegion.current=saved.reviewRegion;if(saved.manual)keepManual(saved.manual);setDraft(saved.model);setScene(saved.scene);setReview(null);setInterrupted(true);persist(saved.model,saved.scene,null,saved.brief,saved.reference,true);setStatus("Stopped. Your in-progress draft is kept in your designs.");}else{setStatus("Stopped. Your last completed draft is preserved.");restore();}}
  const headers=(key=apiKey)=>({"Content-Type":"application/json",...(key?{"x-brickwork-api-key":key}:{})});
- // targeted: three smaller views for a local or marked-area change and the auto-repair's re-check. The views are handed
+ // targeted: three smaller views for a local or marked-area change (the auto-repair's re-check uses its pass's mode). The views are handed
  // back so an automatic repair can show the designer the model it is fixing.
  async function visual(model:BuildModel,b:DesignBrief,abort:AbortController,revision="",key=apiKey,signature:string[]=[],ref=referencePack.current,marked=reviewRegion.current,mode:"full"|"targeted"="full",onViews?:(images:string[])=>void){
   setPhase("review");setStatus(mode==="targeted"?"Checking the change…":"Looking over the finished model…");const {renderReviewViews,targetedViews,TARGETED_VIEW_SIZE}=await import("@/lib/render-review");abort.signal.throwIfAborted();const images=await renderReviewViews(model,mode==="targeted"?{views:targetedViews(model,marked),size:TARGETED_VIEW_SIZE}:{});abort.signal.throwIfAborted();onViews?.(images);
@@ -204,20 +204,23 @@ export default function Generator({open,onOpenChange,initialPrompt,initialPhotos
   // The saved sheet is reused unless the feedback brings new evidence about what the subject is (a link, an identity
   // statement, a name the sheet does not know); new photos, a new place hint or a changed brief always look it up again.
   const refreshForFeedback=Boolean(!reviewOnly&&!continuing&&runPrompt&&!runRegion&&needsFreshResearch(runPrompt,saved?.sheet,baseScene||undefined));
-  const samePhotos=JSON.stringify(collectReferencePhotos(saved?.photo,saved?.photos))===JSON.stringify(collectReferencePhotos(runReferences.photo,runReferences.photos));
-  const reusable=!refreshForFeedback&&saved?.briefKey===identity&&samePhotos&&(saved.identityHint||"")===runReferences.identityHint&&referenceReady(saved.sheet)?{...saved,sheet:planSheet(saved.sheet!,b)}:undefined;
-  // A fresh lookup for the same brief that cannot confirm the subject falls back to the confirmed sheet, with a note,
-  // instead of stopping the pass with a question after paying for it.
-  const fallback=saved?.briefKey===identity&&referenceReady(saved.sheet)?{...saved,sheet:planSheet(saved.sheet!,b),photo:runReferences.photo,photos:runReferences.photos,identityHint:runReferences.identityHint.trim()}:undefined;
-  // A local or marked-area change is re-checked in targeted mode: three smaller views, no unchanged source images.
-  const targeted=Boolean(original&&!reviewOnly&&!continuing&&!runReferenceEdited&&!briefEdited&&(runRegion||isLocalDesignEdit(runPrompt)));
+  // When only the typed feedback forced the lookup, the confirmed sheet is what it refines and its fallback: an unready
+  // answer keeps it, with the question shown, instead of stopping the pass after paying for the lookup. New photos or a
+  // new hint get no fallback; recording them as researched would hide them from every later lookup.
+  const usable=savedReference(saved,{...runReferences,briefKey:identity},refreshForFeedback),planned=(r?:DesignReference)=>r&&{...r,sheet:planSheet(r.sheet!,b)};
+  const reusable=planned(usable.reusable),fallback=planned(usable.fallback);
+  // A local or marked-area change is re-checked in targeted mode (three smaller views, no unchanged source images) and
+  // merged with the previous review, whose layout verdict it cannot see. Without a previous review, or on a retry (which
+  // may auto-repair, and a repair is compared on full evidence), the pass gets a full review.
+  const priorReview=baseScene&&lastComplete.current?.scene===baseScene?lastComplete.current.review:review;
+  const targeted=Boolean(original&&priorReview&&!reviewOnly&&!retrying&&!continuing&&!runReferenceEdited&&!briefEdited&&(runRegion||isLocalDesignEdit(runPrompt)));
   // One automatic repair at most, and only for a first build or an explicit retry.
   const eligible=!reviewOnly&&(!original||retrying);
   setReferenceReused(Boolean(reusable));
   if(fresh){setScene(null);setDraft(null);partialDraft.current=null;}
   const lookup=async():Promise<DesignReference>=>{
    setPhase("research");setStatus("Establishing the subject and layout…");
-   const response=await fetch("/api/research",{method:"POST",signal:abort.signal,headers:headers(activeKey),body:JSON.stringify({idea:b.idea,scope:b.scope,composition:b.composition,features:b.features,reference:runReferences.photo,photos:runReferences.photos,identityHint:runReferences.identityHint.trim(),feedback:runPrompt||undefined})});
+   const response=await fetch("/api/research",{method:"POST",signal:abort.signal,headers:headers(activeKey),body:JSON.stringify({idea:b.idea,scope:b.scope,composition:b.composition,features:b.features,reference:runReferences.photo,photos:runReferences.photos,identityHint:runReferences.identityHint.trim(),feedback:runPrompt||undefined,previous:fallback?.sheet?saved!.sheet:undefined})});
    const data=await response.json();alive();if(data.budget)trackBudget(data.budget);if(Array.isArray(data.usages))data.usages.forEach((usage:RequestUsage)=>recordCost(usage,"research"));else if(data.usage)recordCost(data.usage,"research");
    if(!response.ok)throw new GenerationError(data.error||"The reference lookup failed. Retry before spending on a design.",data.code||"REFERENCE_FAILED");
    const checked=referenceSheetSchema.safeParse(data.sheet);if(!checked.success)throw new GenerationError("The reference plan was incomplete. Retry the lookup before building.","REFERENCE_FAILED");
@@ -226,7 +229,7 @@ export default function Generator({open,onOpenChange,initialPrompt,initialPhotos
    const outcome=lookupOutcome(sheet,fallback);
    if(outcome!=="ready"){
     const question=data.question||referenceClarification(sheet);
-    if(outcome==="fallback"&&fallback){note("Reference",`The new lookup could not confirm a change (${question}), so the confirmed reference for ${fallback.sheet.subject} is kept. Answer that in your next feedback to change the subject.`);keepReference(fallback);return fallback;}
+    if(outcome==="fallback"&&fallback){note("Reference",`The new lookup could not confirm a change (${question}), so the confirmed reference for ${fallback.sheet.subject} is kept. Answer the question to change the subject.`);keepReference(fallback);setClarification(question);return fallback;}
     keepReference(ref);setClarification(question);setMobilePanel("refine");
     throw new GenerationError(question,"REFERENCE_CLARIFICATION");
    }
@@ -256,7 +259,9 @@ export default function Generator({open,onOpenChange,initialPrompt,initialPhotos
      if(geometryError)throw new GenerationError(geometryError,"INVALID_GEOMETRY",undefined,undefined,geometryDetail||undefined);
      return {result,corrections};
     };
-    const metrics=(model:BuildModel,r:VisualReview|null,ref?:DesignReference)=>repairMetrics(checksFor(model,b,ref?.sheet),r,model.pieces.length,b.maxPieces);
+    const metrics=(model:BuildModel,r:VisualReview|null,ref?:DesignReference)=>repairMetrics(checksFor(model,b,ref?.sheet),r,model,b.maxPieces);
+    // A targeted pass's review is merged with the previous one; the repair's re-check uses the same mode and views.
+    const reviewed=(seen:VisualReview)=>targeted?mergeTargetedReview(priorReview,seen):seen;
 
     const result=await runDesignWorkflow({reference:reusable,lookup,signal:abort.signal,
      design:async(ref)=>{
@@ -279,9 +284,9 @@ export default function Generator({open,onOpenChange,initialPrompt,initialPhotos
       return model;
      },
      review:async(model,candidate,ref)=>{
-      const r=await visual(model,b,abort,reviewRequest.current,activeKey,candidate.signature||[],ref,runRegion,targeted?"targeted":"full",views=>{firstViews=views;});alive();
+      const r=reviewed(await visual(model,b,abort,reviewRequest.current,activeKey,candidate.signature||[],ref,runRegion,targeted?"targeted":"full",views=>{firstViews=views;}));alive();
       // The paid review stays with this draft even if an automatic repair is then stopped.
-      const reviewed=lastComplete.current;if(reviewed&&reviewed.model===model){lastComplete.current={...reviewed,review:r};persist(model,candidate,r,b,ref);}
+      const done=lastComplete.current;if(done&&done.model===model){lastComplete.current={...done,review:r};persist(model,candidate,r,b,ref);}
       return r;
      },
      repair:{
@@ -295,16 +300,20 @@ export default function Generator({open,onOpenChange,initialPrompt,initialPhotos
        return generated.result;
       },
       compile:async candidate=>{setPhase("check");setStatus("Packing the fixed design…");const packed=await assemble(candidate,b,original,{supports:true});alive();repairPack=packed;setDraft(packed.model);return packed.model;},
-      review:(model,candidate,ref)=>visual(model,b,abort,reviewRequest.current,activeKey,candidate.signature||[],ref,runRegion,"targeted"),
+      // No re-check is paid for when the local measures already decide: an unchanged scene, a regression, or local
+      // failures left unfixed.
+      worth:(before,after)=>{const d=sceneDiff(before.scene,after.scene);return repairNeedsReview(metrics(before.model,before.review,activeReference),metrics(after.model,null,activeReference),d.added+d.changed+d.removed>0);},
+      // The re-check sees what the first review saw (same mode, views and references), so verdicts compare item by item.
+      review:async(model,candidate,ref)=>reviewed(await visual(model,b,abort,reviewRequest.current,activeKey,candidate.signature||[],ref,runRegion,targeted?"targeted":"full")),
       keep:(before,after)=>compareRepair(metrics(before.model,before.review,activeReference),metrics(after.model,after.review,activeReference)),
      },
     });alive();
     const kept=Boolean(result.repair?.kept&&repairPack);
     best={reviewRequest:reviewRequest.current,reviewRegion:runRegion,reference:result.reference,model:result.model,scene:result.scene,review:result.review,brief:b,manual:kept?repairPack!.manual:lastComplete.current?.manual,corrections:kept?repairCorrections:passCorrections};
     if(result.repair){
-     const {reasons,fixed,error}=result.repair,cost=repairSpend.current||0;repairSpend.current=null;
-     autoRepairs.current=[...autoRepairs.current,{at:new Date().toISOString(),reasons:reasons.slice(0,8).map(r=>r.slice(0,300)),kept,fixed:kept?fixed:0,cost:Math.round(cost*10000)/10000}].slice(-20);
-     repairNote=kept?`Auto-fixed ${fixed} issue${fixed===1?"":"s"} (+$${cost.toFixed(2)}).`:error?`The automatic fix stopped (+$${cost.toFixed(2)}): ${generationFailure(error).message} The first build is kept.`:`Tried an automatic fix (+$${cost.toFixed(2)}) and kept the first build, which was not worse.`;
+     const {reasons,fixed,error,checked}=result.repair,cost=repairSpend.current||0;repairSpend.current=null;
+     autoRepairs.current=[...autoRepairs.current,{at:new Date().toISOString(),reasons:reasons.slice(0,8).map(r=>r.slice(0,300)),kept,fixed:kept?fixed:0,cost:Math.round(cost*10000)/10000,checked}].slice(-20);
+     repairNote=kept?`Auto-fixed ${fixed} issue${fixed===1?"":"s"} (+$${cost.toFixed(2)}).`:error?`The automatic fix stopped (+$${cost.toFixed(2)}): ${generationFailure(error).message} The first build is kept.`:checked?`Tried an automatic fix (+$${cost.toFixed(2)}); the re-check found it no better, so the first build is kept.`:`Tried an automatic fix (+$${cost.toFixed(2)}); it fixed nothing measurable, so the first build is kept without a second review.`;
      note("Auto-fix",repairNote);
     }
     if(result.reviewError){const failure=generationFailure(result.reviewError);setError(failure.message);setErrorCode(failure.code);}
@@ -369,7 +378,7 @@ export default function Generator({open,onOpenChange,initialPrompt,initialPhotos
  {previewError&&<p className="live-preview-error" role="status">Preview update: {previewError} The last visible draft is kept.</p>}{error&&errorCode!=="REFERENCE_CLARIFICATION"&&<div className="stage-recovery" role="alert"><div><strong>{interrupted?"Your progress is kept.":draft&&scene?"Your design is kept.":"Let’s get your build going."}</strong><p>{error}</p></div>{!busy&&!budgetBlocked&&<button className="button secondary" onClick={retry}>{retryLabel(errorCode,interrupted,Boolean(scene&&(phase==="done"||phase==="review")))}</button>}</div>}{busy&&<button className="mobile-stop button secondary" onClick={stop}><Square size={14}/>Stop and keep draft</button>}<div className={`generation-status ${draft&&!busy&&scene&&!setup?"is-finished":""}`} role="status">{busy?<LoaderCircle size={15} className="spin"/>:ready?<Check size={15}/>:<Sparkles size={15}/>}<p>{status||(scene?"Ready for your feedback.":"Your brief is ready when you are.")}</p>{settledCalls>0&&<span className="live-budget">Recorded this run: ${runCost.toFixed(3)} · {settledCalls} calls</span>}{settledCalls>0&&<RunUsage entries={runUsage} referenceReused={referenceReused}/>}{budget&&<span className="live-budget">${budget.remaining.toFixed(2)} available · $10 limit</span>}{busy&&<span className="live-elapsed">{elapsed}s · {(draft?.pieces.length||0).toLocaleString()} bricks</span>}</div>
 
  {draft&&!busy&&scene&&!setup&&<div className="generation-result">{interrupted&&<p className="unfinished-draft">Unfinished draft. Continue building before reviewing the complete design.</p>}<div><strong>{draft.pieces.length.toLocaleString()} pieces</strong><span>{(draft.length*.8).toFixed(1)} × {(draft.width*.8).toFixed(1)} × {(draft.height*.32).toFixed(1)} cm</span></div><details className="design-inspection"><summary>{ready?"Design checks passed":"Review design checks"}<span>{checks?.issues.length||0} geometry issues</span></summary><div className={`review-verdict ${ready?"passed":"needs-work"}`}><strong>{ready?"Digital checks passed":"Needs review"}</strong><span>{checks?.pass?"Support paths and size limits pass.":`${checks?.issues.length} geometry or brief checks need attention.`} {reviewPassed?"Visual brief review passes.":"Visual brief review is incomplete or has concerns."}</span></div>
- {checks&&checks.issues.length>0&&<ul className="review-issues">{checks.issues.map(i=><li key={i}>{i}</li>)}</ul>}{review&&<div className="feature-review"><p>{review.summary}</p>{review.composition&&<div><strong>Composition · {review.composition.status.replace("_"," ")}</strong><p>{review.composition.evidence}</p></div>}{review.revision&&review.revision.status!=="not_requested"&&<div><span className={`feature-state ${review.revision.status}`}>{review.revision.status}</span><strong>Your requested change</strong><p>{review.revision.evidence}</p></div>}{review.features.map((f,i)=><div key={i}><span className={`feature-state ${f.status}`}>{f.status}</span><strong>{f.feature}</strong><p>{f.evidence}</p></div>)}{review.rubric?.map((f,i)=><div key={`rubric-${i}`}><span className={`feature-state ${f.status}`}>{f.status}</span><strong>{f.feature}</strong><p>{f.evidence}</p></div>)}</div>}{diff&&previous&&<p className="diff-summary">{diff.added} shapes added · {diff.changed} changed · {diff.removed} removed</p>}<p className="review-limit">Digital checks cover geometry, support paths and visible details. Physical strength, fit and hand access still need a test build.</p>
+ {checks&&checks.issues.length>0&&<ul className="review-issues">{checks.issues.map(i=><li key={i}>{i}</li>)}</ul>}{review&&<div className="feature-review"><p>{review.summary}</p>{review.scope==="targeted"&&<p className="review-limit">The change was checked in three views; the layout verdict is from the last full review. Use Review again for a full check.</p>}{review.composition&&<div><strong>Composition · {review.composition.status.replace("_"," ")}</strong><p>{review.composition.evidence}</p></div>}{review.revision&&review.revision.status!=="not_requested"&&<div><span className={`feature-state ${review.revision.status}`}>{review.revision.status}</span><strong>Your requested change</strong><p>{review.revision.evidence}</p></div>}{review.features.map((f,i)=><div key={i}><span className={`feature-state ${f.status}`}>{f.status}</span><strong>{f.feature}</strong><p>{f.evidence}</p></div>)}{review.rubric?.map((f,i)=><div key={`rubric-${i}`}><span className={`feature-state ${f.status}`}>{f.status}</span><strong>{f.feature}</strong><p>{f.evidence}</p></div>)}</div>}{diff&&previous&&<p className="diff-summary">{diff.added} shapes added · {diff.changed} changed · {diff.removed} removed</p>}<p className="review-limit">Digital checks cover geometry, support paths and visible details. Physical strength, fit and hand access still need a test build.</p>
  </details></div>}
  </div></div>{setup&&<div className="brief-commit"><span>Up to {brief.maxPieces.toLocaleString()} pieces<small>{detailLabel(brief.detail)} design</small></span><button className="button primary begin-design" disabled={brief.idea.trim().length<3||busy||preparingPhotos||configured===null&&!apiKey} onClick={()=>void run()}><Sparkles size={17}/>{configured===null&&!apiKey?"Checking connection…":configured||apiKey?scene?"Rebuild design":"Build my design":"Connect & build"}<ArrowRight size={17}/></button></div>}</DialogContent></Dialog>;
 }

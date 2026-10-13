@@ -38,13 +38,17 @@ test('mock mode drives the real routes, compiles and checks every design, and wr
  }
  // The whole-airport case stops at the clarification gate after two research passes: no design spend.
  assert.equal(by['dulles-whole-airport'].status,'clarification');assert.equal(by['dulles-whole-airport'].researchPasses,2);assert.equal(by['dulles-whole-airport'].designUSD,0);
- // One design per completed case, plus one automatic repair (and its targeted re-check) on each materially flagged first build.
+ // One design per completed case, plus one automatic repair on each materially flagged first build; its re-check is a
+ // full review, paid for only when the local measures leave the verdict open.
  const repaired=r.rows.filter(x=>x.autoRepair);assert.ok(repaired.length>0&&repaired.length<13,String(repaired.length));
  assert.equal(calls.filter(c=>formatName(c.body)==='brickwork_scene').length,13+repaired.length);assert.equal(calls.filter(c=>formatName(c.body)==='brickwork_reference').length,15);
- assert.equal(calls.filter(c=>formatName(c.body)==='brickwork_visual_review'&&JSON.parse(c.body.input.flatMap(x=>x.content).find(x=>x.type==='input_text'&&x.text.startsWith('{')).text).mode==='targeted').length,repaired.length);
+ const reviews=calls.filter(c=>formatName(c.body)==='brickwork_visual_review').map(c=>c.body.input.flatMap(x=>x.content).filter(x=>x.type==='input_text'&&x.text.startsWith('{')).map(x=>JSON.parse(x.text).mode).find(Boolean));
+ assert.deepEqual([...new Set(reviews)],['full']);assert.equal(reviews.length,13+repaired.filter(x=>x.autoRepair!=='discarded unchecked').length);
  const repairCall=calls.find(c=>formatName(c.body)==='brickwork_scene'&&JSON.stringify(c.body).includes('CURRENT MODEL VIEW 1 (generated, before repair)'));assert.ok(repairCall,'the repair design sees the rendered model');
- // Synthetic fixtures answer the repair with the first design, so nothing improves and the first build is kept.
- assert.ok(repaired.every(x=>x.autoRepair==='discarded'),repaired.map(x=>x.autoRepair).join());
+ // Synthetic fixtures answer the repair with the first design: the scene is unchanged, so it is discarded without a re-check.
+ assert.ok(repaired.every(x=>x.autoRepair==='discarded unchecked'),repaired.map(x=>x.autoRepair).join());
+ // A strip of base cut off by a packer seam (the table top, the lawn) is not a separate assembly worth a paid repair.
+ for(const id of ['design-3-retro-orange-record','photo-house'])assert.ok(!by[id].autoRepair,id);
  // The studio's support columns run on every compile before any paid repair.
  assert.ok(r.rows.some(x=>x.supportsAdded>0));
  // Proportion error is measured against the research target; generic ideas have none.

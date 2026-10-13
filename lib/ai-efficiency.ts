@@ -1,26 +1,33 @@
 import {referenceReady} from "./design-research";
 import type {ReferenceSheet} from "./design-research";
 import type {GeneratedScene} from "./generated-scene";
+import {COLORS} from "./colors";
+import {collectReferencePhotos} from "./reference-photos";
 
-// Unambiguous, local appearance/size edits: the review re-checks these in targeted mode.
+// Unambiguous local edits the review re-checks in targeted mode: a color change anywhere, or resizing a small part
+// (windows, doors, the sign). Resizing the building, its roof, a tower or the whole model changes the proportions and
+// layout, which only a full review against the reference can judge.
 export function isLocalDesignEdit(feedback:string):boolean{
  const text=feedback.trim().toLowerCase().replace(/[.!]+$/,"").replace(/\s+/g," ").replace(/^please /,"");
- const target="(?:the )?(?:roof|walls?|windows?|doors?|base|building|tower|sign|facade|model)";
+ const target="(?:the )?(?:roof|walls?|windows?|doors?|base|building|tower|sign|facade|model)",small="(?:the )?(?:windows?|doors?|sign)";
  const color="(?:(?:dark|light) )?(?:blue|green|red|gray|grey|brown|tan|yellow|orange|pink|purple|black|white)";
- return new RegExp(`^make ${target} (?:a (?:little|bit) )?(?:darker|lighter|taller|shorter|wider|narrower|thicker|thinner|larger|smaller|${color})$`).test(text)
+ return new RegExp(`^make ${target} (?:a (?:little|bit) )?(?:darker|lighter|${color})$`).test(text)
+  ||new RegExp(`^make ${small} (?:a (?:little|bit) )?(?:taller|shorter|wider|narrower|thicker|thinner|larger|smaller)$`).test(text)
   ||new RegExp(`^(?:paint|recolor) ${target} (?:${color})$`).test(text)
   ||new RegExp(`^change (?:the )?(?:color|colour) of ${target} to ${color}$`).test(text);
 }
 
 // A revision reuses the saved research sheet unless the feedback brings new evidence about what the subject is:
 // a link, an identity statement, or a proper noun the sheet and the model do not already name. A lookup costs
-// $0.06-0.13, and "make the train silver" or "I don't like the roof" never changes the subject. New or changed
-// photos, a new place hint, a changed brief and an unready sheet are checked by the caller, which always re-researches
-// for them.
+// $0.06-0.13 and can re-derive the target and the review rubric, while "make the train silver", "make the roof Navy
+// blue" or "this is 10 studs too long" never changes the subject. New or changed photos, a new place hint, a changed
+// brief and an unready sheet are checked by the caller, which always re-researches for them.
 const URL_CUE=/https?:\/\/|\bwww\.|\b[a-z0-9-]+\.(?:com|org|net|gov|edu|io|co|uk|info)\b/i;
-const IDENTITY_CUES=[/\bwrong (?:building|place|structure|landmark|station|bridge|tower|location|city|one)\b/i,/\blocated (?:in|at|on|near)\b/i,/\bactually\b/i,/\b[Tt]his is (?:not )?(?:the |a |an )?(?:real |actual )?[A-Z0-9]/];
-const NOT_NAMES=new Set(["i","i'm","i'd","i've","i'll","lego","ok","okay","please","thanks"]);
+const IDENTITY_CUES=[/\bwrong (?:building|place|structure|landmark|station|bridge|tower|location|city|one)\b/i,/\blocated (?:in|at|on|near)\b/i,/\bactually\b/i,/\b[Tt]his is (?:not )?(?:the |a |an )?(?:real |actual )?[A-Z]/];
 const nameWords=(text:string)=>text.toLowerCase().match(/[a-z0-9][a-z0-9'’-]*/g)||[];
+// Capitalized words that never name a subject: the palette's colors and LEGO's color names, the brand and its parts,
+// and directions.
+const NOT_NAMES=new Set([...nameWords(Object.entries(COLORS).flatMap(([key,c])=>[key,c.name]).join(" ")),..."i i'm i'd i've i'll ok okay please thanks lego technic duplo minifig minifigs minifigure minifigures bricklink brick bricks plate plates tile tiles stud studs grey silver gold golden metallic pearl trans transparent clear sand olive lime azure medium teal maroon beige cream ivory coral lavender magenta purple violet turquoise aqua bronze copper chrome nougat north south east west northern southern eastern western".split(" ")]);
 export function needsFreshResearch(feedback:string,sheet?:ReferenceSheet,scene?:GeneratedScene):boolean{
  const text=feedback.trim();if(!text)return false;if(!sheet)return true;
  if(URL_CUE.test(text)||IDENTITY_CUES.some(cue=>cue.test(text)))return true;
@@ -34,11 +41,20 @@ export function needsFreshResearch(feedback:string,sheet?:ReferenceSheet,scene?:
  return false;
 }
 
-// After a lookup: a ready sheet is used. An unready one asks its question, unless a confirmed sheet for the same brief
-// is saved: then a lookup forced by feedback, new photos or a place hint falls back to it (with a note) instead of
-// stopping a paid pass with a question the earlier lookup already answered.
+// After a lookup: a ready sheet is used. An unready one asks its question, unless the caller passes a fallback: the
+// confirmed sheet for the same brief, photos and place hint, when only the typed feedback forced the lookup. The pass
+// then continues on it (the question is still shown) instead of stopping on a doubt the text raised. New photos or a
+// new hint are never given a fallback: their evidence must be answered, not silently recorded as researched.
 export function lookupOutcome(sheet:ReferenceSheet,fallback?:{sheet?:ReferenceSheet}):"ready"|"fallback"|"ask"{
  return referenceReady(sheet)?"ready":fallback?.sheet&&referenceReady(fallback.sheet)?"fallback":"ask";
+}
+// What a pass may do with the saved reference: reuse it (no lookup), or, when only the typed feedback forces a lookup,
+// keep it as that lookup's fallback (and the sheet it refines). Either needs the same brief, photos and place hint and
+// a ready sheet; anything new is looked up, and an unready answer to new evidence asks its question.
+type SavedReference={sheet?:ReferenceSheet;photo?:string;photos?:string[];identityHint?:string;briefKey:string};
+export function savedReference<R extends SavedReference>(saved:R|undefined,now:{briefKey:string;photo?:string;photos?:string[];identityHint:string},refresh:boolean):{reusable?:R;fallback?:R}{
+ const same=saved&&saved.briefKey===now.briefKey&&JSON.stringify(collectReferencePhotos(saved.photo,saved.photos))===JSON.stringify(collectReferencePhotos(now.photo,now.photos))&&(saved.identityHint||"").trim()===now.identityHint.trim()&&referenceReady(saved.sheet);
+ return !same?{}:refresh?{fallback:saved}:{reusable:saved};
 }
 
 // Output ceilings sized to the request: they set the ledger hold, and a stop settles below them. A first build (or a

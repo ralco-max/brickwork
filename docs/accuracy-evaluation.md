@@ -47,9 +47,12 @@ automatic repair. **Keep the mirrored steps in sync when the client orchestratio
 6. Review with the brief's features and a separate rubric (research `distinctive` and `silhouette`, then the
    designer's signature), as `visual()` sends them.
 7. At most one automatic repair, gated as the app gates it (material failures only, at least $0.50 left, the
-   brief's `autoRepair` on): a design call that sees the five views, a compile with supports, a targeted
-   three-view review, and `compareRepair` decides whether the repaired candidate replaces the first build. In
-   mock mode the fixtures answer the repair with the first design, so it is always discarded; its cost is real.
+   brief's `autoRepair` on): a design call that sees the five views and a compile with supports. Then
+   `repairNeedsReview` decides from the local measures whether a re-check can still change the verdict (an
+   unchanged scene, a local regression or unfixed local failures cannot); if so, a full five-view review with the
+   same references, and `compareRepair` decides whether the repaired candidate replaces the first build. In mock
+   mode the fixtures answer the repair with the first design, so it is always discarded without a re-check; the
+   repair design's (synthetic) cost is still recorded.
 8. A harness-only **judge** call (not part of the app, about $0.02–0.03 per case on Sol Low). It grades the case's
    critical checks and the research sheet's own source-backed `distinctive` and `silhouette` items. The app's
    review never grades those, because its rubric is the brief plus features the designer chose itself.
@@ -81,7 +84,7 @@ change grades already in `grades.json`.
 | `checksPass`, `checkIssues`, `ungrounded`, `assemblies`, `unsupported`, `clutchOverloaded`, `overlaps` | `designChecks` result and its parts, for the kept candidate |
 | `recognizable`, `composition`, `requiredVisible/Total`, `signatureVisible/Total` | App review: brief features, and the rubric's designer-signature items, marked visible |
 | `supportsAdded`, `corrections` | Automatic support columns added at compile, and `repairScene` corrections to the first design |
-| `autoRepair`, `repairFixed` | Blank when no repair ran; `kept` (with the material failures it fixed), `discarded` or `failed` |
+| `autoRepair`, `repairFixed` | Blank when no repair ran; `kept` (with the material failures it fixed), `discarded` (after a re-check), `discarded unchecked` (the local measures rejected it, no re-check paid) or `failed` |
 | `sourceFeaturesPresent/Total` | Judge: research `distinctive` + first two `silhouette` items present |
 | `criticalPassed/Failed/Uncertain/Total`, `criticalSource` | Benchmark critical checks. `judge` until a human grades them (`human`, or `human+judge` when mixed) |
 | `calls`, token columns, `researchUSD`…`totalUSD` | Summed `RequestUsage` per stage (`repairUSD` is the repair's design and re-check; judge included, shown separately) |
