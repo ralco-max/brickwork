@@ -11,7 +11,7 @@ export function eventResponse(request:Request,work:(signal:AbortSignal,send:(eve
   const write=(text:string)=>{if(closed)return;try{controller.enqueue(encoder.encode(text));}catch{cancel();}};
   const send=(event:unknown)=>write(`data: ${JSON.stringify(event)}\n\n`);
   const finish=()=>{if(closed)return;closed=true;cleanup();try{controller.close();}catch{}};
-  const report=(failure:ReturnType<typeof generationFailure>)=>{console.error(JSON.stringify({event:"brickwork_request_failed",route:new URL(request.url).pathname,requestId:request.headers.get("cf-ray")||undefined,code:failure.code,upstreamStatus:failure.upstreamStatus,upstreamRequestId:failure.upstreamRequestId}));send({type:"error",message:failure.message,code:failure.code});};
+  const report=(failure:ReturnType<typeof generationFailure>)=>{console.error(JSON.stringify({event:"brickwork_request_failed",route:new URL(request.url).pathname,requestId:request.headers.get("cf-ray")||undefined,code:failure.code,upstreamStatus:failure.upstreamStatus,upstreamRequestId:failure.upstreamRequestId}));send({type:"error",message:failure.message,code:failure.code,...(failure.code==="INVALID_GEOMETRY"&&failure.detail?{detail:failure.detail.slice(0,600)}:{})});};
   request.signal.addEventListener("abort",cancel,{once:true});if(request.signal.aborted){cancel();controller.close();return;}
   write(": connected\n\n");heartbeat=setInterval(()=>write(": keepalive\n\n"),options.heartbeatMs??5000);
   timer=setTimeout(()=>{report({message:"The builder took too long to finish. Continue from your saved draft, or lower the detail level.",code:"TIMEOUT"});abort.abort();finish();},options.timeoutMs);

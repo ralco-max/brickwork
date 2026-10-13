@@ -9,7 +9,7 @@ import {referenceSheetSchema,referenceReady,referenceClarification} from "@/lib/
 import {referencePhotoSchema,referencePhotosSchema,collectReferencePhotos,MAX_REFERENCE_PHOTOS} from "@/lib/reference-photos";
 import type {ReferenceSheet} from "@/lib/design-research";
 import {eventResponse} from "@/lib/server-events";
-const schema=z.object({revision:z.string().max(2000).optional(),brief:briefSchema,images:z.array(z.string().max(750000).regex(/^data:image\/jpeg;base64,[A-Za-z0-9+/=]+$/)).min(3).max(5),reference:referencePhotoSchema.optional(),photos:referencePhotosSchema.optional(),sheet:referenceSheetSchema.optional(),region:revisionRegionSchema.optional(),signature:z.array(z.string().max(80)).max(4).optional()}).strict().refine(input=>collectReferencePhotos(input.reference,input.photos).length<=MAX_REFERENCE_PHOTOS,"Use at most four reference photos.");
+const schema=z.object({revision:z.string().max(2000).optional(),brief:briefSchema,images:z.array(z.string().max(750000).regex(/^data:image\/jpeg;base64,[A-Za-z0-9+/=]+$/)).min(3).max(5),reference:referencePhotoSchema.optional(),photos:referencePhotosSchema.optional(),sheet:referenceSheetSchema.optional(),region:revisionRegionSchema.optional(),signature:z.array(z.string().max(80)).max(4).optional(),mode:z.enum(["full","targeted"]).optional()}).strict().refine(input=>collectReferencePhotos(input.reference,input.photos).length<=MAX_REFERENCE_PHOTOS,"Use at most four reference photos.");
 export async function POST(request:Request){
  const origin=request.headers.get("origin");if(origin&&origin!==new URL(request.url).origin)return Response.json({error:"Open Bricks in its own tab."},{status:403});
  let config;try{config=aiSettings(request);}catch(error){const failure=generationFailure(error);return Response.json({error:failure.message,code:failure.code},{status:400});}const {key,model}=config;
@@ -18,7 +18,7 @@ export async function POST(request:Request){
  const reference=input.sheet;if(reference?.searchable&&(reference.identity!==undefined||reference.contextAdequate!==undefined)&&!referenceReady(reference,collectReferencePhotos(input.reference,input.photos).length))return Response.json({error:referenceClarification(reference),code:"REFERENCE_UNCLEAR"},{status:400});
  return eventResponse(request,async(signal,send)=>{
   const provider=budgetedProvider(requireBudgetDb(config.db),key,budget=>send({type:"budget",budget}),fetch,usage=>{console.info(JSON.stringify({event:"bricks_ai_usage",stage:"review",...usage}));send({type:"usage",usage});},config.period);
-  const review=await reviewDesign(input.brief,input.images,key,model,signal,provider.fetch,input.revision,provider.recordUsage,{sheet:input.sheet as ReferenceSheet|undefined,photo:input.reference,photos:input.photos},input.region);
+  const review=await reviewDesign(input.brief,input.images,key,model,signal,provider.fetch,input.revision,provider.recordUsage,{sheet:input.sheet as ReferenceSheet|undefined,photo:input.reference,photos:input.photos},input.region,{mode:input.mode,signature:input.signature});
   send({type:"complete",review});
  },{timeoutMs:120000});
 }

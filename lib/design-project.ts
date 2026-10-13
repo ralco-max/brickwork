@@ -16,15 +16,20 @@ import {catalogPart} from "./part-catalog";
 import {forEachPieceCell,pieceCellOffsets,partDimensions} from "./part-spatial";
 import type {GeneratedScene} from "./generated-scene";
 
-export const briefSchema=z.object({idea:z.string().min(3).max(2000),size:z.enum(["small","medium","large"]),detail:z.enum(["balanced","detailed","signature"]),maxPieces:z.number().int().min(100).max(16000),maxWidth:z.number().int().min(16).max(80),maxDepth:z.number().int().min(16).max(80),maxHeight:z.number().int().min(16).max(160),features:z.array(z.string().min(1).max(160)).max(12),style:z.string().max(120),scope:z.enum(["subject","site"]).optional(),composition:z.string().max(600).optional(),signText:z.string().max(12,SIGN_TEXT_HELP).regex(SIGN_TEXT_PATTERN,SIGN_TEXT_HELP).optional(),hollow:z.boolean(),finish:z.enum(["smooth","studded"]).optional(),quality:z.enum(["standard","better","best","sol_low","sol_medium"]).optional()}).strict();
+export const briefSchema=z.object({idea:z.string().min(3).max(2000),size:z.enum(["small","medium","large"]),detail:z.enum(["balanced","detailed","signature"]),maxPieces:z.number().int().min(100).max(16000),maxWidth:z.number().int().min(16).max(80),maxDepth:z.number().int().min(16).max(80),maxHeight:z.number().int().min(16).max(160),features:z.array(z.string().min(1).max(160)).max(12),style:z.string().max(120),scope:z.enum(["subject","site"]).optional(),composition:z.string().max(600).optional(),signText:z.string().max(12,SIGN_TEXT_HELP).regex(SIGN_TEXT_PATTERN,SIGN_TEXT_HELP).optional(),hollow:z.boolean(),finish:z.enum(["smooth","studded"]).optional(),quality:z.enum(["standard","better","best","sol_low","sol_medium"]).optional(),autoRepair:z.boolean().optional()}).strict();
 export type DesignBrief=z.infer<typeof briefSchema>;
 export const defaultBrief=(idea=""):DesignBrief=>({idea,size:"medium",detail:"detailed",maxPieces:600,maxWidth:48,maxDepth:48,maxHeight:96,features:[],style:"Recognizable proportions and purposeful detail",scope:"subject",composition:"",hollow:false,finish:"smooth",quality:"sol_low"});
 export type Cuboid=Pick<Piece,"x"|"y"|"z"|"w"|"h"|"d">&{cells?:[number,number,number][]};
 export type ManualEdits={erase:Cuboid[];bricks:Piece[]};
-export type VisualReview={composition?:{status:"matches"|"mismatch"|"uncertain"|"not_applicable";evidence:string};revision?:{status:"visible"|"missing"|"uncertain"|"not_requested";evidence:string};summary:string;recognizable:boolean;features:{feature:string;status:"visible"|"missing"|"uncertain";evidence:string}[];improvements:string[];thinking?:string};
+export type FeatureStatus="visible"|"missing"|"uncertain";
+// The rubric is what the research and the designer say defines the subject, checked beside (never merged into) the brief's features.
+export type RubricKind="distinctive"|"silhouette"|"signature";
+export type VisualReview={composition?:{status:"matches"|"mismatch"|"uncertain"|"not_applicable";evidence:string};revision?:{status:"visible"|"missing"|"uncertain"|"not_requested";evidence:string};summary:string;recognizable:boolean;criticalMismatch?:boolean;features:{feature:string;status:FeatureStatus;evidence:string}[];rubric?:{feature:string;kind:RubricKind;status:FeatureStatus;evidence:string}[];improvements:string[];thinking?:string};
 export type DesignReference={sheet?:ReferenceSheet;photo?:string;photos?:string[];identityHint?:string;briefKey:string};
 export const referenceKey=(b:DesignBrief)=>JSON.stringify([b.idea.trim(),b.scope||"subject",b.composition||"",b.features]);
-export type DesignContext={unfinished?:boolean;reviewRequest?:string;reviewRegion?:RevisionRegion;reference?:DesignReference;brief:DesignBrief;manual:ManualEdits;locked:string[];revisions:{request:string;summary:string;at:string}[];review?:VisualReview;reviewStale?:boolean};
+// A revision's summary is the caption the owner sees; builder is what the designer is told (the review's verdict and its private notes).
+export type AutoRepairRecord={at:string;reasons:string[];kept:boolean;fixed:number;cost:number};
+export type DesignContext={unfinished?:boolean;reviewRequest?:string;reviewRegion?:RevisionRegion;reference?:DesignReference;brief:DesignBrief;manual:ManualEdits;locked:string[];revisions:{request:string;summary:string;at:string;builder?:string}[];review?:VisualReview;reviewStale?:boolean;autoRepairs?:AutoRepairRecord[]};
 export type Quote={available:number;unitPrice:number;url:string;checkedAt:string};
 export type ShoppingState={owned:Record<string,number>;elementIds:Record<string,string>;priceOverrides:Record<string,number>;quotes:Record<string,Quote>};
 export const emptyShopping=():ShoppingState=>({owned:{},elementIds:{},priceOverrides:{},quotes:{}});
@@ -36,9 +41,10 @@ export const manualSchema=z.object({erase:z.array(eraseSchema).max(32000),bricks
 // The judge sometimes writes long; long text is trimmed at a sentence or word, never a reason to lose the review.
 // Imported and shared files reach this too, so the input is bounded before any sentence work.
 const clip=(n:number)=>z.string().transform(v=>v.length<=n?v:clipSentence(v.slice(0,n*4),n));
-const reviewSchema=z.object({composition:z.object({status:z.enum(["matches","mismatch","uncertain","not_applicable"]),evidence:clip(1000)}).optional(),revision:z.object({status:z.enum(["visible","missing","uncertain","not_requested"]),evidence:clip(500)}).optional(),summary:clip(1500),recognizable:z.boolean(),features:z.array(z.object({feature:z.string().max(160),status:z.enum(["visible","missing","uncertain"]),evidence:clip(500)})).max(12),improvements:z.array(clip(500)).max(8),thinking:clip(4000).optional()});
+const featureStatus=z.enum(["visible","missing","uncertain"]);
+const reviewSchema=z.object({composition:z.object({status:z.enum(["matches","mismatch","uncertain","not_applicable"]),evidence:clip(1000)}).optional(),revision:z.object({status:z.enum(["visible","missing","uncertain","not_requested"]),evidence:clip(500)}).optional(),summary:clip(1500),recognizable:z.boolean(),criticalMismatch:z.boolean().optional(),features:z.array(z.object({feature:z.string().max(160),status:featureStatus,evidence:clip(500)})).max(12),rubric:z.array(z.object({feature:clip(80),kind:z.enum(["distinctive","silhouette","signature"]),status:featureStatus,evidence:clip(500)})).max(12).optional(),improvements:z.array(clip(500)).max(8),thinking:clip(4000).optional()});
 export {reviewSchema};
-export const contextSchema=z.object({unfinished:z.boolean().optional(),reviewRequest:z.string().max(2000).optional(),reviewRegion:revisionRegionSchema.optional(),reference:z.object({sheet:referenceSheetSchema.optional(),photo:referencePhotoSchema.optional(),photos:referencePhotosSchema.optional(),identityHint:z.string().max(300).optional(),briefKey:z.string().max(5000)}).refine(r=>collectReferencePhotos(r.photo,r.photos).length<=MAX_REFERENCE_PHOTOS,"Use at most four reference photos.").optional(),brief:briefSchema,manual:manualSchema,locked:z.array(z.string().max(80)).max(240),revisions:z.array(z.object({request:z.string().max(2000),summary:z.string().max(1000),at:z.string().max(40)})).max(50),review:reviewSchema.optional(),reviewStale:z.boolean().optional()});
+export const contextSchema=z.object({unfinished:z.boolean().optional(),reviewRequest:z.string().max(2000).optional(),reviewRegion:revisionRegionSchema.optional(),reference:z.object({sheet:referenceSheetSchema.optional(),photo:referencePhotoSchema.optional(),photos:referencePhotosSchema.optional(),identityHint:z.string().max(300).optional(),briefKey:z.string().max(5000)}).refine(r=>collectReferencePhotos(r.photo,r.photos).length<=MAX_REFERENCE_PHOTOS,"Use at most four reference photos.").optional(),brief:briefSchema,manual:manualSchema,locked:z.array(z.string().max(80)).max(240),revisions:z.array(z.object({request:z.string().max(2000),summary:z.string().max(1000),at:z.string().max(40),builder:z.string().max(1000).optional()})).max(50),review:reviewSchema.optional(),reviewStale:z.boolean().optional(),autoRepairs:z.array(z.object({at:z.string().max(40),reasons:z.array(z.string().max(300)).max(8),kept:z.boolean(),fixed:z.number().int().min(0).max(100),cost:z.number().finite().min(0).max(100)})).max(20).optional()});
 const recordKey=z.string().max(40).refine(key=>{const [part,color,...extra]=key.split(":");return !extra.length&&Object.hasOwn(PARTS,part)&&Object.hasOwn(COLORS,color);});
 const shoppingSchema=z.object({owned:z.record(recordKey,z.number().int().min(0).max(16000)),elementIds:z.record(recordKey,z.string().regex(/^\d{0,8}$/)),priceOverrides:z.record(recordKey,z.number().finite().min(0).max(10000)),quotes:z.record(recordKey,z.object({available:z.number().int().min(0).max(100000),unitPrice:z.number().finite().min(0).max(10000),url:z.string().url().max(1000).refine(s=>/^https:\/\//.test(s)),checkedAt:z.string().datetime()}))});
 const pieceKey=(p:Piece)=>`${p.part}:${p.color}:${p.x}:${p.y}:${p.z}:${p.rotated}:${p.face||(p.rotated?"px":"pz")}${p.legs||p.skin?`:${p.legs||""}:${p.skin||""}`:""}`;
@@ -90,8 +96,26 @@ function readProjectContent(data:Record<string,unknown>,pieces:Piece[]):Partial<
  if(generation){const packed=(carveBase:boolean)=>JSON.stringify(compileScene(generation,{manual:design?.manual,hollow:design?.brief.hollow,smooth:design?.brief.finish==="smooth",carveBase}).pieces.map(pieceKey).sort()),expected=JSON.stringify([...pieces].map(pieceKey).sort());if(expected!==packed(false)&&expected!==packed(true))throw Error("The scene and protected edits do not match the saved bricks. Restore a complete project export.");}
  return {generation,design,detail:design?.brief.size,shopping:shop?.success?shop.data:emptyShopping()};
 }
-export function designChecks(model:BuildModel,brief:DesignBrief,target?:{x:number;y:number;z:number}){
- const audit=auditModel(model.pieces),issues:string[]=[];
+// The body above the base against the planned target at one scale. A declared vertical exaggeration accepts any
+// height from true to exaggerated. A faithful section (scaleConflict fit "section") keeps its full height, which sets
+// the scale, and may show less of the footprint (section, cutaway or partial length), so only an over-long axis counts.
+// error is the worst axis's relative miss; the check fails past 25% (or 1 stud / 3 plates on tiny models).
+export type ProportionTarget={x:number;y:number;z:number;vertical?:number};
+export function proportionCheck(model:Pick<BuildModel,"pieces">,target:ProportionTarget,conflict?:{fit:"section"|"whole"}){
+ const body=model.pieces.filter(p=>p.y>=2);if(!body.length)return null;
+ const extent=(axis:"x"|"y"|"z",size:"w"|"h"|"d")=>Math.max(...body.map(p=>p[axis]+p[size]))-Math.min(...body.map(p=>p[axis]));
+ const actual=[extent("x","w"),extent("y","h"),extent("z","d")],section=conflict?.fit==="section",v=Math.max(1,target.vertical||1);
+ let wanted=[target.x,target.y,target.z],scale:number;
+ if(section)scale=actual[1]/wanted[1];
+ else{
+  if(v>1){const xz=Math.sqrt(actual[0]/wanted[0]*(actual[2]/wanted[2]));wanted=[wanted[0],Math.min(wanted[1],Math.max(wanted[1]/v,actual[1]/xz)),wanted[2]];}
+  scale=actual.map((a,i)=>a/wanted[i]).sort((a,b)=>a-b)[1];
+ }
+ const miss=actual.map((a,i)=>section&&i!==1?Math.max(0,a-wanted[i]*scale):Math.abs(a-wanted[i]*scale));
+ return {actual,wanted,scale,section,error:Math.max(...miss.map((m,i)=>m/(wanted[i]*scale||1))),pass:!miss.some((m,i)=>m>Math.max(i===1?3:1,wanted[i]*scale*.25))};
+}
+export function designChecks(model:BuildModel,brief:DesignBrief,target?:ProportionTarget,conflict?:{fit:"section"|"whole"}){
+ const audit=auditModel(model.pieces),issues:string[]=[];let loose:{component:string;pieces:number}[]=[];
  if(brief.signText!==undefined&&!brief.signText.trim()&&model.generation?.shapes.some(s=>s.kind==="text"))issues.push("Remove the existing sign lettering: the exact sign field has been cleared.");
  if(brief.signText?.trim()){try{
   const wanted=normalizedSignText(brief.signText),signs=model.generation?expandShapes(model.generation.shapes).filter(s=>s.kind==="text"&&s.text&&normalizedSignText(s.text)===wanted):[];
@@ -113,23 +137,17 @@ export function designChecks(model:BuildModel,brief:DesignBrief,target?:{x:numbe
   }
  }catch(error){issues.push(error instanceof Error?error.message:"The sign text is invalid.");}}
  if(audit.overlaps)issues.push(`${audit.overlaps} overlapping volume cells.`);
- if(audit.ungrounded.length){const by=model.generation?looseByComponent(model.generation,audit.ungrounded,model):[];issues.push(`${audit.ungrounded.length} pieces have no stud path to the ground${by.length?`: ${by.slice(0,6).map(r=>`${r.component} ${r.pieces}`).join(", ")}. Root each of those components into a mass by extending its shapes at least one cell into the mass or onto a studded surface`:""}.`);}
+ if(audit.ungrounded.length){const by=loose=model.generation?looseByComponent(model.generation,audit.ungrounded,model):[];issues.push(`${audit.ungrounded.length} pieces have no stud path to the ground${by.length?`: ${by.slice(0,6).map(r=>`${r.component} ${r.pieces}`).join(", ")}. Root each of those components into a mass by extending its shapes at least one cell into the mass or onto a studded surface`:""}.`);}
  if(audit.groups>1)issues.push(`${audit.groups} separate assemblies. Connect them with overlapping studded plates.`);
  if(audit.unsupported.length)issues.push(`${audit.unsupported.length} pieces cannot be placed with support in a bottom-up sequence.`);
  const clutch=simulateClutch(model.pieces);
- if(target){
-  const body=model.pieces.filter(p=>p.y>=2);
-  if(body.length){const extent=(axis:"x"|"y"|"z",size:"w"|"h"|"d")=>Math.max(...body.map(p=>p[axis]+p[size]))-Math.min(...body.map(p=>p[axis]));
-   const actual=[extent("x","w"),extent("y","h"),extent("z","d")],wanted=[target.x,target.y,target.z];
-   const scales=actual.map((v,i)=>v/wanted[i]),scale=[...scales].sort((a,b)=>a-b)[1];
-   if(actual.some((v,i)=>Math.abs(v-wanted[i]*scale)>Math.max(i===1?3:1,wanted[i]*scale*.25)))issues.push(`Subject proportions differ from the reference: above the base it measures ${actual[0]} × ${actual[2]} studs and ${actual[1]} plates. Preserve the reference ratio ${target.x} × ${target.z} × ${target.y}; resize uniformly rather than stretching one axis.`);
-  }
- }
+ const proportion=target?proportionCheck(model,target,conflict):null;
+ if(proportion&&!proportion.pass){const [x,y,z]=proportion.actual;issues.push(proportion.section?`The faithful section's proportions differ from the plan: above the base it measures ${x} × ${z} studs and ${y} plates. Keep its cross-section at the planned ${target!.z} studs deep and ${target!.y} plates tall, and show no more than ${target!.x} studs of length.`:`Subject proportions differ from the reference: above the base it measures ${x} × ${z} studs and ${y} plates. Preserve the reference ratio ${target!.x} × ${target!.z} × ${target!.y}${(target!.vertical||1)>1?` (heights may be exaggerated up to ${target!.vertical}×)`:""}; resize uniformly rather than stretching one axis.`);}
  if(clutch.overloaded.length)issues.push(`${clutch.overloaded.length} joints exceed the estimated clutch strength of their studs (hanging or cantilevered mass). Support them from below or widen their stud contact.`);
  if(model.pieces.length>brief.maxPieces)issues.push(`${model.pieces.length} pieces exceeds the ${brief.maxPieces} piece limit.`);
  if(model.length>brief.maxWidth||model.width>brief.maxDepth||model.height>brief.maxHeight)issues.push(`Occupied dimensions ${model.length} × ${model.width} × ${model.height} exceed the ${brief.maxWidth} × ${brief.maxDepth} × ${brief.maxHeight} stud/plate limits.`);
  const bad=new Set([...audit.disconnected,...audit.unsupported,...clutch.overloaded]);const locations=model.pieces.filter(p=>bad.has(p.id)).slice(0,12).map(p=>`piece ${p.id}: (${p.x},${p.y},${p.z}), size ${p.w}×${p.h}×${p.d}${clutch.ratios.has(p.id)?`, clutch load ${Math.round(clutch.ratios.get(p.id)!*100)}%`:""}`);
- return {audit,clutch,issues,locations,pass:issues.length===0};
+ return {audit,clutch,issues,locations,loose,proportion,pass:issues.length===0};
 }
 export function sceneDiff(before:GeneratedScene|undefined,after:GeneratedScene){
  if(!before)return {added:after.shapes.length,changed:0,removed:0};const prev=new Map(before.shapes.map(s=>[s.id||s.label,JSON.stringify(s)])),next=new Map(after.shapes.map(s=>[s.id||s.label,JSON.stringify(s)]));

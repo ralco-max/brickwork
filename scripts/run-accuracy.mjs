@@ -26,7 +26,7 @@ const PLAYWRIGHT=[process.env.PLAYWRIGHT_MODULE,'playwright','/opt/node22/lib/no
 const SWIFTSHADER=['--use-gl=angle','--use-angle=swiftshader','--enable-unsafe-swiftshader'];
 // A minimal JPEG, only used for mock reviews when nothing can render.
 const PLACEHOLDER_VIEW='data:image/jpeg;base64,/9j/4AAQSkZJRgABAQEASABIAAD/2wBDAP//////////////////////////////////////////////////////////////////////////////////////wgALCAABAAEBAREA/8QAFBABAAAAAAAAAAAAAAAAAAAAAP/aAAgBAQABPxA=';
-export const CSV_COLUMNS=['case','suite','status','errorStage','errorCode','quality','designModel','researchPasses','photos','rendered','pieces','maxPieces','budgetUsePct','sizeStuds','targetStuds','propErrPct','checksPass','checkIssues','ungrounded','assemblies','unsupported','clutchOverloaded','overlaps','reviewStatus','recognizable','composition','requiredVisible','requiredTotal','signatureVisible','signatureTotal','sourceFeaturesPresent','sourceFeaturesTotal','criticalPassed','criticalFailed','criticalUncertain','criticalTotal','criticalSource','calls','inputTokens','outputTokens','reasoningTokens','researchUSD','designUSD','reviewUSD','judgeUSD','totalUSD','wallSeconds'];
+export const CSV_COLUMNS=['case','suite','status','errorStage','errorCode','quality','designModel','researchPasses','photos','rendered','pieces','maxPieces','budgetUsePct','sizeStuds','targetStuds','propErrPct','checksPass','checkIssues','ungrounded','assemblies','unsupported','clutchOverloaded','overlaps','reviewStatus','recognizable','composition','requiredVisible','requiredTotal','signatureVisible','signatureTotal','sourceFeaturesPresent','sourceFeaturesTotal','criticalPassed','criticalFailed','criticalUncertain','criticalTotal','criticalSource','supportsAdded','corrections','autoRepair','repairFixed','calls','inputTokens','outputTokens','reasoningTokens','researchUSD','designUSD','reviewUSD','repairUSD','judgeUSD','totalUSD','wallSeconds'];
 export const BASELINE_COLUMNS=['kind','id','detail','pieces','maxPieces','sizeStuds','structuralPass','limitsPass','checksPass','issues','ungrounded','assemblies','unsupported','clutchOverloaded','overlaps','supportsAdded','passWithSupports','compileMs'];
 const readJSON=file=>JSON.parse(readFileSync(file,'utf8'));
 const ms=t=>Math.round(performance.now()-t);
@@ -41,8 +41,8 @@ export function loadLib(){
  return libPromise??=(async()=>{
   const {build}=await import('esbuild');
   const contents=['export {POST as researchPOST} from "./app/api/research/route";','export {POST as generatePOST} from "./app/api/generate/route";','export {POST as reviewPOST} from "./app/api/review/route";','export {env as accuracyEnv} from "cloudflare:workers";',
-   'export {compileScene,validateScene,expandCompactHeader,expandCompactShape,compactShapeSchema,componentBudget} from "./lib/generated-scene";','export {designChecks,defaultBrief,briefSchema,referenceKey,emptyManual,emptyShopping,projectJSON} from "./lib/design-project";',
-   'export {targetExtents,referenceReady,referenceClarification,referenceSheetSchema} from "./lib/design-research";','export {foundationScene} from "./lib/live-arrivals";','export {readEvents} from "./lib/generation-stream";',
+   'export {compileScene,validateScene,expandCompactHeader,expandCompactShape,compactShapeSchema,componentBudget} from "./lib/generated-scene";','export {designChecks,proportionCheck,defaultBrief,briefSchema,referenceKey,emptyManual,emptyShopping,projectJSON} from "./lib/design-project";',
+   'export {targetExtents,planTarget,referenceReady,referenceClarification,referenceSheetSchema} from "./lib/design-research";','export {addSupports} from "./lib/scene-repair";','export {repairMetrics,materialFailures,autoRepairAllowed,compareRepair,revisionFeedback} from "./lib/design-workflow";','export {foundationScene} from "./lib/live-arrivals";','export {readEvents} from "./lib/generation-stream";',
    'export {budgetedProvider,budgetSnapshot,keyFingerprint,BUDGET_NANOS,BUDGET_MODEL,QUALITY_MODELS} from "./lib/ai-budget";','export {DESIGN_EXAMPLES} from "./lib/design-examples";','export {generateRecipe,RECIPES,supportLoosePieces,finishModel,validateProject} from "./lib/models";'].join('\n');
   const result=await build({stdin:{contents,resolveDir:ROOT,loader:'ts'},bundle:true,platform:'node',format:'esm',write:false,logLevel:'error',plugins:[{name:'accuracy-env',setup(b){b.onResolve({filter:/^cloudflare:workers$/},()=>({path:'env',namespace:'accuracy-env'}));b.onLoad({filter:/.*/,namespace:'accuracy-env'},()=>({contents:'export const env=globalThis.__brickworkAccuracyEnv??={};',loader:'js'}));}}]});
   return import('data:text/javascript;base64,'+Buffer.from(result.outputFiles[0].text).toString('base64'));
@@ -104,15 +104,17 @@ const strictScene=s=>({n:s.n,d:s.d,f:s.f,dim:s.dim,rm:s.rm||[],sh:s.sh.map(shape
 const usageFor=(body,text,u={})=>{const reasoning=u.reasoning_tokens||0;return {input_tokens:estimateTokens(body)+(u.search_content_tokens||0),output_tokens:Math.ceil(text.length/3)+reasoning,input_tokens_details:{cached_tokens:0},output_tokens_details:{reasoning_tokens:reasoning}};};
 const sse=events=>events.map(e=>`data: ${JSON.stringify(e)}\n\n`).join('');
 const align=(names,answers={},key,fallback)=>names.map(name=>({...(answers[name]||fallback),[key]:name}));
+// A repair pass's idea is its own instruction; its brief still names the case.
+const fixtureFor=(fixtures,data)=>fixtures.get(data.idea)??fixtures.get(data.brief?.idea);
 // Replays fixtures shaped like Responses API replies. Hand-authored entries hold the
 // model's JSON answer; recorded entries (from --live --record) hold the raw reply.
 export function mockTransport(fixtures){
  return async(url,init={})=>{
   const body=JSON.parse(String(init.body||'{}'));
   // A recorded reply's usage must fit the hold its count produced, so never count below the recording.
-  if(url===OPENAI+'/input_tokens'){const data=requestData(body),fx=fixtures.get(data.idea??data.brief?.idea),recorded=fx?[...(fx.research||[]),fx.design,fx.review,fx.judge].map(e=>e?.count||0):[];return Response.json({input_tokens:Math.max(estimateTokens(body),...recorded)});}
+  if(url===OPENAI+'/input_tokens'){const data=requestData(body),fx=fixtureFor(fixtures,data),recorded=fx?[...(fx.research||[]),fx.design,fx.review,fx.judge].map(e=>e?.count||0):[];return Response.json({input_tokens:Math.max(estimateTokens(body),...recorded)});}
   if(url!==OPENAI)throw Error(`The mock provider only answers ${OPENAI}.`);
-  const data=requestData(body),fx=fixtures.get(data.idea??data.brief?.idea),stage=stageOf(body);
+  const data=requestData(body),fx=fixtureFor(fixtures,data),stage=stageOf(body);
   if(!fx)return Response.json({error:{message:'No accuracy fixture matches this idea.'}},{status:404});
   const entry=stage==='research'?(fx.research||[])[data.previousReference?1:0]:fx[stage];
   if(!entry)return Response.json({error:{message:`The fixture has no ${stage} response.`}},{status:404});
@@ -129,7 +131,7 @@ export function mockTransport(fixtures){
    answer=entry.sheet;
    extra=(entry.searches||[]).map((s,i)=>({type:'web_search_call',status:'completed',action:{type:'search',query:s.query,sources:(s.sources||[]).map(u=>({type:'url',url:u}))},...(i===0&&entry.images?.length?{results:entry.images.map(img=>({type:'image_result',...img}))}:{})}));
   }else if(stage==='review'){
-   const r=entry.review;answer={composition:r.composition,revision:r.revision,summary:r.summary,recognizable:r.recognizable,features:align(data.brief?.features||[],r.features,'feature',{status:'uncertain',evidence:'No fixture entry for this feature.'}),improvements:r.improvements||[]};
+   const r=entry.review,fallback={status:'uncertain',evidence:'No fixture entry for this feature.'};answer={composition:data.mode==='targeted'?{status:'not_applicable',evidence:'Targeted re-check.'}:r.composition,revision:r.revision,summary:r.summary,recognizable:r.recognizable,criticalMismatch:r.criticalMismatch===true,features:align(data.brief?.features||[],r.features,'feature',fallback),rubric:align(data.rubric||[],r.features,'item',fallback),improvements:r.improvements||[]};
   }else if(stage==='judge'){
    answer={checks:align(data.criticalChecks||[],entry.checks,'check',{status:'uncertain',evidence:'No fixture entry for this check.'}),features:align(data.sourceFeatures||[],entry.features,'feature',{status:'uncertain',evidence:'No fixture entry for this feature.'}),summary:entry.summary||''};
   }else return Response.json({error:{message:'Unknown request type.'}},{status:400});
@@ -175,8 +177,8 @@ export async function startRenderer(){
  let pw;for(const spec of PLAYWRIGHT){try{pw=await import(spec);break;}catch{/* try the next location */}}
  if(!pw?.chromium)throw Error('Playwright is not installed. Install it (or set PLAYWRIGHT_MODULE) to render review views, or pass --no-render.');
  const {build}=await import('esbuild');
- const entry='import {renderReviewViews} from "./lib/render-review";const load=u=>new Promise((ok,no)=>{const i=new Image();i.onload=()=>ok(i);i.onerror=()=>no(Error("image"));i.src=u;});'
-  +'window.__accuracy={views:m=>renderReviewViews(m),async strip(urls){const imgs=await Promise.all(urls.map(load)),s=256,c=document.createElement("canvas");c.width=s*imgs.length;c.height=s;const g=c.getContext("2d");imgs.forEach((im,k)=>g.drawImage(im,k*s,0,s,s));return c.toDataURL("image/jpeg",.82);},'
+ const entry='import {renderReviewViews,targetedViews,TARGETED_VIEW_SIZE} from "./lib/render-review";const load=u=>new Promise((ok,no)=>{const i=new Image();i.onload=()=>ok(i);i.onerror=()=>no(Error("image"));i.src=u;});'
+  +'window.__accuracy={views:(m,targeted)=>renderReviewViews(m,targeted?{views:targetedViews(m),size:TARGETED_VIEW_SIZE}:{}),async strip(urls){const imgs=await Promise.all(urls.map(load)),s=256,c=document.createElement("canvas");c.width=s*imgs.length;c.height=s;const g=c.getContext("2d");imgs.forEach((im,k)=>g.drawImage(im,k*s,0,s,s));return c.toDataURL("image/jpeg",.82);},'
   +'async photo(u,max=1024){const im=await load(u),f=Math.min(1,max/Math.max(im.naturalWidth,im.naturalHeight)),c=document.createElement("canvas");c.width=Math.max(1,Math.round(im.naturalWidth*f));c.height=Math.max(1,Math.round(im.naturalHeight*f));c.getContext("2d").drawImage(im,0,0,c.width,c.height);const out=c.toDataURL("image/jpeg",.86);if(out.length>1500000)throw Error("This photo is too detailed to send.");return out;}};';
  const script=(await build({stdin:{contents:entry,resolveDir:ROOT,loader:'ts'},bundle:true,platform:'browser',format:'esm',write:false,logLevel:'error',minify:true,define:{'process.env.NODE_ENV':'"production"'}})).outputFiles[0].text;
  const browser=await pw.chromium.launch({args:SWIFTSHADER}),page=await browser.newPage(),parts=join(ROOT,'public','parts');page.setDefaultTimeout(240000);
@@ -190,7 +192,7 @@ export async function startRenderer(){
  });
  await page.goto(ORIGIN+'/');await page.waitForFunction(()=>Boolean(window.__accuracy));
  return {
-  views:model=>page.evaluate(m=>window.__accuracy.views(m),{pieces:model.pieces,length:model.length,width:model.width,height:model.height}),
+  views:(model,targeted=false)=>page.evaluate(([m,t])=>window.__accuracy.views(m,t),[{pieces:model.pieces,length:model.length,width:model.width,height:model.height},targeted]),
   strip:urls=>page.evaluate(u=>window.__accuracy.strip(u),urls),
   photo:url=>page.evaluate(u=>window.__accuracy.photo(u),url),
   close:()=>browser.close(),
@@ -225,13 +227,14 @@ async function runJudge(lib,ctx,{brief,sheet,images,photos,checks,features},onUs
 // ---------------------------------------------------------------- one case
 const fail=(stage,code,message)=>Object.assign(Error(message||code),{stage,code});
 const post=(handler,path,body,key,signal)=>handler(new Request(ORIGIN+path,{method:'POST',signal,headers:{'Content-Type':'application/json',Origin:ORIGIN,'Sec-Fetch-Site':'same-origin','x-brickwork-api-key':key},body:JSON.stringify(body)}));
-// Mirrors planSheet in app/generator.tsx: the client recomputes the target from the facts.
-const planSheet=(lib,sheet,b)=>{const facts={...sheet};delete facts.plan;delete facts.target;return {...facts,target:lib.targetExtents(facts,b)};};
-export function proportion(model,target){
- if(!target)return null;const body=model.pieces.filter(p=>p.y>=2);if(!body.length)return null;
- const ext=(a,s)=>body.reduce((m,p)=>Math.max(m,p[a]+p[s]),-Infinity)-body.reduce((m,p)=>Math.min(m,p[a]),Infinity);
- const actual=[ext('x','w'),ext('y','h'),ext('z','d')],wanted=[target.x,target.y,target.z],scale=actual.map((v,i)=>v/wanted[i]).sort((a,b)=>a-b)[1];
- return {actual,wanted,scale:Math.round(scale*1000)/1000,errorPct:Math.round(Math.max(...actual.map((v,i)=>Math.abs(v/(wanted[i]*scale)-1)))*100)};
+// Mirrors planSheet in app/generator.tsx: the client plans the target from the facts (planTarget: vertical
+// exaggeration for long, low subjects, a faithful section when the smallest feature would drop below 2 studs).
+const planSheet=(lib,sheet,b)=>lib.planTarget(sheet,b);
+// The app's own proportion check (designChecks), so a declared vertical exaggeration or a faithful section is not
+// counted as an error.
+export function proportion(model,target,conflict,lib){
+ if(!target)return null;const p=lib.proportionCheck(model,target,conflict);if(!p)return null;
+ return {actual:p.actual,wanted:p.wanted.map(v=>Math.round(v*10)/10),scale:Math.round(p.scale*1000)/1000,errorPct:Math.round(p.error*100),section:p.section};
 }
 const dims=(x,z,y)=>`${x}x${z}x${y}`;
 async function runCase(lib,ctx,c){
@@ -256,35 +259,60 @@ async function runCase(lib,ctx,c){
   row.targetStuds=sheet.target?dims(sheet.target.x,sheet.target.z,sheet.target.y):'';
   if(!lib.referenceReady(sheet)){row.status='clarification';detail.question=data.question||lib.referenceClarification(sheet);return {row,detail};}
   const ref={sheet,photo:refs.photo,photos:refs.photos,identityHint:refs.identityHint,briefKey:lib.referenceKey(b)};
-  // Design: a first build streams onto the foundation scene, like the generator.
+  // Design: a first build streams onto the foundation scene with its piece budget, like the generator.
+  const smooth=b.finish==='smooth',foundation=lib.foundationScene(b),base=lib.compileScene(foundation,{manual:lib.emptyManual(),hollow:b.hollow,smooth});
+  const design=async(stage,body)=>{
+   const generated=await post(lib.generatePOST,'/api/generate',{detail:b.size,brief:b,reference:ref.photo,photos:ref.photos,research:ref.sheet,locked:[],history:[],...body},ctx.key);
+   if(!generated.ok){const res=await generated.json();throw fail(stage,res.code||'GENERATION_FAILED',res.error);}
+   let scene,thinking='',corrections=[];
+   for await(const e of lib.readEvents(generated.body)){if(e.type==='usage')record(stage)(e.usage);else if(e.type==='thought')thinking+=e.text;else if(e.type==='corrections')corrections=e.items||[];else if(e.type==='complete')scene=e.scene;else if(e.type==='error')throw fail(stage,e.code||'GENERATION_FAILED',e.message);}
+   if(!scene)throw fail(stage,'CONNECTION_LOST','The design stream ended before the scene was complete.');
+   return {scene,thinking,corrections};
+  };
+  // Compile with the automatic support columns and check exactly as the generation worker and designChecks do.
+  const pack=(scene,stage)=>{try{return lib.addSupports(scene,{manual:lib.emptyManual(),hollow:b.hollow,smooth});}catch(e){throw fail(stage,'COMPILE_FAILED',e.message);}};
+  const views=async(model,targeted=false)=>ctx.renderer?ctx.renderer.views(model,targeted):ctx.mode==='mock'?Array(targeted?3:5).fill(PLACEHOLDER_VIEW):null;
+  const reviewOf=async(stage,model,scene,images,mode)=>{
+   let review=null,error;const reviewed=await post(lib.reviewPOST,'/api/review',{brief:b,images,revision:'',sheet:ref.sheet,reference:ref.photo,photos:ref.photos,signature:(scene.signature||[]).slice(0,4),mode},ctx.key);
+   if(!reviewed.ok){const body=await reviewed.json();error={code:body.code||'REVIEW_FAILED',message:body.error};}
+   else for await(const e of lib.readEvents(reviewed.body)){if(e.type==='usage')record(stage)(e.usage);else if(e.type==='complete')review=e.review;else if(e.type==='error')error={code:e.code||'REVIEW_FAILED',message:e.message};}
+   return {review,error};
+  };
   t=performance.now();
-  const generated=await post(lib.generatePOST,'/api/generate',{prompt:b.idea,detail:b.size,brief:b,reference:ref.photo,photos:ref.photos,research:ref.sheet,previous:lib.foundationScene(b),locked:[],feedback:[],history:[]},ctx.key);
-  if(!generated.ok){const body=await generated.json();throw fail('design',body.code||'GENERATION_FAILED',body.error);}
-  let scene,thinking='';
-  for await(const e of lib.readEvents(generated.body)){if(e.type==='usage')record('design')(e.usage);else if(e.type==='thought')thinking+=e.text;else if(e.type==='complete')scene=e.scene;else if(e.type==='error')throw fail('design',e.code||'GENERATION_FAILED',e.message);}
-  times.design=ms(t);if(!scene)throw fail('design','CONNECTION_LOST','The design stream ended before the scene was complete.');
-  writeFileSync(join(dir,'scene.json'),JSON.stringify(scene,null,1));detail.designThinking=thinking.slice(-6000);
-  // Compile and check exactly as the generation worker and designChecks do.
-  t=performance.now();let model;try{model=lib.compileScene(scene,{manual:lib.emptyManual(),hollow:b.hollow,smooth:b.finish==='smooth'});}catch(e){throw fail('compile','COMPILE_FAILED',e.message);}times.compile=ms(t);
-  const checks=lib.designChecks(model,b,sheet.target),prop=proportion(model,sheet.target);
-  Object.assign(row,{status:'completed',pieces:model.pieces.length,maxPieces:b.maxPieces,budgetUsePct:Math.round(model.pieces.length/b.maxPieces*100),sizeStuds:dims(model.length,model.width,model.height),propErrPct:prop?prop.errorPct:'',checksPass:checks.pass,checkIssues:checks.issues.length,ungrounded:checks.audit.ungrounded.length,assemblies:checks.audit.groups,unsupported:checks.audit.unsupported.length,clutchOverloaded:checks.clutch.overloaded.length,overlaps:checks.audit.overlaps});
-  detail.issues=checks.issues;detail.proportion=prop;writeFileSync(join(dir,'checks.json'),JSON.stringify({pass:checks.pass,issues:checks.issues,locations:checks.locations,proportion:prop},null,1));
+  const first=await design('design',{prompt:b.idea,previous:foundation,budget:{limit:b.maxPieces,used:base.pieces.length,remaining:b.maxPieces-base.pieces.length,byComponent:lib.componentBudget(foundation,base)}});
+  times.design=ms(t);let scene=first.scene;
+  writeFileSync(join(dir,'scene.json'),JSON.stringify(scene,null,1));detail.designThinking=first.thinking.slice(-6000);detail.corrections=first.corrections;
+  t=performance.now();let packed=pack(scene,'compile'),model=packed.model;times.compile=ms(t);
+  let checks=lib.designChecks(model,b,sheet.target,sheet.scaleConflict);
   let images=null;
-  if(ctx.renderer){t=performance.now();try{images=await ctx.renderer.views(model);await saveRenders(ctx.renderer,join(dir,'renders'),images);}catch(e){throw fail('render','RENDER_FAILED',e.message);}times.render=ms(t);row.rendered='yes';}
-  else if(ctx.mode==='mock'){images=Array(5).fill(PLACEHOLDER_VIEW);row.rendered='placeholder';}
-  // Review: the brief's features plus the designer's own signature, as visual() sends them.
+  if(ctx.renderer){t=performance.now();try{images=await views(model);await saveRenders(ctx.renderer,join(dir,'renders'),images);}catch(e){throw fail('render','RENDER_FAILED',e.message);}times.render=ms(t);row.rendered='yes';}
+  else if(ctx.mode==='mock'){images=await views(model);row.rendered='placeholder';}
+  // Review: the brief's features, with the research details and the designer's signature as a separate rubric.
   let review=null;
   if(images){
-   t=performance.now();const features=[...b.features,...(scene.signature||[]).filter(f=>!b.features.includes(f))].slice(0,12);
-   const reviewed=await post(lib.reviewPOST,'/api/review',{brief:{...b,features},images,revision:'',sheet:ref.sheet,reference:ref.photo,photos:ref.photos},ctx.key);
-   if(!reviewed.ok){const body=await reviewed.json();detail.reviewError={code:body.code||'REVIEW_FAILED',message:body.error};}
-   else for await(const e of lib.readEvents(reviewed.body)){if(e.type==='usage')record('review')(e.usage);else if(e.type==='complete')review=e.review;else if(e.type==='error')detail.reviewError={code:e.code||'REVIEW_FAILED',message:e.message};}
-   times.review=ms(t);
+   t=performance.now();const r=await reviewOf('review',model,scene,images,'full');review=r.review;if(r.error)detail.reviewError=r.error;times.review=ms(t);
+   // One automatic repair on material failures, gated and kept exactly as the generator does.
+   const remaining=(await ctx.ledger.state()).remaining;
+   const reasons=review&&lib.autoRepairAllowed({enabled:b.autoRepair!==false,eligible:true,remaining,clarification:false})?lib.materialFailures(lib.repairMetrics(checks,review,model.pieces.length,b.maxPieces)):[];
+   if(reasons.length){
+    t=performance.now();detail.autoRepair={reasons};
+    try{
+     const fixed=await design('repair',{prompt:`Fix the problems the checks and the review found in this build, using the CURRENT MODEL VIEWs, with the smallest edits that keep everything else. ${reasons.join(' ')}`.slice(0,2000),previous:scene,renders:images.slice(0,5),feedback:lib.revisionFeedback({reasons,issues:checks.issues,corrections:first.corrections}),budget:{limit:b.maxPieces,used:model.pieces.length,remaining:b.maxPieces-model.pieces.length,byComponent:lib.componentBudget(scene,model)}});
+     const nextPacked=pack(fixed.scene,'repair'),nextChecks=lib.designChecks(nextPacked.model,b,sheet.target,sheet.scaleConflict),nextImages=await views(nextPacked.model,true),next=await reviewOf('repair',nextPacked.model,fixed.scene,nextImages,'targeted');
+     const verdict=next.review?lib.compareRepair(lib.repairMetrics(checks,review,model.pieces.length,b.maxPieces),lib.repairMetrics(nextChecks,next.review,nextPacked.model.pieces.length,b.maxPieces)):{keep:false,fixed:0};
+     Object.assign(detail.autoRepair,{kept:verdict.keep,fixed:verdict.fixed,corrections:fixed.corrections});row.autoRepair=verdict.keep?'kept':'discarded';row.repairFixed=verdict.keep?verdict.fixed:0;
+     if(verdict.keep){scene=fixed.scene;packed=nextPacked;model=nextPacked.model;checks=nextChecks;review=next.review;writeFileSync(join(dir,'scene.json'),JSON.stringify(scene,null,1));images=await views(model);if(ctx.renderer)await saveRenders(ctx.renderer,join(dir,'renders'),images);}
+    }catch(e){row.autoRepair='failed';detail.autoRepair.error={code:e.code||'REPAIR_FAILED',message:String(e.message||e).slice(0,300)};if(String(e.code).startsWith('BUDGET_'))ctx.stopped=`Stopped after the spending cap was reached (${e.code}).`;}
+    times.repair=ms(t);
+   }
    if(review){
-    writeFileSync(join(dir,'review.json'),JSON.stringify(review,null,1));const req=review.features.slice(0,b.features.length),sig=review.features.slice(b.features.length);
+    writeFileSync(join(dir,'review.json'),JSON.stringify(review,null,1));const req=review.features,sig=(review.rubric||[]).filter(f=>f.kind==='signature');
     Object.assign(row,{reviewStatus:'ok',recognizable:review.recognizable,composition:review.composition?.status||'',requiredVisible:req.filter(f=>f.status==='visible').length,requiredTotal:req.length,signatureVisible:sig.filter(f=>f.status==='visible').length,signatureTotal:sig.length});
    }else{row.reviewStatus=detail.reviewError?.code||'REVIEW_FAILED';if(row.reviewStatus.startsWith('BUDGET_'))ctx.stopped=`Stopped after the spending cap was reached (${row.reviewStatus}).`;}
   }else row.reviewStatus='skipped (no renders)';
+  const prop=proportion(model,sheet.target,sheet.scaleConflict,lib);
+  Object.assign(row,{status:'completed',pieces:model.pieces.length,maxPieces:b.maxPieces,budgetUsePct:Math.round(model.pieces.length/b.maxPieces*100),sizeStuds:dims(model.length,model.width,model.height),propErrPct:prop?prop.errorPct:'',checksPass:checks.pass,checkIssues:checks.issues.length,ungrounded:checks.audit.ungrounded.length,assemblies:checks.audit.groups,unsupported:checks.audit.unsupported.length,clutchOverloaded:checks.clutch.overloaded.length,overlaps:checks.audit.overlaps,supportsAdded:packed.added,corrections:first.corrections.length});
+  detail.issues=checks.issues;detail.proportion=prop;writeFileSync(join(dir,'checks.json'),JSON.stringify({pass:checks.pass,issues:checks.issues,locations:checks.locations,proportion:prop,supportsAdded:packed.added},null,1));
   // Judge: critical checks and source-backed features, only with real (or mock) views.
   const sf=sourceFeatures(sheet);
   if(images&&ctx.judge&&(c.criticalChecks.length||sf.length)){
@@ -295,14 +323,14 @@ async function runCase(lib,ctx,c){
    times.judge=ms(t);
   }
   // A project file that scripts/inspect-design.mjs and the studio import can read.
-  const revisions=[{request:b.idea,summary:(review?.summary||scene.description).slice(0,1000),at:new Date().toISOString()}];
-  writeFileSync(join(dir,'project.json'),lib.projectJSON({...model,generation:scene,design:{brief:b,reference:ref,manual:lib.emptyManual(),locked:[],revisions,...(review?{review}:{reviewStale:true})}},lib.emptyShopping()));
+  const revisions=[{request:b.idea,summary:(scene.description||review?.summary||'').slice(0,1000),at:new Date().toISOString()}];
+  writeFileSync(join(dir,'project.json'),lib.projectJSON({...model,generation:scene,design:{brief:b,reference:ref,manual:packed.manual,locked:[],revisions,...(review?{review}:{reviewStale:true})}},lib.emptyShopping()));
  }catch(e){
   if(e.code==='SKIPPED'){row.status='skipped';detail.reason=e.message;}
   else{const budget=['BUDGET_LIMIT','BUDGET_ACCOUNTING','BUDGET_UNAVAILABLE'].includes(e.code);row.status=budget?'budget':'failed';row.errorStage=e.stage||'harness';row.errorCode=e.code||'HARNESS_ERROR';detail.error=String(e.message||e).slice(0,1000);if(budget)ctx.stopped=`Stopped after the spending cap was reached (${e.code}).`;}
  }finally{
   const sum=stage=>usd(usage.filter(u=>!stage||u.stage===stage).reduce((n,u)=>n+u.cost,0));
-  Object.assign(row,{calls:usage.length,inputTokens:usage.reduce((n,u)=>n+u.inputTokens,0),outputTokens:usage.reduce((n,u)=>n+u.outputTokens,0),reasoningTokens:usage.reduce((n,u)=>n+(u.reasoningTokens||0),0),researchUSD:sum('research'),designUSD:sum('design'),reviewUSD:sum('review'),judgeUSD:sum('judge'),totalUSD:sum(),wallSeconds:Math.round((performance.now()-t0)/100)/10});
+  Object.assign(row,{calls:usage.length,inputTokens:usage.reduce((n,u)=>n+u.inputTokens,0),outputTokens:usage.reduce((n,u)=>n+u.outputTokens,0),reasoningTokens:usage.reduce((n,u)=>n+(u.reasoningTokens||0),0),researchUSD:sum('research'),designUSD:sum('design'),reviewUSD:sum('review'),repairUSD:sum('repair'),judgeUSD:sum('judge'),totalUSD:sum(),wallSeconds:Math.round((performance.now()-t0)/100)/10});
   detail.usage=usage;detail.timesMs=times;writeFileSync(join(dir,'usage.json'),JSON.stringify({usage,timesMs:times},null,1));
   if(ctx.recordings){await ctx.transport.flush?.(c.brief.idea);const rec=ctx.recordings.get(c.brief.idea);if(rec)writeFileSync(join(ctx.dir,'fixtures',`${c.id}.json`),JSON.stringify({synthetic:false,note:`Recorded live provider replies (${new Date().toISOString()}). Replays with --mock --fixtures <this folder>.`,case:c.id,idea:c.brief.idea,...rec},null,1));}
  }

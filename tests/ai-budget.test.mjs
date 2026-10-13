@@ -80,10 +80,11 @@ test('a cancelled request settles an estimate, other network failures hold the c
 
 test('an incomplete streamed design records real usage before reporting its error',async t=>{
  const {db,sqlite}=budgetDb();t.after(()=>sqlite.close());
- const events=[{type:'response.incomplete',response:{status:'incomplete',usage:{input_tokens:800,output_tokens:32000}}}];
+ // A low-effort first build is held for 2k + 80 x 240 shapes + 6k reasoning = 27.2k output tokens, and runs out there.
+ const events=[{type:'response.incomplete',response:{status:'incomplete',usage:{input_tokens:800,output_tokens:27200}}}];
  const provider=budgetedProvider(db,key,()=>{},async u=>u.endsWith('/input_tokens')?Response.json({input_tokens:800}):new Response(events.map(e=>'data: '+JSON.stringify(e)+'\n\n').join('')));
  await assert.rejects(async()=>{for await(const _ of generateScene({prompt:'castle',detail:'medium'},key,BUDGET_MODEL,signal(),provider.fetch,provider.recordUsage)){}},{code:'INCOMPLETE_RESPONSE'});
- assert.deepEqual(await budgetSnapshot(db,await keyFingerprint(key)),{limit:10,spent:.3216,held:0,remaining:9.6784});
+ assert.deepEqual(await budgetSnapshot(db,await keyFingerprint(key)),{limit:10,spent:.2736,held:0,remaining:9.7264});
 });
 
 test('generation, review and budget routes share the personal key ledger instead of the configured key',async t=>{
@@ -257,5 +258,5 @@ test('a refused stream the caller abandons settles an estimate, while a stream t
  let snapshot=await budgetSnapshot(db,hash);assert.equal(snapshot.held,0);assert.ok(snapshot.spent>0&&snapshot.spent<.1,String(snapshot.spent));
  const spent=snapshot.spent,dropped=budgetedProvider(db,key,()=>{},async u=>u.endsWith('/input_tokens')?Response.json({input_tokens:1000}):new Response(sse([{type:'response.output_text.delta',delta:'{"n":"Castle"'}])));
  await assert.rejects(drain(generateScene({prompt:'castle',detail:'medium'},key,BUDGET_MODEL,signal(),dropped.fetch,dropped.recordUsage)),{code:'CONNECTION_LOST'});
- await dropped.settleAbandoned();snapshot=await budgetSnapshot(db,hash);assert.equal(snapshot.spent,spent);assert.ok(snapshot.held>.32,String(snapshot.held));
+ await dropped.settleAbandoned();snapshot=await budgetSnapshot(db,hash);assert.equal(snapshot.spent,spent);assert.ok(snapshot.held>.28&&snapshot.held<.32,String(snapshot.held));
 });

@@ -31,18 +31,26 @@ told otherwise. See `tests/fixtures/accuracy/README.md`.
 ## What one case runs
 
 The server half is the actual route handlers (`/api/research`, `/api/generate`, `/api/review`), with the budget
-ledger in memory. The client half mirrors `run()` in `app/generator.tsx` for a first build. **Keep the mirrored
-steps in sync when the client orchestration changes**, for example when auto-repair lands.
+ledger in memory. The client half mirrors `run()` in `app/generator.tsx` for a first build, including its one
+automatic repair. **Keep the mirrored steps in sync when the client orchestration changes.**
 
 1. Research, including the second pass when the first is not ready. If the sheet is still not ready, the case
    ends as `clarification`, as the app would, and spends nothing on design.
-2. `planSheet`: the target is recomputed from the sheet with `targetExtents`.
-3. Design streamed onto the foundation scene, with the brief, sheet and photos.
-4. Compile with the generation worker's options, then `designChecks` against the sheet's target.
+2. `planSheet`: the target is planned from the sheet with `planTarget` (a declared vertical exaggeration for very
+   long, low subjects; a faithful section when the smallest defining feature would drop below 2 studs).
+3. Design streamed onto the foundation scene, with the brief, sheet, photos and the first build's piece budget.
+   `repairScene` corrections reported by the route are counted.
+4. Compile with the generation worker's options and its automatic support columns (`addSupports`), then
+   `designChecks` against the sheet's target and scale conflict.
 5. Five review views rendered by `renderReviewViews` in headless Chromium with SwiftShader (Playwright). Without
    Playwright, live runs refuse unless `--no-render` is passed; then review and judge are skipped.
-6. Review with the brief's features plus the designer's signature features, as `visual()` sends them.
-7. A harness-only **judge** call (not part of the app, about $0.02–0.03 per case on Sol Low). It grades the case's
+6. Review with the brief's features and a separate rubric (research `distinctive` and `silhouette`, then the
+   designer's signature), as `visual()` sends them.
+7. At most one automatic repair, gated as the app gates it (material failures only, at least $0.50 left, the
+   brief's `autoRepair` on): a design call that sees the five views, a compile with supports, a targeted
+   three-view review, and `compareRepair` decides whether the repaired candidate replaces the first build. In
+   mock mode the fixtures answer the repair with the first design, so it is always discarded; its cost is real.
+8. A harness-only **judge** call (not part of the app, about $0.02–0.03 per case on Sol Low). It grades the case's
    critical checks and the research sheet's own source-backed `distinctive` and `silhouette` items. The app's
    review never grades those, because its rubric is the brief plus features the designer chose itself.
 
@@ -70,11 +78,13 @@ change grades already in `grades.json`.
 | `pieces`, `maxPieces`, `budgetUsePct` | Packed pieces vs the brief's piece limit |
 | `sizeStuds`, `targetStuds` | Occupied x×z×y (studs, studs, plates) vs the research target |
 | `propErrPct` | Largest per-axis deviation from the target ratios after uniform scaling, measured as `designChecks` does (above the base). Blank without research dimensions. |
-| `checksPass`, `checkIssues`, `ungrounded`, `assemblies`, `unsupported`, `clutchOverloaded`, `overlaps` | `designChecks` result and its parts |
-| `recognizable`, `composition`, `requiredVisible/Total`, `signatureVisible/Total` | App review: brief features and the designer's signature features marked visible |
+| `checksPass`, `checkIssues`, `ungrounded`, `assemblies`, `unsupported`, `clutchOverloaded`, `overlaps` | `designChecks` result and its parts, for the kept candidate |
+| `recognizable`, `composition`, `requiredVisible/Total`, `signatureVisible/Total` | App review: brief features, and the rubric's designer-signature items, marked visible |
+| `supportsAdded`, `corrections` | Automatic support columns added at compile, and `repairScene` corrections to the first design |
+| `autoRepair`, `repairFixed` | Blank when no repair ran; `kept` (with the material failures it fixed), `discarded` or `failed` |
 | `sourceFeaturesPresent/Total` | Judge: research `distinctive` + first two `silhouette` items present |
 | `criticalPassed/Failed/Uncertain/Total`, `criticalSource` | Benchmark critical checks. `judge` until a human grades them (`human`, or `human+judge` when mixed) |
-| `calls`, token columns, `researchUSD`…`totalUSD` | Summed `RequestUsage` per stage (judge included, shown separately) |
+| `calls`, token columns, `researchUSD`…`totalUSD` | Summed `RequestUsage` per stage (`repairUSD` is the repair's design and re-check; judge included, shown separately) |
 | `wallSeconds` | Wall-clock time for the case, rendering included |
 
 ## Spending cap

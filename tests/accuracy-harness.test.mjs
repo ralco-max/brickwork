@@ -31,14 +31,25 @@ test('mock mode drives the real routes, compiles and checks every design, and wr
  for(const row of r.rows.filter(x=>x.case!=='dulles-whole-airport')){
   assert.equal(row.status,'completed',`${row.case}: ${row.errorCode}`);assert.equal(row.reviewStatus,'ok',row.case);assert.equal(row.rendered,'placeholder');
   assert.ok(row.pieces>0&&row.designUSD>0&&row.researchUSD>0&&row.reviewUSD>0&&row.judgeUSD>0,row.case);
-  assert.ok(Math.abs(row.totalUSD-(row.researchUSD+row.designUSD+row.reviewUSD+row.judgeUSD))<1e-5,row.case);
+  assert.ok(Math.abs(row.totalUSD-(row.researchUSD+row.designUSD+row.reviewUSD+row.repairUSD+row.judgeUSD))<1e-5,row.case);
+  // An automatic repair is priced on its own line, and only when it ran.
+  assert.equal(row.repairUSD>0,Boolean(row.autoRepair),row.case);
   assert.equal(row.requiredTotal,lib.briefSchema.parse(loadCases(lib,{cases:row.case})[0].brief).features.length);
  }
  // The whole-airport case stops at the clarification gate after two research passes: no design spend.
  assert.equal(by['dulles-whole-airport'].status,'clarification');assert.equal(by['dulles-whole-airport'].researchPasses,2);assert.equal(by['dulles-whole-airport'].designUSD,0);
- assert.equal(calls.filter(c=>formatName(c.body)==='brickwork_scene').length,13);assert.equal(calls.filter(c=>formatName(c.body)==='brickwork_reference').length,15);
+ // One design per completed case, plus one automatic repair (and its targeted re-check) on each materially flagged first build.
+ const repaired=r.rows.filter(x=>x.autoRepair);assert.ok(repaired.length>0&&repaired.length<13,String(repaired.length));
+ assert.equal(calls.filter(c=>formatName(c.body)==='brickwork_scene').length,13+repaired.length);assert.equal(calls.filter(c=>formatName(c.body)==='brickwork_reference').length,15);
+ assert.equal(calls.filter(c=>formatName(c.body)==='brickwork_visual_review'&&JSON.parse(c.body.input.flatMap(x=>x.content).find(x=>x.type==='input_text'&&x.text.startsWith('{')).text).mode==='targeted').length,repaired.length);
+ const repairCall=calls.find(c=>formatName(c.body)==='brickwork_scene'&&JSON.stringify(c.body).includes('CURRENT MODEL VIEW 1 (generated, before repair)'));assert.ok(repairCall,'the repair design sees the rendered model');
+ // Synthetic fixtures answer the repair with the first design, so nothing improves and the first build is kept.
+ assert.ok(repaired.every(x=>x.autoRepair==='discarded'),repaired.map(x=>x.autoRepair).join());
+ // The studio's support columns run on every compile before any paid repair.
+ assert.ok(r.rows.some(x=>x.supportsAdded>0));
  // Proportion error is measured against the research target; generic ideas have none.
- assert.equal(by['golden-gate-span'].targetStuds,'78x1x23');assert.ok(by['golden-gate-span'].propErrPct>100);assert.equal(by['apollo-saturn-v'].targetStuds,'6x6x158');
+ // planTarget: the long, low span is drawn 2 studs deep with its heights exaggerated (target.vertical).
+ assert.equal(by['golden-gate-span'].targetStuds,'78x2x45');assert.ok(by['golden-gate-span'].propErrPct>100);assert.equal(by['apollo-saturn-v'].targetStuds,'6x6x158');
  assert.equal(by['design-4-snowy-owl-perched'].propErrPct,'');
  // Critical checks come from the judge until a human grades them.
  assert.equal(by['dulles-terminal'].criticalTotal,4);assert.equal(by['dulles-terminal'].criticalSource,'judge');assert.equal(by['photo-dc-metro'].criticalFailed,1);
@@ -49,7 +60,8 @@ test('mock mode drives the real routes, compiles and checks every design, and wr
  for(const name of ['brickwork_reference','brickwork_scene','brickwork_visual_review']){const body=metro.find(c=>formatName(c.body)===name).body;assert.ok(JSON.stringify(body).split('"input_image"').length-1>=2,name);}
  // The saved project reopens in the app's own importer with its review attached.
  const project=lib.validateProject(JSON.parse(readFileSync(join(r.dir,'cases/dulles-terminal/project.json'),'utf8')));
- assert.equal(project.pieces.length,by['dulles-terminal'].pieces);assert.equal(project.design.review.features.length,by['dulles-terminal'].requiredTotal+by['dulles-terminal'].signatureTotal);
+ assert.equal(project.pieces.length,by['dulles-terminal'].pieces);assert.equal(project.design.review.features.length,by['dulles-terminal'].requiredTotal);assert.equal(project.design.review.rubric.filter(f=>f.kind==='signature').length,by['dulles-terminal'].signatureTotal);
+ assert.ok(project.design.manual.bricks.every(p=>p.support),'the saved project carries its support columns');
  for(const f of ['reference.json','scene.json','checks.json','review.json','judge.json','usage.json'])assert.ok(existsSync(join(r.dir,'cases/dulles-terminal',f)),f);
  assert.match(readFileSync(join(r.dir,'summary.md'),'utf8'),/SYNTHETIC/);
  const grades=JSON.parse(readFileSync(join(r.dir,'grades.json'),'utf8'));assert.deepEqual(Object.keys(grades['golden-gate-span']),loadCases(lib,{cases:'golden-gate-span'})[0].criticalChecks);
