@@ -116,6 +116,7 @@ export function mockTransport(fixtures){
   if(!fx)return Response.json({error:{message:'No accuracy fixture matches this idea.'}},{status:404});
   const entry=stage==='research'?(fx.research||[])[data.previousReference?1:0]:fx[stage];
   if(!entry)return Response.json({error:{message:`The fixture has no ${stage} response.`}},{status:404});
+  if(entry.error)return Response.json({error:{message:`The recorded ${stage} reply failed (${entry.error}).`}},{status:502});
   if(entry.sse)return new Response(entry.sse,{headers:{'Content-Type':'text/event-stream'}});
   if(entry.raw)return Response.json(entry.raw);
   const reasoning=entry.reasoning?[{type:'reasoning',summary:[{type:'summary_text',text:entry.reasoning}]}]:[];
@@ -137,19 +138,23 @@ export function mockTransport(fixtures){
  };
 }
 // Live transport; with record it also keeps each reply (never the request) per idea.
+// A streamed reply is teed: when the upstream errors (route timeout abort, reset) both
+// branches reject, so the recording branch must catch or Node exits on the unhandled rejection.
 function liveTransport(base,recordings){
  if(!recordings)return base;
- const counts=new Map();
- return async(url,init={})=>{
+ const counts=new Map(),pending=new Map();
+ const transport=async(url,init={})=>{
   const body=JSON.parse(String(init.body||'{}')),data=requestData(body),idea=data.idea??data.brief?.idea??'',response=await base(url,init);
   if(!response.ok)return response;
   const rec=recordings.get(idea)||{research:[]};recordings.set(idea,rec);
   if(url===OPENAI+'/input_tokens'){counts.set(idea,(await response.clone().json()).input_tokens);return response;}
   const stage=stageOf(body),count=counts.get(idea);
-  if(body.stream&&response.body){const [mine,theirs]=response.body.tee();void new Response(theirs).text().then(text=>{rec[stage]={sse:text,count};});return new Response(mine,{status:response.status,headers:response.headers});}
+  if(body.stream&&response.body){const [mine,theirs]=response.body.tee(),saved=new Response(theirs).text().then(text=>{rec[stage]={sse:text,count};},e=>{rec[stage]={error:`stream aborted: ${String(e?.message||e).slice(0,200)}`,count};}).finally(()=>pending.get(idea)?.delete(saved));if(!pending.has(idea))pending.set(idea,new Set());pending.get(idea).add(saved);return new Response(mine,{status:response.status,headers:response.headers});}
   const raw=await response.clone().json();if(stage==='research')rec.research.push({raw,count});else if(stage)rec[stage]={raw,count};
   return response;
  };
+ transport.flush=idea=>Promise.all([...(pending.get(idea)||[])]);
+ return transport;
 }
 
 // ---------------------------------------------------------------- budget ledger
@@ -299,7 +304,7 @@ async function runCase(lib,ctx,c){
   const sum=stage=>usd(usage.filter(u=>!stage||u.stage===stage).reduce((n,u)=>n+u.cost,0));
   Object.assign(row,{calls:usage.length,inputTokens:usage.reduce((n,u)=>n+u.inputTokens,0),outputTokens:usage.reduce((n,u)=>n+u.outputTokens,0),reasoningTokens:usage.reduce((n,u)=>n+(u.reasoningTokens||0),0),researchUSD:sum('research'),designUSD:sum('design'),reviewUSD:sum('review'),judgeUSD:sum('judge'),totalUSD:sum(),wallSeconds:Math.round((performance.now()-t0)/100)/10});
   detail.usage=usage;detail.timesMs=times;writeFileSync(join(dir,'usage.json'),JSON.stringify({usage,timesMs:times},null,1));
-  if(ctx.recordings){const rec=ctx.recordings.get(c.brief.idea);if(rec)writeFileSync(join(ctx.dir,'fixtures',`${c.id}.json`),JSON.stringify({synthetic:false,note:`Recorded live provider replies (${new Date().toISOString()}). Replays with --mock --fixtures <this folder>.`,case:c.id,idea:c.brief.idea,...rec},null,1));}
+  if(ctx.recordings){await ctx.transport.flush?.(c.brief.idea);const rec=ctx.recordings.get(c.brief.idea);if(rec)writeFileSync(join(ctx.dir,'fixtures',`${c.id}.json`),JSON.stringify({synthetic:false,note:`Recorded live provider replies (${new Date().toISOString()}). Replays with --mock --fixtures <this folder>.`,case:c.id,idea:c.brief.idea,...rec},null,1));}
  }
  return {row,detail};
 }
@@ -326,6 +331,8 @@ function summaryMarkdown(meta,results){
  const rows=results.map(r=>r.row),done=rows.filter(r=>r.status==='completed'),count=s=>rows.filter(r=>r.status===s).length,costs=done.map(r=>r.totalUSD).sort((a,b)=>a-b);
  const median=costs.length?costs[Math.floor((costs.length-1)/2)]:0,total=rows.reduce((n,r)=>n+r.totalUSD,0);
  const lines=[`# Accuracy run ${meta.stamp} (${meta.mode})`,'',`Commit \`${meta.commit}\`${meta.dirty?' (uncommitted changes)':''} · ${rows.length} cases · renders: ${meta.render} · judge: ${meta.judge}${meta.mode==='live'?` · cap $${meta.maxDollars}`:''}`,''];
+ if(meta.partial)lines.push(`> **Partial:** ${meta.partial}. These reports are rewritten after every case; a run that stops early keeps the cases it finished.`,'');
+ if(meta.ledgerMismatch)lines.push(`> **Spend mismatch:** the ledger settled ${money(meta.ledgerMismatch.ledgerUSD)} but the routes reported ${money(meta.ledgerMismatch.recordedUSD)} of usage. Treat the cost columns as unverified.`,'');
  if(meta.mode==='mock')lines.push('> Mock mode replays SYNTHETIC hand-authored provider fixtures through the real routes, ledger, compiler and checks. Costs are list-price estimates from fixture usage (input tokens are estimated from the real request size); scores test the plumbing, not model quality.','');
  lines.push(`**${done.length} completed**, ${count('clarification')} clarification, ${count('failed')} failed, ${count('budget')} stopped by budget, ${count('skipped')} skipped. Recorded spend ${money(total)} over ${rows.reduce((n,r)=>n+r.calls,0)} calls; median ${money(median)} per completed case.${meta.ledger?` Unresolved holds ${money(meta.ledger.held)}.`:''}`,'');
  lines.push('| Case | Status | Pieces / budget | Digital checks | Proportion err | Required | Signature | Source features | Critical | $ | s |','|---|---|---|---|---|---|---|---|---|---|---|');
@@ -349,14 +356,19 @@ const stampNow=()=>new Date().toISOString().replace(/[:.]/g,'-').slice(0,19);
 function writeReports(dir,meta,results){
  const rows=results.map(r=>r.row);
  writeFileSync(join(dir,'results.json'),JSON.stringify({meta,cases:results},null,1));writeFileSync(join(dir,'scorecard.csv'),toCSV(rows,CSV_COLUMNS));writeFileSync(join(dir,'summary.md'),summaryMarkdown(meta,results));
- const gradesFile=join(dir,'grades.json');if(!existsSync(gradesFile))writeFileSync(gradesFile,JSON.stringify(Object.fromEntries(results.filter(r=>r.detail.criticalChecks?.length&&r.row.status==='completed').map(r=>[r.row.case,Object.fromEntries(r.detail.criticalChecks.map(c=>[c,'']))])),null,1)+'\n');
+ // Reports are rewritten after every case: add blanks for newly finished cases, never touch existing (human) grades.
+ const gradesFile=join(dir,'grades.json'),grades=existsSync(gradesFile)?readJSON(gradesFile):{},blank=results.filter(r=>r.detail.criticalChecks?.length&&r.row.status==='completed'&&!(r.row.case in grades));
+ if(blank.length||!existsSync(gradesFile))writeFileSync(gradesFile,JSON.stringify({...grades,...Object.fromEntries(blank.map(r=>[r.row.case,Object.fromEntries(r.detail.criticalChecks.map(c=>[c,'']))]))},null,1)+'\n');
 }
 
 // ---------------------------------------------------------------- modes
 export async function runAccuracy(opts={}){
- const mode=opts.mode||'mock',lib=await loadLib(),log=opts.log||(()=>{}),key=mode==='live'?opts.key??process.env.OPENAI_API_KEY:'mock-accuracy-key';
+ const mode=opts.mode||'mock',lib=await loadLib(),log=opts.log||(()=>{}),key=mode==='live'?String(opts.key??process.env.OPENAI_API_KEY??'').trim():'mock-accuracy-key';
  if(mode==='live'){
   if(!key)throw Object.assign(Error('--live needs OPENAI_API_KEY in the environment. Nothing was run.'),{code:'NO_KEY'});
+  // The routes trim the header (a CRLF .env leaves a trailing \r), so the cap row, the header and the judge
+  // must all use this one trimmed key or the routes bill an unseeded $10 ledger row instead of the cap.
+  if(/\s/.test(key)||key.length>512)throw Object.assign(Error('OPENAI_API_KEY has whitespace or a line break inside it, or is too long. Nothing was run.'),{code:'BAD_KEY'});
   if(!(opts.maxDollars>0&&opts.maxDollars<=10))throw Object.assign(Error('--max-dollars must be above 0 and at most 10 (the app ledger limit). Nothing was run.'),{code:'BAD_CAP'});
   log(`Live run: spending is capped at $${opts.maxDollars} by the app's own ledger (worst-case holds included).`);
  }
@@ -369,22 +381,33 @@ export async function runAccuracy(opts={}){
  const base=opts.transport||(mode==='mock'?mockTransport(fixtures):globalThis.fetch),transport=liveTransport(base,recordings);
  const ledger=await harnessLedger(lib,key,maxDollars),env=globalThis.__brickworkAccuracyEnv??={},saved={fetch:globalThis.fetch,env:{...env},info:console.info,error:console.error},logLines=[];
  const ctx={lib,mode,opts,key,dir,fixtures,transport,renderer,ledger,recordings,judge:opts.judge!==false,log,stopped:''};
- const results=[],started=new Date().toISOString(),t0=performance.now();
+ const results=[],started=new Date().toISOString(),t0=performance.now(),repo=gitInfo(),order=new Map(cases.map((c,i)=>[c.id,i]));
+ const report=async final=>{
+  const done=[...results].sort((a,b)=>order.get(a.row.case)-order.get(b.row.case));applyGrades(done,existsSync(join(dir,'grades.json'))?readJSON(join(dir,'grades.json')):{});
+  const ledgerState=await ledger.state(),recordedUSD=usd(done.flatMap(r=>r.detail.usage||[]).reduce((n,u)=>n+u.cost,0));
+  // Every settled charge reaches the routes' usage events; a gap means the cap or the costs cannot be trusted.
+  // Only checked at the end: with --concurrency a running case has settled charges it has not reported yet.
+  const ledgerMismatch=final&&Math.abs(ledgerState.spent-recordedUSD)>2e-6?{ledgerUSD:ledgerState.spent,recordedUSD}:undefined;
+  const meta={stamp,mode,...repo,started,wallSeconds:Math.round((performance.now()-t0)/100)/10,render:renderNote,judge:ctx.judge?(mode==='mock'?'fixture':'on'):'off',maxDollars:mode==='live'?maxDollars:undefined,quality:opts.quality||'per case',partial:final?undefined:`${done.length} of ${cases.length} cases finished`,ledger:mode==='live'?ledgerState:undefined,ledgerMismatch,totalUSD:usd(done.reduce((n,r)=>n+r.row.totalUSD,0)),fixtures:mode==='mock'?(opts.fixtures||'tests/fixtures/accuracy/responses'):undefined};
+  writeFileSync(join(dir,'log.txt'),logLines.join('\n')+'\n');writeReports(dir,meta,done);return {meta,done,ledgerState};
+ };
+ let saving=Promise.resolve(),failure=null,final;
+ const checkpoint=()=>saving=saving.then(()=>report(false)).catch(e=>log(`Could not save partial reports: ${e.message}`));
  try{
   // The routes read env.DB and the global fetch; their JSON log lines go to log.txt.
   Object.assign(env,{DB:ledger.db});delete env.OPENAI_API_KEY;delete env.STUDIO_BUDGET_PERIOD;globalThis.fetch=transport;
   console.info=(...a)=>logLines.push(a.join(' '));console.error=(...a)=>logLines.push(a.join(' '));
-  const queue=[...cases],workers=Array.from({length:Math.max(1,Math.min(Number(opts.concurrency)||1,8))},async()=>{while(queue.length){const c=queue.shift(),r=await runCase(lib,ctx,c);results.push(r);log(`${c.id}: ${r.row.status}${r.row.errorCode?` ${r.row.errorCode}`:''} · ${money(r.row.totalUSD)} · ${r.row.wallSeconds}s`);}});
-  await Promise.all(workers);
- }finally{
+  const queue=[...cases],workers=Array.from({length:Math.max(1,Math.min(Number(opts.concurrency)||1,8))},async()=>{while(queue.length){const c=queue.shift(),r=await runCase(lib,ctx,c);results.push(r);log(`${c.id}: ${r.row.status}${r.row.errorCode?` ${r.row.errorCode}`:''} · ${money(r.row.totalUSD)} · ${r.row.wallSeconds}s`);await checkpoint();}});
+  failure=(await Promise.allSettled(workers)).find(w=>w.status==='rejected')?.reason??null;
+ }catch(e){failure=e;}finally{
   globalThis.fetch=saved.fetch;console.info=saved.info;console.error=saved.error;for(const k of Object.keys(env))delete env[k];Object.assign(env,saved.env);await renderer?.close();
  }
- results.sort((a,b)=>cases.findIndex(c=>c.id===a.row.case)-cases.findIndex(c=>c.id===b.row.case));
- const grades=existsSync(join(dir,'grades.json'))?readJSON(join(dir,'grades.json')):{};applyGrades(results,grades);
- const ledgerState=await ledger.state();ledger.close();
- const meta={stamp,mode,...gitInfo(),started,wallSeconds:Math.round((performance.now()-t0)/100)/10,render:renderNote,judge:ctx.judge?(mode==='mock'?'fixture':'on'):'off',maxDollars:mode==='live'?maxDollars:undefined,quality:opts.quality||'per case',ledger:mode==='live'?ledgerState:undefined,totalUSD:usd(results.reduce((n,r)=>n+r.row.totalUSD,0)),fixtures:mode==='mock'?(opts.fixtures||'tests/fixtures/accuracy/responses'):undefined};
- writeFileSync(join(dir,'log.txt'),logLines.join('\n')+'\n');writeReports(dir,meta,results);
- return {dir,meta,rows:results.map(r=>r.row),results,ledger:ledgerState};
+ // Finished (and paid) cases are written even when a case or the harness itself threw.
+ try{await saving;final=await report(true);}finally{ledger.close();}
+ if(failure)throw failure;
+ const {meta,done,ledgerState}=final;
+ if(meta.ledgerMismatch)throw Object.assign(Error(`The app ledger settled ${money(meta.ledgerMismatch.ledgerUSD)} but the routes reported ${money(meta.ledgerMismatch.recordedUSD)} of usage, so the cap or the cost columns cannot be trusted. Reports were written to ${dir}.`),{code:'LEDGER_MISMATCH',dir,meta});
+ return {dir,meta,rows:done.map(r=>r.row),results:done,ledger:ledgerState};
 }
 export async function rescore(dir){
  const data=readJSON(join(dir,'results.json')),grades=existsSync(join(dir,'grades.json'))?readJSON(join(dir,'grades.json')):{};

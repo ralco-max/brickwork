@@ -32,7 +32,9 @@ characters per token, 765 per image) plus `search_content_tokens`; output tokens
 `npm run accuracy -- --live --record` saves each case's raw provider replies (never the request, images or key)
 to `<run folder>/fixtures/<case>.json` with `"synthetic": false`. Replay them with
 `npm run accuracy -- --mock --fixtures <run folder>/fixtures`. Copy a recording here only if it is fine for
-it to live in the repository; replace the synthetic file of the same case.
+it to live in the repository; replace the synthetic file of the same case. A streamed reply that broke off
+(a route timeout abort or a connection reset) is recorded as `{"error": "stream aborted: …"}` and replays as
+an upstream failure.
 
 ## `photo-cases.json` and `photos/`
 

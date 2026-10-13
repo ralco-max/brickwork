@@ -59,6 +59,11 @@ Each run writes `accuracy-runs/<UTC timestamp>-<mode>/`, which is git-ignored:
   holds the routes' log lines.
 - With `--record`, `fixtures/<id>.json` holds the raw provider replies, which `--mock --fixtures` can replay.
 
+`results.json`, `scorecard.csv`, `summary.md` and `grades.json` are rewritten after every case, and once more
+when a case or the harness throws. A run that is killed or crashes keeps every case it finished (and paid
+for); its `summary.md` starts with a **Partial** note. Rewrites only add blank grades for new cases and never
+change grades already in `grades.json`.
+
 | Column | Meaning |
 |---|---|
 | `status` | `completed`, `clarification` (research asked a question), `failed` (`errorStage`/`errorCode`), `budget` (cap reached), `skipped` |
@@ -77,8 +82,16 @@ Each run writes `accuracy-runs/<UTC timestamp>-<mode>/`, which is git-ignored:
 `--live` runs the app's own atomic ledger in memory, seeded so that only `--max-dollars` remains (at most $10, the
 ledger's limit). Every request reserves its worst-case cost (the counted input plus `max_output_tokens`) before it is
 sent. A request that could cross the cap is refused before any call reaches OpenAI. The case is marked `budget` and
-later cases are `skipped`. The run also reports summed `RequestUsage`, which equals the ledger's settled spend,
-and any unresolved holds (for example an aborted stream), which count against the cap.
+later cases are `skipped`. The run also reports summed `RequestUsage` and any unresolved holds (for example an
+aborted stream), which count against the cap.
+
+The cap row is keyed by the API key's fingerprint, so the harness trims `OPENAI_API_KEY` exactly as the routes
+trim the `x-brickwork-api-key` header. A trailing `\r` from a CRLF `.env` file would otherwise give the routes
+an unseeded row with the app's full $10. A key with whitespace or a line break inside it is refused before
+anything runs. As a second guard, the summed `RequestUsage` must equal the ledger's settled spend at the end.
+If it does not, the reports are still written with a **Spend mismatch** note, and the command exits with
+`LEDGER_MISMATCH`. This happens when spend was charged to a different ledger row or settled without a usage
+report, for example the app's `BUDGET_ACCOUNTING` hold for out-of-bounds usage.
 
 Expected cost, estimated from the cost audit (the first live run should replace these numbers): about $0.25–0.35
 for a Sol Low case including review and judge, and about $0.45–0.6 for an accuracy case at `better`. The full
@@ -92,6 +105,29 @@ sweep comes to about $4–6, which is why the default cap is $6. Photo cases wit
 3. After the change, run the same command again, grade it, and run `npm run accuracy -- --compare <before> <after>`.
 4. The mock run is the CI guard for the plumbing (`tests/accuracy-harness.test.mjs`). Because mock input tokens are
    measured from the real request bodies, prompt-size changes show up in mock cost at $0.
+
+This works for any two commits that both contain the harness. The original baseline is older; see below.
+
+## Comparing with baseline commit 10079cb
+
+`tests/accuracy-benchmarks.json` names `baselineCommit` `10079cb908663ddb601065f03ef6b874954baf27`, the commit
+before the reference workflow. The harness ignores that field and **cannot run on that commit**: it imports
+helpers that do not exist there (`referenceReady`, `referenceClarification`, `referenceKey`), and the baseline
+brief has no `scope` field. Comparing the reference workflow with that baseline stays a manual process:
+
+1. Use independent checkouts of `10079cb` and the commit under test, and the same provider model and version
+   on both sides (pin `--quality` on the harness side to the tier used in the baseline studio).
+2. On the baseline, run each case from `tests/accuracy-benchmarks.json` in the studio with the exact prompt,
+   defaults and source constraints. Because there is no scope field, put the case's scope wording into the
+   baseline prompt, with the same text the reference workflow receives.
+3. Export each baseline project and save front, perspective, rear and overhead screenshots, the reference pack
+   and source photo used, and the date. Record its API usage from the studio's per-run usage, or from the ledger
+   rows, not from the project geometry.
+4. On the commit under test, run `npm run accuracy -- --live --suite accuracy` (add `--record`).
+5. From the current checkout (the script does not exist at `10079cb`), run
+   `node scripts/inspect-design.mjs /absolute/path/project.json` on each baseline export and each harness
+   `cases/<id>/project.json`, so both sides report packed geometry the same way. Grade both sides' critical
+   checks by hand with the fields in the table below. `--compare` cannot read the baseline side.
 
 ## Manual review protocol
 

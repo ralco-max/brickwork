@@ -87,6 +87,50 @@ test('the live dollar cap is enforced by the app ledger, and recorded replies re
  assert.equal(replay.rows[0].status,'completed');assert.equal(replay.rows[0].pieces,player.pieces);assert.equal(replay.rows[0].designUSD,player.designUSD);
 });
 
+test('a whitespace-padded key still hits the cap row, and a key with whitespace inside is refused',async()=>{
+ // A CRLF .env leaves "sk-…\r": the routes trim the header, so the harness must fingerprint the trimmed key too.
+ for(const key of ['sk-test-pad\r',' sk-test-pad \n']){
+  const calls=[],auth=new Set(),transport=async(url,init)=>{auth.add(new Headers(init.headers).get('authorization'));return spy(mockTransport(loadFixtures()),calls)(url,init);};
+  const r=await runAccuracy({mode:'live',key,maxDollars:.5,transport,render:false,out,stamp:`pad-${key.length}`,cases:'dulles-terminal,apollo-saturn-v'});
+  assert.deepEqual(r.rows.map(x=>x.status),['budget','skipped']);assert.equal(r.rows[0].errorCode,'BUDGET_LIMIT');assert.ok(r.ledger.spent>0&&r.ledger.spent<=.5);
+  assert.equal(calls.filter(c=>formatName(c.body)==='brickwork_scene').length,0);assert.deepEqual([...auth],['Bearer sk-test-pad']);
+ }
+ let called=0;const transport=async()=>{called++;throw Error('no calls expected');};
+ for(const key of ['sk-test bad','sk-test\r\nbad','sk-'+'x'.repeat(600)])await assert.rejects(runAccuracy({mode:'live',key,maxDollars:1,transport,render:false,out}),{code:'BAD_KEY'});
+ assert.equal(called,0);
+});
+
+test('the run fails loudly, with reports written, when the ledger settles spend the routes never reported',async()=>{
+ // Out-of-bounds usage makes the app settle a full $10 hold and report nothing: the totals no longer reconcile.
+ const transport=async(url,init)=>{const response=await mockTransport(loadFixtures())(url,init);if(!url.endsWith('/responses')||formatName(JSON.parse(init.body))!=='brickwork_reference')return response;const data=await response.json();data.usage.output_tokens=10**6;return Response.json(data);};
+ const err=await runAccuracy({mode:'live',key:'sk-test-mismatch',maxDollars:1,transport,render:false,out,stamp:'mismatch',cases:'design-3,design-4'}).then(()=>null,e=>e);
+ assert.equal(err?.code,'LEDGER_MISMATCH');assert.ok(err.meta.ledgerMismatch.ledgerUSD>=1&&err.meta.ledgerMismatch.recordedUSD===0,JSON.stringify(err.meta.ledgerMismatch));
+ assert.equal(readCSV(join(err.dir,'scorecard.csv')).length-1,2);assert.match(readFileSync(join(err.dir,'summary.md'),'utf8'),/Spend mismatch/);
+ assert.equal(JSON.parse(readFileSync(join(err.dir,'results.json'),'utf8')).cases[0].row.errorCode,'BUDGET_ACCOUNTING');
+});
+
+test('--record survives a design stream that dies mid-reply, and reports are saved after every case',async()=>{
+ const ideas=loadCases(lib,{cases:'design-3,design-4'}).map(c=>c.brief.idea),dir=join(out,'stream-live');let broken=0,seen=null;
+ const transport=async(url,init)=>{
+  const body=JSON.parse(init.body),text=JSON.stringify(body);
+  // When the second case starts, the first one's row must already be on disk.
+  if(seen===null&&text.includes(ideas[1]))seen={csv:existsSync(join(dir,'scorecard.csv'))?readCSV(join(dir,'scorecard.csv')).length-1:0,summary:existsSync(join(dir,'summary.md'))?readFileSync(join(dir,'summary.md'),'utf8'):''};
+  const response=await mockTransport(loadFixtures())(url,init);
+  if(broken||!url.endsWith('/responses')||formatName(body)!=='brickwork_scene'||!text.includes(ideas[0]))return response;
+  // Like an undici "terminated" reset (or the route's own timeout abort): one chunk, then the body errors.
+  broken++;const reader=response.body.getReader(),first=await reader.read();let pulls=0;
+  return new Response(new ReadableStream({pull(c){if(pulls++===0)c.enqueue(first.value);else c.error(new TypeError('terminated'));}}),{status:response.status,headers:response.headers});
+ };
+ const r=await runAccuracy({mode:'live',key:'sk-test-stream',maxDollars:3,transport,render:false,out,stamp:'stream',record:true,cases:'design-3,design-4'});
+ assert.equal(broken,1);assert.equal(r.rows[0].status,'failed');assert.equal(r.rows[0].errorStage,'design');assert.equal(r.rows[1].status,'completed');
+ assert.ok(r.ledger.held>0,'the dropped stream keeps its worst-case hold');assert.equal(r.meta.ledgerMismatch,undefined);
+ assert.deepEqual(seen.csv,1);assert.match(seen.summary,/Partial:\*\* 1 of 2 cases finished/);assert.doesNotMatch(readFileSync(join(r.dir,'summary.md'),'utf8'),/Partial/);
+ const recorded=JSON.parse(readFileSync(join(r.dir,'fixtures','design-3-retro-orange-record.json'),'utf8'));assert.match(recorded.design.error,/stream aborted: terminated/);
+ // The aborted recording replays as an upstream failure instead of crashing the mock provider.
+ const replay=await runAccuracy({mode:'mock',render:false,judge:false,out,stamp:'stream-replay',fixtures:join(r.dir,'fixtures'),cases:'design-3'});
+ assert.equal(replay.rows[0].status,'failed');assert.equal(replay.rows[0].errorStage,'design');
+});
+
 test('baseline-local compiles every worked example and landmark preset without AI',async()=>{
  const r=await baselineLocal({render:false,out,stamp:'base',details:['small']}),csv=readCSV(join(r.dir,'scorecard.csv'));
  assert.deepEqual(csv[0],BASELINE_COLUMNS);assert.equal(r.rows.length,lib.DESIGN_EXAMPLES.length+4);
