@@ -62,7 +62,7 @@
       "pearlgold",
       "flatsilver"
     ],
-    "rule": "Offered in a colour added after the classic palette only when the exact part number has an element ID or a non-spare set inventory in that Rebrickable colour ID.",
+    "rule": "Offered in a colour added after the classic palette only when the exact part number has an element ID or a non-spare inventory in a released set (never a Rebrickable Database Sets placeholder) in that Rebrickable colour ID.",
     "evidence": "scripts/part-color-evidence.json",
     "files": [
       {
@@ -293,7 +293,6 @@
         "navy",
         "darkbrown",
         "darkgray",
-        "darktan",
         "darkred",
         "sandgreen",
         "darkgreen",
@@ -364,8 +363,7 @@
         "mediumazure",
         "lime",
         "mediumnougat",
-        "transclear",
-        "flatsilver"
+        "transclear"
       ],
       "legacy": true,
       "ldrawName": "Brick  2 x  4",
@@ -393,14 +391,10 @@
         "gray",
         "navy",
         "darkgray",
-        "darktan",
         "darkred",
         "sandgreen",
-        "darkgreen",
-        "mediumazure",
         "lime",
-        "transclear",
-        "flatsilver"
+        "transclear"
       ],
       "legacy": false,
       "ldrawName": "Brick  2 x  3",
@@ -473,8 +467,7 @@
         "mediumazure",
         "lime",
         "mediumnougat",
-        "transclear",
-        "flatsilver"
+        "transclear"
       ],
       "legacy": true,
       "ldrawName": "Brick  1 x  2",
@@ -568,7 +561,6 @@
         "darkgray",
         "darkred",
         "sandgreen",
-        "darkgreen",
         "transclear"
       ],
       "legacy": true,
@@ -600,7 +592,6 @@
         "darktan",
         "darkred",
         "sandgreen",
-        "darkgreen",
         "lime",
         "mediumnougat",
         "transclear"
@@ -638,8 +629,7 @@
         "mediumazure",
         "lime",
         "mediumnougat",
-        "transclear",
-        "flatsilver"
+        "transclear"
       ],
       "legacy": true,
       "ldrawName": "Brick  1 x  6",
@@ -674,9 +664,7 @@
         "mediumazure",
         "lime",
         "mediumnougat",
-        "transclear",
-        "translightblue",
-        "flatsilver"
+        "transclear"
       ],
       "legacy": true,
       "ldrawName": "Brick  1 x  4",
@@ -776,7 +764,6 @@
         "darkgray",
         "darkred",
         "sandgreen",
-        "darkgreen",
         "mediumazure",
         "lime",
         "mediumnougat"
@@ -807,15 +794,13 @@
         "gray",
         "navy",
         "darkgray",
-        "darktan",
         "darkred",
         "sandgreen",
         "darkgreen",
         "mediumazure",
         "lime",
         "mediumnougat",
-        "transclear",
-        "flatsilver"
+        "transclear"
       ],
       "legacy": false,
       "ldrawName": "Brick  1 x  3",
@@ -1223,8 +1208,7 @@
         "lime",
         "mediumnougat",
         "transclear",
-        "translightblue",
-        "flatsilver"
+        "translightblue"
       ],
       "legacy": true,
       "ldrawName": "Plate  2 x  4",
@@ -1260,8 +1244,7 @@
         "mediumazure",
         "lime",
         "mediumnougat",
-        "transclear",
-        "flatsilver"
+        "transclear"
       ],
       "legacy": false,
       "ldrawName": "Plate  2 x  3",
@@ -1335,8 +1318,7 @@
         "mediumnougat",
         "transclear",
         "translightblue",
-        "pearlgold",
-        "flatsilver"
+        "pearlgold"
       ],
       "legacy": true,
       "ldrawName": "Plate  1 x  1",
@@ -7828,8 +7810,7 @@
         "navy",
         "darkgray",
         "darktan",
-        "darkred",
-        "lime"
+        "darkred"
       ],
       "legacy": false,
       "ldrawName": "Wing  4 x  6 with  2 x  2 Cutout",
@@ -9372,7 +9353,6 @@
         "mediumazure",
         "lime",
         "mediumnougat",
-        "transclear",
         "pearlgold",
         "flatsilver"
       ],
@@ -13116,8 +13096,7 @@
         "blue",
         "red",
         "white",
-        "darkgray",
-        "darkred"
+        "darkgray"
       ],
       "legacy": false,
       "ldrawName": "Slope Brick 60  4 x  1 x  3 Inverted",
@@ -13452,8 +13431,7 @@
         "yellow",
         "white",
         "gray",
-        "darkgray",
-        "darkred"
+        "darkgray"
       ],
       "legacy": false,
       "ldrawName": "Panel  1 x  6 x  5 Corrugated",

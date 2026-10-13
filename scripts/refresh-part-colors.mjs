@@ -2,7 +2,8 @@
 // Colours are joined on each colour's Rebrickable ID, never its LDraw code: Trans-Light Blue is
 // Rebrickable 41 but LDraw 43, and Rebrickable 43 is a different colour (Trans-Very Lt Blue).
 // A part is offered in a new colour only when that exact part number has an element ID or appears,
-// not as a spare, in a set inventory in that colour. Classic colours stay with
+// not as a spare, in the inventory of a released set in that colour (never a Database Sets placeholder).
+// Saved projects do not depend on this data to open, so a refresh may drop a pair. Classic colours stay with
 // refresh-part-catalog-selection.py; LEGO element IDs stay with refresh-lego-elements.mjs.
 //   node scripts/refresh-part-colors.mjs                    official cdn.rebrickable.com downloads
 //   node scripts/refresh-part-colors.mjs --source-dir DIR   the same files, decompressed in DIR
@@ -58,31 +59,39 @@ const wanted=new Set([...appParts.map(sourceOf),...selection.parts.map(p=>p.rebr
 const evidence=new Map(),bump=(part,color,elements,sets,year)=>{const k=`${part}:${color}`,v=evidence.get(k)||[0,0,0];v[0]+=elements;v[1]+=sets;v[2]=Math.max(v[2],year||0);evidence.set(k,v);};
 let colors,source,provisional,note;
 const isTrans=v=>/^(t|true)$/i.test(v);
+// Rebrickable's Database Sets theme holds placeholder inventories, such as DATABASE-2012 "Unused Parts Database Set"
+// (parts LEGO catalogued that year but never shipped) and the *-DBASE-* print variants, so they are never evidence.
+const placeholderSet=(set,theme)=>/^DATABASE-|DBASE/i.test(set)||theme==="Database Sets";
+// Element IDs, then non-spare set inventories: a combination counts its real sets only. placeholderOnly lists the
+// combinations that only placeholder inventories mention, so a reviewer can see what was left out and why.
+const elementIds=new Map(),seen=new Map(),placeholderOnly=new Set();
+const element=r=>{if(wanted.has(r.part_num)&&rbIds.has(Number(r.color_id))&&/^\d{6,8}$/.test(r.element_id)){const k=`${r.part_num}|${r.color_id}`;if(!elementIds.has(k))elementIds.set(k,new Set());elementIds.get(k).add(r.element_id);}};
+const inventory=(part,color,set,year,theme)=>{const k=`${part}|${color}`;if(!seen.has(k))seen.set(k,new Map());if(!placeholderSet(set,theme))seen.get(k).set(set,Number(year)||0);};
+const tally=()=>{
+ for(const [k,ids] of elementIds){const [part,color]=k.split("|");bump(part,Number(color),ids.size,0,0);}
+ for(const [k,sets] of seen){const [part,color]=k.split("|");if(sets.size)bump(part,Number(color),0,sets.size,Math.max(...sets.values()));else if(!elementIds.has(k))placeholderOnly.add(`${part}:${color}`);}
+};
 if(localDir){
  source="rebrickable-2022-elements+2026-inventories";provisional=true;
- note="Offline substitute for the official downloads, which were unreachable: Rebrickable elements as mirrored by TidyTuesday on 2022-09-06, and non-spare set inventories from the Rebrickable snapshot bundled in the lego-oracle 0.1.2 npm package (sets to 2026). Calibrated on the classic colours, this finds about 93% of the official combinations with about 1% extra. Rerun without --from-local to replace it with official data.";
+ note="Offline substitute for the official downloads, which were unreachable: Rebrickable elements as mirrored by TidyTuesday on 2022-09-06, and non-spare set inventories from the Rebrickable snapshot bundled in the lego-oracle 0.1.2 npm package (sets to 2026), leaving out the Database Sets placeholders. Calibrated on the classic colours, this finds about 93% of the official combinations with about 1% extra. Rerun without --from-local to replace it with official data.";
  const tt="https://raw.githubusercontent.com/rfordatascience/tidytuesday/master/data/2022/2022-09-06/";
  colors=csv(gunzipSync(await local("tidytuesday-2022/colors.csv.gz",tt+"colors.csv.gz")).toString("utf8"));
- const elementIds=new Map();
- for(const r of csv(gunzipSync(await local("tidytuesday-2022/elements.csv.gz",tt+"elements.csv.gz")).toString("utf8")))if(wanted.has(r.part_num)&&rbIds.has(Number(r.color_id))&&/^\d{6,8}$/.test(r.element_id)){const k=`${r.part_num}|${r.color_id}`;if(!elementIds.has(k))elementIds.set(k,new Set());elementIds.get(k).add(r.element_id);}
- for(const [k,ids] of elementIds){const [part,color]=k.split("|");bump(part,Number(color),ids.size,0,0);}
+ for(const r of csv(gunzipSync(await local("tidytuesday-2022/elements.csv.gz",tt+"elements.csv.gz")).toString("utf8")))element(r);
  const dbFile="lego-oracle-0.1.2/package/dist/data/lego.sqlite";await local(dbFile,"https://registry.npmjs.org/lego-oracle/-/lego-oracle-0.1.2.tgz");
  const {DatabaseSync}=await import("node:sqlite"),db=new DatabaseSync(path.join(localDir,dbFile),{readOnly:true});
  // This snapshot's is_trans flags are all 0, so transparency is checked against the 2022 colour table only.
  for(const r of db.prepare("select id,name from colors").all()){const c=colors.find(x=>Number(x.id)===r.id);if(c&&rbIds.has(r.id)&&c.name!==r.name)throw Error(`The two snapshots disagree on Rebrickable colour ${r.id}.`);}
  const parts=[...wanted],colorList=[...rbIds];
- const rows=db.prepare(`select ip.part_num part,ip.color_id color,count(distinct i.set_num) sets,max(coalesce(s.year,0)) year from inventory_parts ip join inventories i on i.id=ip.inventory_id left join sets s on s.set_num=i.set_num where ip.is_spare=0 and ip.part_num in (${parts.map(()=>"?").join(",")}) and ip.color_id in (${colorList.map(()=>"?").join(",")}) group by ip.part_num,ip.color_id`).all(...parts,...colorList);
- for(const r of rows)bump(r.part,r.color,0,r.sets,r.year);db.close();
+ const rows=db.prepare(`select distinct ip.part_num part,ip.color_id color,i.set_num set_num,coalesce(s.year,0) year,t.name theme from inventory_parts ip join inventories i on i.id=ip.inventory_id left join sets s on s.set_num=i.set_num left join themes t on t.id=s.theme_id where ip.is_spare=0 and ip.part_num in (${parts.map(()=>"?").join(",")}) and ip.color_id in (${colorList.map(()=>"?").join(",")})`).all(...parts,...colorList);
+ for(const r of rows)inventory(r.part,r.color,r.set_num,r.year,r.theme);db.close();
 }else{
- source="rebrickable-elements+inventories";provisional=false;note="Rebrickable catalog downloads: element IDs and non-spare set inventories.";
- const [colorRows,elements,inventoryParts,inventories,sets]=await Promise.all(["colors","elements","inventory_parts","inventories","sets"].map(official));colors=colorRows;
- const elementIds=new Map();
- for(const r of elements)if(wanted.has(r.part_num)&&rbIds.has(Number(r.color_id))&&/^\d{6,8}$/.test(r.element_id)){const k=`${r.part_num}|${r.color_id}`;if(!elementIds.has(k))elementIds.set(k,new Set());elementIds.get(k).add(r.element_id);}
- for(const [k,ids] of elementIds){const [part,color]=k.split("|");bump(part,Number(color),ids.size,0,0);}
- const setOf=new Map(inventories.map(r=>[r.id,r.set_num])),yearOf=new Map(sets.map(r=>[r.set_num,Number(r.year)||0])),seen=new Map();
- for(const r of inventoryParts)if(!isTrans(r.is_spare)&&wanted.has(r.part_num)&&rbIds.has(Number(r.color_id))){const set=setOf.get(r.inventory_id);if(!set)continue;const k=`${r.part_num}|${r.color_id}`;if(!seen.has(k))seen.set(k,new Map());seen.get(k).set(set,yearOf.get(set)||0);}
- for(const [k,list] of seen){const [part,color]=k.split("|");bump(part,Number(color),0,list.size,Math.max(...list.values()));}
+ source="rebrickable-elements+inventories";provisional=false;note="Rebrickable catalog downloads: element IDs and non-spare set inventories, leaving out the Database Sets placeholders.";
+ const [colorRows,elements,inventoryParts,inventories,sets,themes]=await Promise.all(["colors","elements","inventory_parts","inventories","sets","themes"].map(official));colors=colorRows;
+ for(const r of elements)element(r);
+ const setOf=new Map(inventories.map(r=>[r.id,r.set_num])),themeOf=new Map(themes.map(r=>[r.id,r.name])),setInfo=new Map(sets.map(r=>[r.set_num,{year:Number(r.year)||0,theme:themeOf.get(r.theme_id)}]));
+ for(const r of inventoryParts)if(!isTrans(r.is_spare)&&wanted.has(r.part_num)&&rbIds.has(Number(r.color_id))){const set=setOf.get(r.inventory_id);if(set)inventory(r.part_num,r.color_id,set,setInfo.get(set)?.year,setInfo.get(set)?.theme);}
 }
+tally();
 // The palette must match the source colour table by Rebrickable ID: name and transparency.
 for(const key of palette){
  const c=COLORS[key],row=colors.find(r=>Number(r.id)===c.rebrickable);
@@ -92,7 +101,10 @@ const has=(id,key,part=sourceOf(id))=>evidence.has(`${part}:${COLORS[key].rebric
 const newColors=(id,part=sourceOf(id))=>added.filter(key=>has(id,key,part));
 const combos={};for(const id of appParts)for(const key of newColors(id))combos[`${id}:${key}`]=evidence.get(`${sourceOf(id)}:${COLORS[key].rebrickable}`);
 for(const p of selection.parts)if(!Object.hasOwn(PARTS,p.id)&&!Object.values(aliases).includes(p.id))for(const key of newColors(p.id,p.rebrickableId))combos[`${p.id}:${key}`]=evidence.get(`${p.rebrickableId}:${COLORS[key].rebrickable}`);
-const meta={source,provisional,updatedAt,colors:added,rule:"Offered in a colour added after the classic palette only when the exact part number has an element ID or a non-spare set inventory in that Rebrickable colour ID.",evidence:"scripts/part-color-evidence.json"};
+// App part:colour keys that only placeholder inventories mention, recorded so the exclusion stays visible.
+const appKeys=[...appParts.map(id=>[id,sourceOf(id)]),...selection.parts.filter(p=>!Object.hasOwn(PARTS,p.id)&&!Object.values(aliases).includes(p.id)).map(p=>[p.id,p.rebrickableId])];
+const excluded=appKeys.flatMap(([id,part])=>added.filter(key=>placeholderOnly.has(`${part}:${COLORS[key].rebrickable}`)).map(key=>`${id}:${key}`)).sort();
+const meta={source,provisional,updatedAt,colors:added,rule:"Offered in a colour added after the classic palette only when the exact part number has an element ID or a non-spare inventory in a released set (never a Rebrickable Database Sets placeholder) in that Rebrickable colour ID.",evidence:"scripts/part-color-evidence.json"};
 
 // Outputs. Classic colours keep their existing, element-evidenced lists and order.
 const withColors=(list,id,part)=>[...list.filter(k=>CLASSIC_COLORS.includes(k)),...newColors(id,part)];
@@ -102,10 +114,10 @@ const legacyColors=Object.fromEntries(Object.keys(LEGACY_PARTS).sort().map(id=>[
 const catalogOutput=async file=>{const data=JSON.parse(await readFile(file,"utf8")),out={};for(const [k,v] of Object.entries(data)){if(k==="colorEvidence"||k==="legacyColors")continue;if(k==="parts"){out.colorEvidence=meta;out.legacyColors=legacyColors;out.parts=Object.fromEntries(Object.entries(v).map(([id,p])=>[id,{...p,colors:withColors(p.colors,id)}]));}else out[k]=v;}return JSON.stringify(out)+"\n";};
 // Match the Python refresher's json.dumps(indent=2) so the two scripts produce identical files.
 const ascii=text=>text.replace(/[\u007f-￿]/g,c=>"\\u"+c.charCodeAt(0).toString(16).padStart(4,"0"));
-const evidenceOutput=JSON.stringify({note,source,provisional,updatedAt,colorIds:Object.fromEntries(added.map(k=>[k,COLORS[k].rebrickable])),files,fields:["elementIds","sets","lastSetYear"],combos},null,1).replace(/\[\n\s*(\d+),\n\s*(\d+),\n\s*(\d+)\n\s*\]/g,"[$1,$2,$3]")+"\n";
+const evidenceOutput=JSON.stringify({note,source,provisional,updatedAt,colorIds:Object.fromEntries(added.map(k=>[k,COLORS[k].rebrickable])),files,fields:["elementIds","sets","lastSetYear"],combos,placeholderOnly:excluded},null,1).replace(/\[\n\s*(\d+),\n\s*(\d+),\n\s*(\d+)\n\s*\]/g,"[$1,$2,$3]")+"\n";
 const outputs=[[selectionPath,ascii(JSON.stringify(nextSelection,null,2))+"\n"],[catalogPath,await catalogOutput(catalogPath)],[publicPath,await catalogOutput(publicPath)],[evidencePath,evidenceOutput]];
 const counts=Object.fromEntries(added.map(key=>[key,{expanded:Object.keys(EXPANDED_PARTS).filter(id=>has(id,key)).length,legacy:Object.keys(LEGACY_PARTS).filter(id=>has(id,key)).length}]));
-console.log(JSON.stringify({source,provisional,combos:Object.keys(combos).length,counts}));
+console.log(JSON.stringify({source,provisional,combos:Object.keys(combos).length,placeholderOnly:excluded.length,counts}));
 if(dryRun)process.exit(0);
 if(check){const changed=[];for(const [file,text] of outputs)if(await readFile(file,"utf8").catch(()=>"")!==text)changed.push(path.relative(root,file));if(changed.length)throw Error(`Part colours changed: ${changed.join(", ")}. Rerun without --check and review the diff.`);console.log("Part colours match the source data.");}
 else{for(const [file,text] of outputs)await writeFile(file,text);console.log(`Saved ${Object.keys(combos).length} evidenced part/colour combinations for ${added.length} added colours.`);}

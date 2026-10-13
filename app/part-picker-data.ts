@@ -1,5 +1,5 @@
 import {COLORS,PARTS} from "@/lib/bridge";
-import type {ColorKey,PartId} from "@/lib/bridge";
+import type {ColorKey,PartId,Piece} from "@/lib/bridge";
 import {catalogPart} from "@/lib/part-catalog";
 import {partColors,partAllowsColor} from "@/lib/part-colors";
 
@@ -27,3 +27,5 @@ export function partPage(options:PartOption[],requestedPage:number){
  return {page,pages,results:options.slice(page*PART_PICKER_PAGE_SIZE,(page+1)*PART_PICKER_PAGE_SIZE)};
 }
 export const partColorAllowed=(part:PartId,color:ColorKey)=>partAllowsColor(part,color);
+// Paint keeps a piece real: it takes the colour only when its part is made in it (a minifigure torso takes any colour).
+export const paintPiece=(p:Piece,color:ColorKey):Piece|null=>partAllowsColor(p.part,color)?{...p,color}:null;

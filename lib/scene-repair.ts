@@ -2,9 +2,9 @@ import {COLORS,PARTS} from "./bridge";
 import type {ColorKey} from "./bridge";
 import {SIGN_FACES,SIGN_TEXT_PATTERN,signMetrics} from "./brick-lettering";
 import {partColors} from "./part-colors";
-import {colorFinish} from "./colors";
+import {colorFinish,SKIN_COLORS} from "./colors";
 import {pieceCells,piecesIntersect} from "./part-spatial";
-import {shapeSchema,expandShapes,explicitPiece,isExplicit,wheelPiece,compileScene,expandCompactHeader,expandCompactShape,compactShapeSchema} from "./generated-scene";
+import {shapeSchema,expandShapes,explicitPiece,isExplicit,wheelPiece,wheelPart,compileScene,expandCompactHeader,expandCompactShape,compactShapeSchema} from "./generated-scene";
 import type {GeneratedScene,Shape} from "./generated-scene";
 import {nearestColor,hexRgb,rgbLab,supportLoosePieces,voxelKey} from "./models";
 import type {BuildModel} from "./models";
@@ -27,6 +27,8 @@ const colorOf=(v:unknown):ColorKey|undefined=>{
  return (Object.keys(COLORS) as ColorKey[]).find(k=>COLORS[k].name.toLowerCase()===t);
 };
 const lightness=(c:ColorKey)=>rgbLab(...hexRgb(COLORS[c].hex))[0];
+// The nearest colour a part is made in. Glass stays glass and metal stays metal when the part comes in such a colour.
+const madeIn=(color:ColorKey,listed:readonly ColorKey[])=>{if(listed.includes(color))return color;const kind=colorFinish(color).kind,same=listed.filter(c=>colorFinish(c).kind===kind);return nearestColor(...hexRgb(COLORS[color].hex),same.length?same:listed);};
 const quoted=(s:Shape)=>`“${s.label}”`;
 // A shape the schema rejects is rebuilt field by field (wire-format or full-form keys) before giving up on it.
 function coerceShape(raw:unknown,i:number):Shape|null{
@@ -74,6 +76,8 @@ export function repairScene(raw:unknown,brief?:Partial<Pick<DesignBrief,"maxWidt
  // Real elements and signs: fix what the validator would reject about the element itself.
  const snapped:string[]=[];
  shapes=shapes.flatMap(s=>{
+  // A wheel shape is a real wheel too: the part its size selects must come in its colour.
+  if(s.kind==="wheel"&&s.operation==="add"){const part=wheelPart(s),color=madeIn(s.color,partColors(part));if(color===s.color)return [s];note(`Changed ${quoted(s)} (wheel ${part}) from ${s.color} to ${color}, the nearest colour it is made in.`);return [{...s,color}];}
   if(!isExplicit(s)&&s.kind!=="text")return [s];
   if(s.operation!=="add"){note(`Removed ${quoted(s)}: a ${s.kind==="text"?"sign":s.kind==="minifig"?"minifigure":"catalog part"} cannot carve space; remove it by its shape ID instead.`);return [];}
   if(s.kind==="part"&&(!s.part||!Object.hasOwn(PARTS,s.part))){note(`Removed ${quoted(s)}: part ${s.part||"(none)"} is not in the catalog.`);return [];}
@@ -83,11 +87,11 @@ export function repairScene(raw:unknown,brief?:Partial<Pick<DesignBrief,"maxWidt
    const listed=partColors(s.part!);
    if(!listed.includes(next.color)){
     if(!listed.length){note(`Removed ${quoted(s)}: part ${s.part} has no listed colours.`);return [];}
-    // Glass stays glass and metal stays metal when the part is made in such a colour.
-    const kind=colorFinish(next.color).kind,same=listed.filter(c=>colorFinish(c).kind===kind);
-    const color=nearestColor(...hexRgb(COLORS[next.color].hex),same.length?same:listed);note(`Changed ${quoted(s)} (part ${s.part}) from ${next.color} to ${color}, the nearest colour it is made in.`);next={...next,color};
+    const color=madeIn(next.color,listed);note(`Changed ${quoted(s)} (part ${s.part}) from ${next.color} to ${color}, the nearest colour it is made in.`);next={...next,color};
    }
   }
+  // Heads and hands come in skin tones only; any other skin falls back to the classic yellow.
+  if(s.kind==="minifig"&&next.skin&&!SKIN_COLORS.includes(next.skin)){note(`Gave ${quoted(s)} a classic yellow head and hands: ${next.skin} is not a skin tone.`);next={...next,skin:null};}
   if(s.kind==="text"){
    const text=[...(s.text||"")].filter(c=>SIGN_TEXT_PATTERN.test(c)).join("").slice(0,12);
    if(!text.trim()){note(`Removed sign ${quoted(s)}: it has no letters the brick alphabet can spell.`);return [];}

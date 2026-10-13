@@ -8,7 +8,7 @@ const base=shape('base','box','gray',[0,0,0],[20,2,16]);
 const scene=(shapes,dims=[20,30,16])=>({catalogVersion:1,name:'Fixture',description:'Repair fixture.',dimensions:{x:dims[0],y:dims[1],z:dims[2]},shapes:[base,...shapes]});
 const figure=(id,x,z,face='pz')=>shape(id,'minifig','red',[x,2,z],[2,12,1],{face,background:'blue'});
 // Every repaired scene must be one the validator and compiler accept.
-const accepted=r=>{assert.doesNotThrow(()=>validateScene(r.scene));assert.ok(compileScene(r.scene).pieces.length>0);return r;};
+const accepted=r=>{assert.doesNotThrow(()=>validateScene(r.scene,{fresh:true}));assert.ok(compileScene(r.scene).pieces.length>0);return r;};
 
 test('a box one stud past the edge grows the build area up to the brief, or is trimmed at the ceiling',()=>{
  const over=scene([shape('wall','box','tan',[2,2,2],[19,8,4])]);
@@ -26,7 +26,7 @@ test('a box one stud past the edge grows the build area up to the brief, or is t
 test('a catalog part in an unlisted colour becomes the nearest colour it is made in',()=>{
  const panel=shape('panel','part','black',[4,2,4],[4,18,4],{part:'2467',face:'pz'}),only=shape('roof','part','navy',[12,2,4],[3,3,2],{part:'3042',face:'pz'});
  assert.deepEqual(catalogPart('2467').colors.slice().sort(),['gray','white']);
- assert.throws(()=>validateScene(scene([panel])),/does not list part 2467 in black/);
+ assert.throws(()=>validateScene(scene([panel]),{fresh:true}),/does not list part 2467 in black/);assert.equal(validateScene(scene([panel])).shapes[1].color,'black','a saved scene still opens');
  const r=accepted(repairScene(scene([panel,only])));
  assert.equal(r.scene.shapes[1].color,'gray','black is nearer gray than white');assert.equal(r.scene.shapes[2].color,'red','a single-colour part takes that colour');
  assert.match(r.corrections.join(' '),/Changed “panel” \(part 2467\) from black to gray, the nearest colour it is made in/);

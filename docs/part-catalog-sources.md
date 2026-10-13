@@ -52,15 +52,54 @@ substituted for element IDs in a shopping export.
 The palette grew from 13 to 25 colors on 2026-10-13: dark bluish gray, dark tan,
 dark red, sand green, dark green, medium azure (instead of the nearly retired
 medium blue), lime, medium nougat, trans-clear, trans-light blue, pearl gold and
-flat silver. `lib/colors.ts` gives each its LDraw code, BrickLink ID and
-**Rebrickable ID**. These are not always the same number: Trans-Light Blue is
-Rebrickable 41, LDraw 43 and BrickLink 15, while Rebrickable 43 is Trans-Very Lt
-Blue (BrickLink 113). Source data is always joined on the Rebrickable ID, never on
-the LDraw code; a join on the LDraw code silently picks up the wrong colour.
+flat silver. `lib/colors.ts` gives each its LDraw code, BrickLink ID,
+**Rebrickable ID** and LEGO's own color ID, which ties the others together. Equal
+numbers are not the same color:
+
+- Trans-Light Blue is Rebrickable 41, LDraw 43 and BrickLink 15, while Rebrickable
+  43 is Trans-Very Lt Blue (BrickLink 113).
+- Flat Silver is Rebrickable 179 and BrickLink 95, LEGO 315 "Silver Metallic", so
+  its LDraw code is **315** (`Flat_Silver` in `LDConfig.ldr`). LDraw 179 is
+  `Pearl_Silver` (LEGO 179 "Silver Flip-flop"), even though Rebrickable's own
+  color table still lists LDraw 179 for Flat Silver.
+
+Source data is always joined on the Rebrickable ID, never on the LDraw code; a
+join on the LDraw code silently picks up the wrong color. Each LDraw code is the
+`LDConfig.ldr` color whose `LEGOID` comment is the color's LEGO ID, and each
+BrickLink ID is the one Rebrickable lists for that LEGO ID.
+`scripts/refresh-color-sources.mjs` checks all 25 colors this way and saves the rows
+`tests/palette.test.mjs` re-checks in `tests/fixtures/color-sources.json`:
+
+```sh
+node scripts/refresh-color-sources.mjs --ldconfig /path/to/ldraw/LDConfig.ldr \
+  --rebrickable colors.json [--rebrickable another-cache.json] [--check]
+```
+
+`LDConfig.ldr` is from the pinned LDraw mirror commit above (update 2026-05-29).
+Each `--rebrickable` file is a saved response of the Rebrickable colors API
+(`https://rebrickable.com/api/v3/lego/colors/`, which needs an API key); the
+fixture was built from three independent caches of it (bkfunk/brickdata,
+fjmoeller/flosrocketbricks and domdfcoding/rebrickable-db), which must agree.
 
 A part is offered in one of these colors only where that exact part number is
 evidenced in it. Legacy core parts keep every classic color (as before) and gain
 only their evidenced new colors, recorded in `legacyColors` in the catalog.
+
+Evidence is an element ID or a non-spare inventory of a released set. Rebrickable's
+**Database Sets** theme is never evidence: its `DATABASE-*` "Unused Parts Database
+Set" inventories record parts LEGO catalogued but never shipped, and `*DBASE*` sets
+hold print variants. Both refresh modes drop them (by set number and by theme), and
+`placeholderOnly` in `scripts/part-color-evidence.json` lists the 24 combinations
+that only such placeholders mention (for example 1 x 1 to 2 x 4 plates and bricks in
+flat silver, from `DATABASE-2012` alone), which are therefore not offered.
+
+Availability decides what can be **made**: AI generation (repair, then a fresh-scene
+check), placing and painting in the studio, and packing. It never decides whether a
+saved project, share or library design **opens**: those load without re-checking it,
+because the data is provisional and a refresh may drop a pair. In shopping, an added
+color the part is evidenced in says "No exact LEGO element yet — verify on
+BrickLink", while a part/color pair the catalog does not list at all (an imported
+piece) says "Not listed in this color".
 
 The official downloads at `cdn.rebrickable.com` were unreachable when these were
 added, so the current evidence is a **provisional offline substitute**, marked
@@ -77,9 +116,8 @@ provisional: true}` in `scripts/part-catalog-selection.json`,
   `44cbaad151fcdf4395cd5fb72cb848e82f92dfe5`). Its `is_trans` flags are all 0, so
   transparency is checked against the 2022 color table.
 
-Colors were cross-checked by Rebrickable ID against three independent caches of
-the Rebrickable color API (BrickLink and LDraw external IDs) and the LDraw
-`LDConfig.ldr` at the pinned mirror commit. Calibrated on the classic colors,
+Inventories in Rebrickable's Database Sets theme are left out, as described above.
+Calibrated on the classic colors,
 this substitute finds about 93% of the official part/color combinations with
 about 1% extra. Per-combination evidence (2022 element-ID count, set count, last
 set year) and SHA-256 digests of the files used are in
@@ -97,7 +135,7 @@ Rebrickable color ID) and review the diff:
 ```sh
 node scripts/refresh-part-colors.mjs                       # downloads from cdn.rebrickable.com
 node scripts/refresh-part-colors.mjs --source-dir /path    # decompressed colors, elements,
-                                                           # inventory_parts, inventories, sets CSVs
+                                                           # inventory_parts, inventories, sets, themes CSVs
 node scripts/refresh-part-colors.mjs --check               # fails if anything would change
 ```
 

@@ -41,7 +41,7 @@ import type {BuildModel,Detail} from "@/lib/models";
 import type {ColorKey,PartId,Piece,Face} from "@/lib/bridge";
 import PartImage from "./part-image";
 import PartPicker from "./part-picker";
-import {partColorAllowed} from "./part-picker-data";
+import {partColorAllowed,paintPiece} from "./part-picker-data";
 import {placeOnTopStud} from "./part-placement";
 import {catalogPart} from "@/lib/part-catalog";
 import {auditModel,partsCSV,ldrawFile,Config,COLORS,PARTS,InventoryRow} from "@/lib/bridge";
@@ -179,7 +179,7 @@ export default function Studio({sharedId,sharedSummary}:{sharedId?:string;shared
  const changedPieces=(pieces:Piece[])=>{try{record(editModel(currentProject(),pieces));setSelected(null);}catch(e){toast.error(e instanceof Error?e.message:"Could not apply this edit.");}};
  const place=(x:number,y:number,z:number)=>{if(!partColorAllowed(editPart,editColor)){toast.info("Choose one of this part’s catalog colors before placing it.");return;}try{changedPieces(addPiece(model.pieces,editPart,editColor,x,y,z,editRotation,editFace));setCoords({x,y,z});}catch(e){toast.error(e instanceof Error?e.message:"Couldn't place this brick.");}};
  const brickAction=(hit:BrickHit)=>{if(explode){toast.info("Assemble the model before editing bricks.");return;}const p=hit.piece;
-  if(editMode==="paint"){changedPieces(model.pieces.map(piece=>piece.id===p.id?{...piece,color:editColor}:piece));return;}
+  if(editMode==="paint"){const painted=paintPiece(p,editColor);if(!painted){toast.info(`${PARTS[p.part].name} isn’t made in ${COLORS[editColor].name}. Pick one of its catalog colors.`);return;}changedPieces(model.pieces.map(piece=>piece.id===p.id?painted:piece));return;}
   if(editMode==="erase"){if(model.pieces.length===1){toast.info("Keep one piece as a starting point, or start a blank canvas.");return;}changedPieces(model.pieces.filter(piece=>piece.id!==p.id));return;}
   if(editMode==="place"){const s=PARTS[editPart],w=editRotation?s.d:s.w,d=editRotation?s.w:s.d,n=hit.normal;
    if(catalogPart(editPart)&&n.y>0&&Math.abs(n.y)>=Math.abs(n.x)&&Math.abs(n.y)>=Math.abs(n.z)){

@@ -74,5 +74,5 @@ export async function* generateScene(input:GenerationInput,key:string,model:stri
  const ceilings=input.locked?.length&&input.previous?{maxWidth:input.previous.dimensions.x,maxDepth:input.previous.dimensions.z,maxHeight:input.previous.dimensions.y}:input.brief;
  let candidate:unknown=merged,corrections:string[]=[];
  try{const fixed=repairScene(merged,ceilings);candidate={...fixed.scene,...(merged.notes?.length?{notes:merged.notes}:{})};corrections=fixed.corrections;}catch{/* validateScene reports what is unusable */}
- const scene=validateScene(candidate);if(corrections.length)yield {type:"corrections",items:corrections};yield {type:"complete",scene};
+ const scene=validateScene(candidate,{fresh:true});if(corrections.length)yield {type:"corrections",items:corrections};yield {type:"complete",scene};
 }

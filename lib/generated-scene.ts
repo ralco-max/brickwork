@@ -1,7 +1,7 @@
 import {z} from "zod";
 import {SIGN_FACES,signPixels,LetteringError} from "./brick-lettering";
 import {COLORS,PARTS} from "./bridge";
-import {partColors} from "./part-colors";
+import {partAllowsColor} from "./part-colors";
 import {SKIN_COLORS} from "./colors";
 import {partDimensions,pieceCells,bottomConnectorOffsets,topConnectorOffsets,piecesIntersect} from "./part-spatial";
 import {GenerationError} from "./generation-errors";
@@ -40,7 +40,7 @@ const shortText={type:"string",minLength:1,maxLength:80};
 const dimensionJSON={type:"object",properties:{x:{type:"integer",minimum:8,maximum:80},y:{type:"integer",minimum:8,maximum:160},z:{type:"integer",minimum:8,maximum:80}},required:["x","y","z"],additionalProperties:false};
 export const sceneJSONSchema={type:"object",properties:{
  catalogVersion:{type:"integer",enum:[1]},name:shortText,description:{type:"string",maxLength:500},dimensions:dimensionJSON,
- shapes:{type:"array",minItems:1,maxItems:240,items:{type:"object",properties:{id:shortText,component:shortText,label:shortText,kind:{type:"string",enum:["box","ellipsoid","cylinder","cone","beam","lean","wheel","text","part","minifig"]},operation:{type:"string",enum:["add","subtract"]},axis:{type:"string",enum:["x","y","z"]},color:{type:"string",enum:colors},part:{type:["string","null"],maxLength:32},text:{type:["string","null"],maxLength:12},face:{type:["string","null"],enum:[...SIGN_FACES,null]},background:{type:["string","null"],enum:[...colors,null]},skin:{type:["string","null"],enum:[...colors,null]},position:vecJSON,size:vecJSON,end:vecJSON,radius:{type:"number",minimum:.5,maximum:12},repeat:{type:"object",properties:{count:{type:"integer",minimum:1,maximum:32},offset:vecJSON},required:["count","offset"],additionalProperties:false}},required:["id","component","label","kind","operation","axis","color","position","size","end","radius","repeat","text","face","background","part"],additionalProperties:false}},
+ shapes:{type:"array",minItems:1,maxItems:240,items:{type:"object",properties:{id:shortText,component:shortText,label:shortText,kind:{type:"string",enum:["box","ellipsoid","cylinder","cone","beam","lean","wheel","text","part","minifig"]},operation:{type:"string",enum:["add","subtract"]},axis:{type:"string",enum:["x","y","z"]},color:{type:"string",enum:colors},part:{type:["string","null"],maxLength:32},text:{type:["string","null"],maxLength:12},face:{type:["string","null"],enum:[...SIGN_FACES,null]},background:{type:["string","null"],enum:[...colors,null]},skin:{type:["string","null"],enum:[...SKIN_COLORS,null]},position:vecJSON,size:vecJSON,end:vecJSON,radius:{type:"number",minimum:.5,maximum:12},repeat:{type:"object",properties:{count:{type:"integer",minimum:1,maximum:32},offset:vecJSON},required:["count","offset"],additionalProperties:false}},required:["id","component","label","kind","operation","axis","color","position","size","end","radius","repeat","text","face","background","part"],additionalProperties:false}},
 },required:["catalogVersion","name","description","dimensions","shapes"],additionalProperties:false};
 
 // A leaning member: stepped brick courses from p (bottom centre) to e (top centre), each course a box
@@ -58,9 +58,9 @@ function leanCourses(s:Shape){
 }
 // A wheel shape becomes one real wheel element: the catalog wheel nearest the requested diameter,
 // centred on the shape's position, its axle along the shape's axis (z unless x is given).
+export const wheelPart=(s:Pick<Shape,"size">)=>{const want=Math.max(1,s.size.x||3);return (Object.keys(WHEELS) as (keyof typeof WHEELS)[]).reduce((best,id)=>Math.abs(WHEELS[id].diameter-want)<Math.abs(WHEELS[best].diameter-want)?id:best,"56145" as keyof typeof WHEELS);};
 export function wheelPiece(s:Shape):Piece{
- const want=Math.max(1,s.size.x||3),part=(Object.keys(WHEELS) as (keyof typeof WHEELS)[]).reduce((best,id)=>Math.abs(WHEELS[id].diameter-want)<Math.abs(WHEELS[best].diameter-want)?id:best,"56145" as keyof typeof WHEELS);
- const {diameter,width}=WHEELS[part],h=Math.round(diameter*2.5),rotated=s.axis==="x";
+ const part=wheelPart(s),{diameter,width}=WHEELS[part],h=Math.round(diameter*2.5),rotated=s.axis==="x";
  const w=rotated?width:diameter,d=rotated?diameter:width;
  return {id:0,part:part as Piece["part"],color:s.color,x:Math.max(0,Math.round(s.position.x-w/2)),y:Math.max(0,Math.round(s.position.y-h/2)),z:Math.max(0,Math.round(s.position.z-d/2)),w,d,h,rotated,stage:0};
 }
@@ -70,7 +70,6 @@ export function catalogPiece(s:Shape):Piece{
  if(!s.part||!Object.hasOwn(PARTS,s.part))throw new GenerationError("The design requested an unknown catalog part. Choose a supported part ID.","INVALID_GEOMETRY");
  if(s.operation!=="add")throw new GenerationError("Remove a catalog part by its shape ID; real parts cannot subtract volume.","INVALID_GEOMETRY");
  if(!Object.values(s.position).every(Number.isInteger))throw new GenerationError("Place catalog parts on whole studs and plate layers.","INVALID_GEOMETRY");
- if(!partColors(s.part).includes(s.color))throw new GenerationError(`The catalog does not list part ${s.part} in ${s.color}. Choose one of its listed colors.`,"INVALID_GEOMETRY");
  const face=s.face||"pz",dims=partDimensions(s.part,face==="px"||face==="nx",face);
  return {id:0,part:s.part as Piece["part"],color:s.color,x:s.position.x,y:s.position.y,z:s.position.z,...dims,face,stage:0};
 }
@@ -107,9 +106,22 @@ function bounds(s:Shape,d:GeneratedScene["dimensions"]){
  if(s.kind==="beam"&&[s.position,s.end].some(p=>p.x>d.x||p.y>d.y||p.z>d.z))throw Error("A generated beam extends outside the build area.");
  return {x0:Math.max(0,Math.floor(lo.x)),y0:Math.max(0,Math.floor(lo.y)),z0:Math.max(0,Math.floor(lo.z)),x1:Math.min(d.x,Math.ceil(hi.x)),y1:Math.min(d.y,Math.ceil(hi.y)),z1:Math.min(d.z,Math.ceil(hi.z))};
 }
-export function validateScene(raw:unknown):GeneratedScene{
+// What a newly generated scene must also get right: every real element (catalog part or wheel) in a colour it is
+// made in, and a skin tone on minifigure heads and hands.
+function checkFreshColors(shapes:Shape[]){
+ for(const s of shapes){
+  const part=s.kind==="part"?s.part:s.kind==="wheel"&&s.operation==="add"?wheelPart(s):null;
+  if(part&&!partAllowsColor(part,s.color))throw new GenerationError(`The catalog does not list ${s.kind==="wheel"?"wheel":"part"} ${part} in ${s.color}. Choose one of its listed colors.`,"INVALID_GEOMETRY");
+  if(s.kind==="minifig"&&s.skin&&!SKIN_COLORS.includes(s.skin))throw new GenerationError(`A minifigure's head and hands must be a skin tone (${SKIN_COLORS.join(", ")}), not ${s.skin}.`,"INVALID_GEOMETRY");
+ }
+}
+// fresh: a scene the AI just produced, also held to checkFreshColors. Saved scenes (project files, shares, the library,
+// a revision's previous design) skip it: which colours a part comes in is source data that a refresh can change, and it
+// must never stop a saved design from opening. compileScene and sceneVoxels compile whatever was accepted.
+export function validateScene(raw:unknown,{fresh=false}:{fresh?:boolean}={}):GeneratedScene{
  const parsed=sceneSchema.safeParse(raw);if(!parsed.success)throw Error("The generator returned an incomplete design. Try again; your current build is safe.");
  const scene=parsed.data;scene.shapes=scene.shapes.map(s=>{if(!isExplicit(s))return s;const p=explicitPiece(s);return {...s,size:{x:p.w,y:p.h,z:p.d},face:p.face||"pz"};});let evaluations=0;
+ if(fresh)checkFreshColors(expandShapes(scene.shapes));
  const ids=scene.shapes.filter(s=>s.id).map(s=>s.id);if(new Set(ids).size!==ids.length)throw Error("The design has duplicate shape IDs.");
  const expanded=expandShapes(scene.shapes),reserved=new Set<string>(),wheels=expanded.filter(s=>s.kind==="wheel"&&s.operation==="add").map(wheelPiece);
  for(const s of expanded){
