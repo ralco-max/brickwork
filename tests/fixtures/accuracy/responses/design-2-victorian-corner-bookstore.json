@@ -1,0 +1,100 @@
+{
+ "synthetic":true,
+ "note":"SYNTHETIC: hand-authored stand-in for provider responses, not a recording. It exercises the harness plumbing (budget ledger, routes, compile, checks, review/judge parsing) at $0. Its scores say nothing about real model quality.",
+ "case":"design-2-victorian-corner-bookstore",
+ "idea":"A Victorian corner bookstore in a rainy San Francisco street",
+ "research":[
+  {
+   "reasoning":"Generic building; no search needed.",
+   "searches":[],
+   "images":[],
+   "usage":{"reasoning_tokens":450,"search_content_tokens":0},
+   "sheet":{
+    "identity":{"status":"generic","location":"","question":""},
+    "contextAdequate":true,
+    "image_urls":[],
+    "included":["Shop building","Bay windows","Striped awning","Stepped entrance","Sidewalk","Corner turret"],
+    "excluded":["Cable car","Neighbouring buildings"],
+    "uncertainties":[],
+    "relations":[{"from":"Bay windows","relation":"above","to":"Striped awning"},{"from":"Stepped entrance","relation":"below","to":"Striped awning"}],
+    "searchable":false,
+    "kind":"building",
+    "subject":"Victorian corner bookstore on a rainy San Francisco street",
+    "summary":"A generic painted-lady Victorian storefront with bay windows, a striped awning and a stepped entrance.",
+    "length_m":null,
+    "width_m":null,
+    "height_m":null,
+    "openness":null,
+    "proportions":"Three storeys, slightly taller than wide.",
+    "colors":["blue","white","red","navy"],
+    "silhouette":["Tall narrow facade with two projecting bays","Corner turret with a conical roof"],
+    "distinctive":["Two-storey projecting bay windows","Red and white striped awning over the shop front","Ornate white cornice","Corner turret"],
+    "sources":[],
+    "hero":"Street-level front view.",
+    "layout":"Facade faces +z; sidewalk in front."
+   }
+  }
+ ],
+ "design":{
+  "reasoning":"Facade first, then bays and awning embedded two studs into the wall so they are rooted.",
+  "usage":{"reasoning_tokens":5500},
+  "scene":{
+   "n":"Corner Bookstore",
+   "d":"A blue Victorian bookstore with two-storey bay windows, a red and white striped awning, a stepped entrance and a corner turret.",
+   "f":["Two-storey bay windows","Red and white striped awning","Corner turret with conical roof"],
+   "dim":[36,64,30],
+   "rm":["display-foundation"],
+   "sh":[
+    {"i":"street","c":"Base","l":"Street","k":"box","o":"add","col":"gray","p":[0,0,0],"s":[36,2,30]},
+    {"i":"sidewalk","c":"Sidewalk","l":"Sidewalk","k":"box","o":"add","col":"tan","p":[0,2,22],"s":[36,1,8]},
+    {"i":"building","c":"Shop building","l":"Building","k":"box","o":"add","col":"blue","p":[4,2,4],"s":[28,50,18]},
+    {"i":"shopfront","c":"Shop building","l":"Shop windows","k":"box","o":"add","col":"navy","p":[7,4,21],"s":[8,8,1],"rep":[2,14,0,0]},
+    {"i":"door","c":"Stepped entrance","l":"Door","k":"box","o":"add","col":"brown","p":[16,5,21],"s":[4,9,1]},
+    {"i":"step-1","c":"Stepped entrance","l":"Lower step","k":"box","o":"add","col":"gray","p":[15,3,22],"s":[6,1,3]},
+    {"i":"step-2","c":"Stepped entrance","l":"Upper step","k":"box","o":"add","col":"gray","p":[15,4,22],"s":[6,1,2]},
+    {"i":"awning","c":"Striped awning","l":"Awning","k":"box","o":"add","col":"white","p":[6,14,20],"s":[24,1,6]},
+    {"i":"awning-stripes","c":"Striped awning","l":"Red stripes","k":"box","o":"add","col":"red","p":[6,14,20],"s":[2,1,6],"rep":[6,4,0,0]},
+    {"i":"bays","c":"Bay windows","l":"Bay window frames","k":"box","o":"add","col":"white","p":[7,18,20],"s":[7,24,5],"rep":[2,15,0,0]},
+    {"i":"bay-glass","c":"Bay windows","l":"Bay glazing","k":"box","o":"add","col":"navy","p":[8,20,24],"s":[5,8,1],"rep":[2,15,0,0]},
+    {"i":"bay-glass-upper","c":"Bay windows","l":"Upper bay glazing","k":"box","o":"add","col":"navy","p":[8,32,24],"s":[5,8,1],"rep":[2,15,0,0]},
+    {"i":"cornice","c":"Shop building","l":"Cornice","k":"box","o":"add","col":"white","p":[3,52,3],"s":[30,2,20]},
+    {"i":"roof","c":"Shop building","l":"Roof","k":"box","o":"add","col":"navy","p":[4,54,4],"s":[28,2,18]},
+    {"i":"turret","c":"Corner turret","l":"Turret roof","k":"cone","o":"add","col":"navy","p":[26,56,6],"s":[6,8,6]},
+    {"i":"lamp-post","c":"Sidewalk","l":"Street lamp post","k":"box","o":"add","col":"black","p":[2,3,26],"s":[1,14,1]},
+    {"i":"lamp-head","c":"Sidewalk","l":"Street lamp","k":"box","o":"add","col":"yellow","p":[1,17,25],"s":[3,1,3]}
+   ]
+  }
+ },
+ "review":{
+  "reasoning":"Front and side views compared with the plan.",
+  "usage":{"reasoning_tokens":900},
+  "review":{
+   "revision":{"status":"not_requested","evidence":"No revision was requested for this first build."},
+   "composition":{"status":"matches","evidence":"Single shop building with sidewalk and lamp; no neighbours."},
+   "summary":"Bays, awning and turret read as a Victorian shop; the steps are shallow and rain is not represented.",
+   "recognizable":true,
+   "features":{
+    "Bay windows":{"status":"visible","evidence":"Two white bays with navy glazing (view 1)."},
+    "A striped awning":{"status":"visible","evidence":"Alternating red and white stripes."},
+    "A stepped entrance":{"status":"uncertain","evidence":"Two one-plate steps barely read in view 1."},
+    "Two-storey bay windows":{"status":"visible","evidence":"Glazing on two levels."},
+    "Red and white striped awning":{"status":"visible","evidence":"Stripes."},
+    "Corner turret with conical roof":{"status":"visible","evidence":"Cone at the right corner."}
+   },
+   "improvements":["Stepped entrance: make three full-brick steps up to the door.","Street: add puddles or wet sheen to signal rain."]
+  }
+ },
+ "judge":{
+  "usage":{"reasoning_tokens":500},
+  "checks":{},
+  "features":{
+   "Two-storey projecting bay windows":{"status":"present","evidence":"Bays."},
+   "Red and white striped awning over the shop front":{"status":"present","evidence":"Awning."},
+   "Ornate white cornice":{"status":"uncertain","evidence":"Plain slab."},
+   "Corner turret":{"status":"present","evidence":"Turret."},
+   "Tall narrow facade with two projecting bays":{"status":"present","evidence":"Facade."},
+   "Corner turret with a conical roof":{"status":"present","evidence":"Cone."}
+  },
+  "summary":"Reads as a Victorian shop."
+ }
+}
