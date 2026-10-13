@@ -76,7 +76,9 @@ for(const candidate of selection.parts){
  }catch(error){rejected.push({id:candidate.id,reason:error.message});}
 }
 if(choice.length){console.log({compiled:Object.keys(parts),rejected});}
-const output={version:1,updatedAt:"2026-10-11",geometrySource:"https://www.ldraw.org/",connectionSource:"https://github.com/RolandMelkert/LDCadShadowLibrary",parts};
+// Colour availability beyond the classic palette is owned by refresh-part-colors.mjs; carry it over.
+const previous=JSON.parse(await fs.readFile(path.join(root,"lib/data/parts-catalog.json"),"utf8").catch(()=>"{}"));
+const output={version:1,updatedAt:"2026-10-11",geometrySource:"https://www.ldraw.org/",connectionSource:"https://github.com/RolandMelkert/LDCadShadowLibrary",...(previous.colorEvidence?{colorEvidence:previous.colorEvidence,legacyColors:previous.legacyColors}:{}),parts};
 await fs.writeFile(path.join(root,"lib/data/parts-catalog.json"),JSON.stringify(output)+"\n");
 await fs.writeFile(path.join(root,"public/parts/catalog.json"),JSON.stringify({...output,license:"CC BY-SA 4.0",attribution:"LDraw Parts Library and LDCad Shadow Library contributors; modifications by Bricks"})+"\n");
 await fs.mkdir(path.join(root,"public/licenses/ldcad"),{recursive:true});await fs.copyFile(path.join(shadowDir,"LICENSE.md"),path.join(root,"public/licenses/ldcad/LICENSE.md"));

@@ -1,7 +1,8 @@
 import {z} from "zod";
 import {SIGN_FACES,signPixels,LetteringError} from "./brick-lettering";
 import {COLORS,PARTS} from "./bridge";
-import {catalogPart} from "./part-catalog";
+import {partColors} from "./part-colors";
+import {SKIN_COLORS} from "./colors";
 import {partDimensions,pieceCells,bottomConnectorOffsets,topConnectorOffsets,piecesIntersect} from "./part-spatial";
 import {GenerationError} from "./generation-errors";
 import {finishModel,packVoxels,voxelKey,smoothTops} from "./models";
@@ -69,8 +70,7 @@ export function catalogPiece(s:Shape):Piece{
  if(!s.part||!Object.hasOwn(PARTS,s.part))throw new GenerationError("The design requested an unknown catalog part. Choose a supported part ID.","INVALID_GEOMETRY");
  if(s.operation!=="add")throw new GenerationError("Remove a catalog part by its shape ID; real parts cannot subtract volume.","INVALID_GEOMETRY");
  if(!Object.values(s.position).every(Number.isInteger))throw new GenerationError("Place catalog parts on whole studs and plate layers.","INVALID_GEOMETRY");
- const entry=catalogPart(s.part);
- if(entry&&!entry.colors.includes(s.color))throw new GenerationError(`The catalog does not list part ${s.part} in ${s.color}. Choose one of its listed colors.`,"INVALID_GEOMETRY");
+ if(!partColors(s.part).includes(s.color))throw new GenerationError(`The catalog does not list part ${s.part} in ${s.color}. Choose one of its listed colors.`,"INVALID_GEOMETRY");
  const face=s.face||"pz",dims=partDimensions(s.part,face==="px"||face==="nx",face);
  return {id:0,part:s.part as Piece["part"],color:s.color,x:s.position.x,y:s.position.y,z:s.position.z,...dims,face,stage:0};
 }
@@ -279,7 +279,7 @@ export function expandCompactShape(c:CompactShape):Shape{
  // writes r: 0 for a box, or an axis for an ellipsoid, has not drawn anything wrong.
  const radius=beam?Math.min(12,Math.max(.5,Number(c.r)||1)):1;
  const rep=c.rep&&c.rep[0]>1?{count:Math.min(32,Math.max(1,Math.round(c.rep[0]))),offset:{x:Math.max(0,c.rep[1]),y:Math.max(0,c.rep[2]),z:Math.max(0,c.rep[3])}}:{count:1,offset:{x:0,y:0,z:0}};
- return shapeSchema.parse({id:c.i,component:c.c,label:c.l,kind:c.k,operation:c.o,...(c.k==="text"?{text:c.txt??undefined,face:c.face??undefined,background:c.bg??undefined}:c.k==="part"?{part:c.pid??undefined,face:c.face||"pz"}:c.k==="minifig"?{face:c.face||"pz",background:c.bg??undefined,skin:c.pid&&Object.hasOwn(COLORS,c.pid)?c.pid as ColorKey:undefined}:{}),...(round&&c.a?{axis:c.a}:{}),color:c.col,position:toVec(c.p),size:beam?{x:1,y:1,z:1}:lean?{x:Math.min(8,Math.max(1,Math.round(Number(c.s?.[0])||1))),y:Number(c.s?.[1])>=3?3:1,z:1}:c.k==="wheel"?{x:Math.min(8,Math.max(1,Number(c.s?.[0])||4)),y:1,z:1}:toVec(c.s),end:(beam||lean)&&c.e?toVec(c.e):{x:0,y:0,z:0},radius,repeat:rep});
+ return shapeSchema.parse({id:c.i,component:c.c,label:c.l,kind:c.k,operation:c.o,...(c.k==="text"?{text:c.txt??undefined,face:c.face??undefined,background:c.bg??undefined}:c.k==="part"?{part:c.pid??undefined,face:c.face||"pz"}:c.k==="minifig"?{face:c.face||"pz",background:c.bg??undefined,skin:c.pid&&SKIN_COLORS.includes(c.pid as ColorKey)?c.pid as ColorKey:undefined}:{}),...(round&&c.a?{axis:c.a}:{}),color:c.col,position:toVec(c.p),size:beam?{x:1,y:1,z:1}:lean?{x:Math.min(8,Math.max(1,Math.round(Number(c.s?.[0])||1))),y:Number(c.s?.[1])>=3?3:1,z:1}:c.k==="wheel"?{x:Math.min(8,Math.max(1,Number(c.s?.[0])||4)),y:1,z:1}:toVec(c.s),end:(beam||lean)&&c.e?toVec(c.e):{x:0,y:0,z:0},radius,repeat:rep});
 }
 export function compactShape(s:Shape):CompactShape{
  const beam=s.kind==="beam",lean=s.kind==="lean",rep=s.repeat&&s.repeat.count>1?s.repeat:null;

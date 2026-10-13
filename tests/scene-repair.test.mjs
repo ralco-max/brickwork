@@ -64,7 +64,7 @@ test('a valid scene passes through untouched, and the wire format is repaired to
   assert.deepEqual(r.corrections,[],example.id);assert.deepEqual(r.scene,full,example.id);
  }
  const wire={...compactScene(scene([shape('tower','box','tan',[4,2,4],[4,40,4])])),dim:[19.5,30,16]};wire.sh[0].col='#6c6e68';
- const r=accepted(repairScene(JSON.stringify(wire)));assert.deepEqual(r.scene.dimensions,{x:20,y:42,z:16});assert.equal(r.scene.shapes[0].color,'gray','a hex colour maps into the palette');
+ const r=accepted(repairScene(JSON.stringify(wire)));assert.deepEqual(r.scene.dimensions,{x:20,y:42,z:16});assert.equal(r.scene.shapes[0].color,'darkgray','a hex colour maps into the palette');
  assert.match(r.corrections.join(' '),/Dropped|Set the build area/);
  const dup=accepted(repairScene(scene([shape('base','box','tan',[2,2,2],[2,2,2])])));assert.deepEqual(dup.scene.shapes.map(s=>s.id),['base','base-2']);
  const junk=accepted(repairScene({...scene([shape('ok','box','tan',[2,2,2],[2,2,2])]),shapes:[base,{kind:'blob'},{...shape('loose','box','tan',[2,2,2],[2,2,2]),extra:1,color:'Light bluish gray'}]}));
@@ -76,8 +76,12 @@ test('only an empty or unreadable response throws',()=>{
  assert.throws(()=>repairScene({...scene([]),shapes:[{...figure('a',2,2),operation:'subtract'}]}),/empty/);
 });
 
-test('palette matching is perceptual: concrete gray maps to gray, not green',()=>{
- assert.equal(nearestColor(0x6c,0x6e,0x68),'gray');assert.equal(nearestColor(0x5a,0x93,0xdb),'blue');assert.equal(nearestColor(0x18,0x46,0x32),'green');
+test('palette matching is perceptual: concrete gray maps to dark bluish gray, not green',()=>{
+ assert.equal(nearestColor(0x6c,0x6e,0x68),'darkgray');assert.equal(nearestColor(0x5a,0x93,0xdb),'blue');assert.equal(nearestColor(0x18,0x46,0x32),'darkgreen');
+ assert.equal(nearestColor(0x6c,0x6e,0x68,['white','gray','green']),'gray','the classic palette still lands on light bluish gray');
+ assert.equal(nearestColor(0x8b,0x3a,0x2b),'darkred');assert.equal(nearestColor(0x87,0xce,0xeb),'mediumazure');assert.equal(nearestColor(0xc2,0x70,0x3d),'mediumnougat');
+ // A pixel never asks for glass or metal: white stays white rather than trans-clear, silver stays gray.
+ assert.equal(nearestColor(0xfc,0xfc,0xfc),'white');assert.equal(nearestColor(0xc0,0xc0,0xc0),'gray');assert.equal(nearestColor(0xaa,0x7f,0x2e,['pearlgold','yellow']),'pearlgold');
  assert.equal(nearestColor(255,255,255),'white');assert.equal(nearestColor(0,0,0),'black');assert.equal(nearestColor(0xc9,0x28,0x20),'red');
  assert.equal(nearestColor(0x6c,0x6e,0x68,['white','green']),'green','restricted to the listed colours');
 });

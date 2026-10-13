@@ -1,7 +1,8 @@
 import {COLORS,PARTS} from "./bridge";
 import type {ColorKey} from "./bridge";
 import {SIGN_FACES,SIGN_TEXT_PATTERN,signMetrics} from "./brick-lettering";
-import {catalogPart} from "./part-catalog";
+import {partColors} from "./part-colors";
+import {colorFinish} from "./colors";
 import {pieceCells,piecesIntersect} from "./part-spatial";
 import {shapeSchema,expandShapes,explicitPiece,isExplicit,wheelPiece,compileScene,expandCompactHeader,expandCompactShape,compactShapeSchema} from "./generated-scene";
 import type {GeneratedScene,Shape} from "./generated-scene";
@@ -79,10 +80,12 @@ export function repairScene(raw:unknown,brief?:Partial<Pick<DesignBrief,"maxWidt
   let next=s;
   if(!AXES.every(a=>Number.isInteger(s.position[a]))){next={...next,position:{x:Math.round(s.position.x),y:Math.round(s.position.y),z:Math.round(s.position.z)}};snapped.push(quoted(s));}
   if(s.kind==="part"){
-   const entry=catalogPart(s.part!);
-   if(entry&&!entry.colors.includes(next.color)){
-    if(!entry.colors.length){note(`Removed ${quoted(s)}: part ${s.part} has no listed colours.`);return [];}
-    const color=nearestColor(...hexRgb(COLORS[next.color].hex),entry.colors);note(`Changed ${quoted(s)} (part ${s.part}) from ${next.color} to ${color}, the nearest colour it is made in.`);next={...next,color};
+   const listed=partColors(s.part!);
+   if(!listed.includes(next.color)){
+    if(!listed.length){note(`Removed ${quoted(s)}: part ${s.part} has no listed colours.`);return [];}
+    // Glass stays glass and metal stays metal when the part is made in such a colour.
+    const kind=colorFinish(next.color).kind,same=listed.filter(c=>colorFinish(c).kind===kind);
+    const color=nearestColor(...hexRgb(COLORS[next.color].hex),same.length?same:listed);note(`Changed ${quoted(s)} (part ${s.part}) from ${next.color} to ${color}, the nearest colour it is made in.`);next={...next,color};
    }
   }
   if(s.kind==="text"){

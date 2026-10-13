@@ -11,6 +11,7 @@ import {assemblyPose,assemblyTracks,inspectionReach,inspectionTracks,type Assemb
 import {cameraPanOffset,advanceCameraMove,settledPieceBounds,cameraFramingSnapshot,cameraAutoFit,type CameraMove,type CameraFramingSnapshot} from "@/lib/camera-navigation";
 import {hasExactPartGeometry,partGeometriesReady} from "@/lib/part-meshes";
 import {isMinifig} from "@/lib/minifig";
+import {brickMaterial,finishColor,finishEnvironment,releaseFinishEnvironment} from "@/lib/brick-materials";
 import RegionMarker from "./region-marker";
 import {regionSamplePoints,regionBoundsForPieces} from "@/lib/region-selection";
 import type {RevisionRegion} from "@/lib/revision-region";
@@ -47,7 +48,7 @@ function ReadyViewport(props:Props){
  const previousFraming=useRef({view:props.view,reset:props.reset,explode:props.explode});
  const arrivalState=useRef({epoch:-1,clock:0,entries:new Map<string,Arrival>()});
  const [error,setError]=useState(false),[touchActive,setTouchActive]=useState(false);const coarsePointer=useSyncExternalStore(watchPointer,coarseNow,()=>false);const presentationProp=Boolean(props.presentation);const touchEnabled=useRef(touchActive);touchEnabled.current=touchActive;
- useEffect(()=>()=>{latest.current.onCanvas?.(null);const renderer=rendererRef.current;rendererRef.current=null;renderer?.dispose();renderer?.domElement.remove();},[]);
+ useEffect(()=>()=>{latest.current.onCanvas?.(null);const renderer=rendererRef.current;rendererRef.current=null;if(renderer)releaseFinishEnvironment(renderer);renderer?.dispose();renderer?.domElement.remove();},[]);
  useEffect(()=>{
   if(!host.current)return;const node=host.current;let renderer:THREE.WebGLRenderer;
   // The assembly plays inside the same interactive view: orbit stays enabled, and the
@@ -158,7 +159,10 @@ function ReadyViewport(props:Props){
   const batches:{body:THREE.InstancedMesh;studs:THREE.InstancedMesh|null;hubs:THREE.InstancedMesh|null;pieces:Piece[];studded:[number,number][];arrival?:Arrival;materials:THREE.MeshStandardMaterial[]}[]=[],meshes:THREE.InstancedMesh[]=[];
   for(const {pieces:list,arrival} of groups.values()){
    const reveal={opacity:arrival?arrivalOpacity(arrival,arrivalState.current.clock,reducedMotion.matches):1,alphaToCoverage:Boolean(arrival)&&coverage,alphaHash:Boolean(arrival)&&!coverage};
-   const p=list[0],material=new THREE.MeshStandardMaterial({color:0xffffff,roughness:.3,metalness:0,vertexColors:isMinifig(p.part),...reveal}),materials=[material],studded=hasExactPartGeometry(p.part)?[]:studCells(p);
+   // One material per colour group, with the colour's finish. Trans colours already blend, so a
+   // revision fade scales their opacity instead of using coverage.
+   const p=list[0],material=brickMaterial(finishColor(p),{roughness:.3,vertexColors:isMinifig(p.part),environment:()=>finishEnvironment(renderer)}),materials=[material],studded=hasExactPartGeometry(p.part)?[]:studCells(p);
+   if(material.transparent)material.opacity=material.userData.baseOpacity*reveal.opacity;else material.setValues(reveal);
    const body=new THREE.InstancedMesh(pieceGeometry(p),material,list.length);body.castShadow=true;body.receiveShadow=true;body.userData.pieces=list;meshes.push(body);scene.add(body);
    let studs:THREE.InstancedMesh|null=null;if(studded.length){studs=new THREE.InstancedMesh(new THREE.CylinderGeometry(.30,.30,.18,12),material,list.length*studded.length);studs.castShadow=true;studs.receiveShadow=true;scene.add(studs);}
    const hubShape=hubGeometry(p);let hubs:THREE.InstancedMesh|null=null;if(hubShape){const hubMaterial=new THREE.MeshStandardMaterial({color:0xa9b1b8,roughness:.5,metalness:.1,...reveal});materials.push(hubMaterial);hubs=new THREE.InstancedMesh(hubShape,hubMaterial,list.length);scene.add(hubs);}
@@ -174,7 +178,7 @@ function ReadyViewport(props:Props){
    const assemblyTime=time??state.assembly?.time()??1,animationOnly=time!==undefined,highlighted=new Set(state.highlightIds||[]);
    const sunTarget=state.light??.38;placeSun(sunTarget);
    const reusePoses=animationOnly&&cinematic&&!state.arrivals&&state.explode===0&&previousAssemblyTime!==undefined;
-   for(const batch of batches){if(batch.arrival){const opacity=state.regionMode?1:arrivalOpacity(batch.arrival,arrivalState.current.clock,reducedMotion.matches);for(const material of batch.materials)material.opacity=opacity;}let studIndex=0,matrixChanged=!animationOnly;batch.pieces.forEach((p,i)=>{
+   for(const batch of batches){if(batch.arrival){const opacity=state.regionMode?1:arrivalOpacity(batch.arrival,arrivalState.current.clock,reducedMotion.matches);for(const material of batch.materials)material.opacity=opacity*(material.userData.baseOpacity??1);}let studIndex=0,matrixChanged=!animationOnly;batch.pieces.forEach((p,i)=>{
     const visible=p.stage<=state.stage,key=`${p.part}:${p.color}`,selected=!state.selected||state.selected===key;
     const e=state.explode,y=p.y*.4,track=tracks.get(p.id)!;
     // Waiting and landed bricks have identical matrices; only active flights

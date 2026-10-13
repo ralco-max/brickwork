@@ -40,6 +40,7 @@ def main() -> None:
     parts = {row["part_num"]: row for row in rows(args.rebrickable_dir / "parts.csv")}
     colors = {int(row["id"]): row for row in rows(args.rebrickable_dir / "colors.csv")}
     color_ids = manifest["colorIds"]
+    evidenced = set(manifest.get("colorEvidence", {}).get("colors", []))
     for name, color_id in color_ids.items():
         if color_id not in colors:
             raise ValueError(f"Unknown Rebrickable color {name}: {color_id}")
@@ -69,7 +70,10 @@ def main() -> None:
         rb_id = part["rebrickableId"]
         if rb_id not in parts:
             raise ValueError(f"No exact Rebrickable part: {rb_id}")
-        available = [key for key, value in color_ids.items() if value in elements.get(rb_id, set())]
+        # Colours added after the classic palette are evidenced by scripts/refresh-part-colors.mjs
+        # (element IDs or set inventories); keep its result rather than recomputing from elements alone.
+        available = [key for key, value in color_ids.items()
+                     if (key in part["colors"] if key in evidenced else value in elements.get(rb_id, set()))]
         if not available:
             raise ValueError(f"No catalog element in the supported palette: {part_id}")
         part.update(name=parts[rb_id]["name"], colors=available, ldrawName=description,

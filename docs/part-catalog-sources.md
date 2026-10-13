@@ -47,6 +47,67 @@ do not establish current LEGO Pick a Brick availability or pricing. Element IDs
 are part-and-color identifiers; design IDs identify shapes and must not be
 substituted for element IDs in a shopping export.
 
+## Colors added after the classic palette (provisional)
+
+The palette grew from 13 to 25 colors on 2026-10-13: dark bluish gray, dark tan,
+dark red, sand green, dark green, medium azure (instead of the nearly retired
+medium blue), lime, medium nougat, trans-clear, trans-light blue, pearl gold and
+flat silver. `lib/colors.ts` gives each its LDraw code, BrickLink ID and
+**Rebrickable ID**. These are not always the same number: Trans-Light Blue is
+Rebrickable 41, LDraw 43 and BrickLink 15, while Rebrickable 43 is Trans-Very Lt
+Blue (BrickLink 113). Source data is always joined on the Rebrickable ID, never on
+the LDraw code; a join on the LDraw code silently picks up the wrong colour.
+
+A part is offered in one of these colors only where that exact part number is
+evidenced in it. Legacy core parts keep every classic color (as before) and gain
+only their evidenced new colors, recorded in `legacyColors` in the catalog.
+
+The official downloads at `cdn.rebrickable.com` were unreachable when these were
+added, so the current evidence is a **provisional offline substitute**, marked
+`colorEvidence: {source: "rebrickable-2022-elements+2026-inventories",
+provisional: true}` in `scripts/part-catalog-selection.json`,
+`lib/data/parts-catalog.json` and `public/parts/catalog.json`:
+
+- Rebrickable `colors.csv.gz` and `elements.csv.gz` as mirrored by TidyTuesday on
+  2022-09-06:
+  <https://raw.githubusercontent.com/rfordatascience/tidytuesday/master/data/2022/2022-09-06/>
+- non-spare set inventories (sets up to 2026) from the Rebrickable SQLite snapshot
+  bundled in the `lego-oracle` 0.1.2 npm package
+  (<https://registry.npmjs.org/lego-oracle/-/lego-oracle-0.1.2.tgz>, npm shasum
+  `44cbaad151fcdf4395cd5fb72cb848e82f92dfe5`). Its `is_trans` flags are all 0, so
+  transparency is checked against the 2022 color table.
+
+Colors were cross-checked by Rebrickable ID against three independent caches of
+the Rebrickable color API (BrickLink and LDraw external IDs) and the LDraw
+`LDConfig.ldr` at the pinned mirror commit. Calibrated on the classic colors,
+this substitute finds about 93% of the official part/color combinations with
+about 1% extra. Per-combination evidence (2022 element-ID count, set count, last
+set year) and SHA-256 digests of the files used are in
+`scripts/part-color-evidence.json`. The provisional data was produced with:
+
+```sh
+node scripts/refresh-part-colors.mjs --from-local /path/to/snapshot
+```
+
+where the directory holds `tidytuesday-2022/{colors,elements}.csv.gz` and
+`lego-oracle-0.1.2/package/dist/data/lego.sqlite`. With network access, replace
+it with official data (element IDs and non-spare set inventories, joined on the
+Rebrickable color ID) and review the diff:
+
+```sh
+node scripts/refresh-part-colors.mjs                       # downloads from cdn.rebrickable.com
+node scripts/refresh-part-colors.mjs --source-dir /path    # decompressed colors, elements,
+                                                           # inventory_parts, inventories, sets CSVs
+node scripts/refresh-part-colors.mjs --check               # fails if anything would change
+```
+
+The script owns only the added colors; classic colors keep their element-ID
+evidence from `refresh-part-catalog-selection.py`, which preserves the added
+colors' lists, and `compile-part-catalog.mjs` carries `colorEvidence` and
+`legacyColors` over when it rebuilds the catalog. LEGO element IDs for the added
+colors come only from `scripts/refresh-lego-elements.mjs` (see
+`docs/lego-elements.md`); this evidence never supplies an element ID.
+
 ## Reproducing metadata
 
 Extract the pinned LDraw library and decompress the Rebrickable CSVs, then run:

@@ -1,4 +1,5 @@
 import {EXPANDED_PARTS,catalogPart} from "./part-catalog";
+import {partColors} from "./part-colors";
 import {PARTS,COLORS,studCells,isTile,isSlope,isWheel} from "./bridge";
 import type {ColorKey} from "./bridge";
 import type {DesignBrief} from "./design-project";
@@ -42,7 +43,7 @@ function legacyPart(id:string):GenerationCatalogPart|undefined{
  const p=Object.hasOwn(PARTS,id)?PARTS[id]:undefined;if(!p)return;
  const top=studCells({part:id,w:p.w,d:p.d}).map(([x,z])=>[x,p.h,z] as Cell),bottom:Cell[]=[];
  if(!isWheel(id))for(let x=0;x<p.w;x++)for(let z=0;z<p.d;z++)bottom.push([x,0,z]);
- return {...p,family:isWheel(id)?"wheel":isSlope(id)?"slope":isTile(id)?"tile":p.h===1?"plate":"brick",colors:Object.keys(COLORS) as ColorKey[],topStuds:top,bottomSockets:bottom,occupancy:[]};
+ return {...p,family:isWheel(id)?"wheel":isSlope(id)?"slope":isTile(id)?"tile":p.h===1?"plate":"brick",colors:partColors(id),topStuds:top,bottomSockets:bottom,occupancy:[]};
 }
 const hasConnectors=(layout:ConnectorLayout)=>"cells" in layout?layout.cells.length>0:layout.grids.length>0;
 function entry(id:string,p:GenerationCatalogPart):GenerationPart{

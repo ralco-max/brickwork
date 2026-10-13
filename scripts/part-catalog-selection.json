@@ -30,7 +30,57 @@
     "brown": 70,
     "gray": 71,
     "navy": 272,
-    "darkbrown": 308
+    "darkbrown": 308,
+    "darkgray": 72,
+    "darktan": 28,
+    "darkred": 320,
+    "sandgreen": 378,
+    "darkgreen": 288,
+    "mediumazure": 322,
+    "lime": 27,
+    "mediumnougat": 84,
+    "transclear": 47,
+    "translightblue": 41,
+    "pearlgold": 297,
+    "flatsilver": 179
+  },
+  "colorEvidence": {
+    "source": "rebrickable-2022-elements+2026-inventories",
+    "provisional": true,
+    "updatedAt": "2026-10-13",
+    "colors": [
+      "darkgray",
+      "darktan",
+      "darkred",
+      "sandgreen",
+      "darkgreen",
+      "mediumazure",
+      "lime",
+      "mediumnougat",
+      "transclear",
+      "translightblue",
+      "pearlgold",
+      "flatsilver"
+    ],
+    "rule": "Offered in a colour added after the classic palette only when the exact part number has an element ID or a non-spare set inventory in that Rebrickable colour ID.",
+    "evidence": "scripts/part-color-evidence.json",
+    "files": [
+      {
+        "url": "https://raw.githubusercontent.com/rfordatascience/tidytuesday/master/data/2022/2022-09-06/colors.csv.gz",
+        "file": "tidytuesday-2022/colors.csv.gz",
+        "sha256": "5156fee2fe8b58a98d6d82b7fc39ab0f414312477af62c93d553243753e7b9f9"
+      },
+      {
+        "url": "https://raw.githubusercontent.com/rfordatascience/tidytuesday/master/data/2022/2022-09-06/elements.csv.gz",
+        "file": "tidytuesday-2022/elements.csv.gz",
+        "sha256": "8c9f19a14fd78d5df4e84d90ce756d0b279250d5ff2c181e30285cf8bb291641"
+      },
+      {
+        "url": "https://registry.npmjs.org/lego-oracle/-/lego-oracle-0.1.2.tgz",
+        "file": "lego-oracle-0.1.2/package/dist/data/lego.sqlite",
+        "sha256": "d142cdb4b48a8ff00dec30110e0a01ef53a4cb3fcc4cfdc423c3c2222a0279b0"
+      }
+    ]
   },
   "unavailable": [
     {
@@ -66,7 +116,13 @@
         "brown",
         "gray",
         "navy",
-        "darkbrown"
+        "darkbrown",
+        "darkgray",
+        "darktan",
+        "darkred",
+        "mediumazure",
+        "lime",
+        "mediumnougat"
       ],
       "legacy": false,
       "ldrawName": "Brick  1 x  1 x  3",
@@ -87,7 +143,8 @@
         "tan",
         "pink",
         "brown",
-        "gray"
+        "gray",
+        "darktan"
       ],
       "legacy": false,
       "ldrawName": "Brick  1 x  2 x  3 without Understud",
@@ -109,7 +166,9 @@
         "yellow",
         "white",
         "tan",
-        "gray"
+        "gray",
+        "darkgray",
+        "sandgreen"
       ],
       "legacy": false,
       "ldrawName": "Brick  4 x  6",
@@ -135,7 +194,14 @@
         "brown",
         "gray",
         "navy",
-        "darkbrown"
+        "darkbrown",
+        "darkgray",
+        "darktan",
+        "darkred",
+        "sandgreen",
+        "mediumazure",
+        "lime",
+        "transclear"
       ],
       "legacy": false,
       "ldrawName": "Brick  2 x  2 Corner",
@@ -160,7 +226,14 @@
         "brown",
         "gray",
         "navy",
-        "darkbrown"
+        "darkbrown",
+        "darkgray",
+        "darkred",
+        "sandgreen",
+        "mediumazure",
+        "lime",
+        "mediumnougat",
+        "pearlgold"
       ],
       "legacy": false,
       "ldrawName": "Brick  1 x  1 x  5 with Solid Stud",
@@ -186,7 +259,12 @@
         "pink",
         "brown",
         "gray",
-        "navy"
+        "navy",
+        "darkgray",
+        "darkred",
+        "sandgreen",
+        "mediumazure",
+        "mediumnougat"
       ],
       "legacy": false,
       "ldrawName": "Brick  1 x  2 x  5 with Blocked Open Studs and Symmetric Inner Ridges",
@@ -213,7 +291,15 @@
         "brown",
         "gray",
         "navy",
-        "darkbrown"
+        "darkbrown",
+        "darkgray",
+        "darktan",
+        "darkred",
+        "sandgreen",
+        "darkgreen",
+        "mediumazure",
+        "lime",
+        "mediumnougat"
       ],
       "legacy": false,
       "ldrawName": "Brick  2 x  6",
@@ -238,7 +324,11 @@
         "orange",
         "brown",
         "gray",
-        "navy"
+        "navy",
+        "darkgray",
+        "mediumazure",
+        "lime",
+        "mediumnougat"
       ],
       "legacy": false,
       "ldrawName": "Brick  1 x 16",
@@ -265,7 +355,17 @@
         "brown",
         "gray",
         "navy",
-        "darkbrown"
+        "darkbrown",
+        "darkgray",
+        "darktan",
+        "darkred",
+        "sandgreen",
+        "darkgreen",
+        "mediumazure",
+        "lime",
+        "mediumnougat",
+        "transclear",
+        "flatsilver"
       ],
       "legacy": true,
       "ldrawName": "Brick  2 x  4",
@@ -291,7 +391,16 @@
         "pink",
         "brown",
         "gray",
-        "navy"
+        "navy",
+        "darkgray",
+        "darktan",
+        "darkred",
+        "sandgreen",
+        "darkgreen",
+        "mediumazure",
+        "lime",
+        "transclear",
+        "flatsilver"
       ],
       "legacy": false,
       "ldrawName": "Brick  2 x  3",
@@ -318,7 +427,17 @@
         "brown",
         "gray",
         "navy",
-        "darkbrown"
+        "darkbrown",
+        "darkgray",
+        "darktan",
+        "darkred",
+        "sandgreen",
+        "darkgreen",
+        "mediumazure",
+        "lime",
+        "mediumnougat",
+        "transclear",
+        "pearlgold"
       ],
       "legacy": true,
       "ldrawName": "Brick  2 x  2",
@@ -345,7 +464,17 @@
         "brown",
         "gray",
         "navy",
-        "darkbrown"
+        "darkbrown",
+        "darkgray",
+        "darktan",
+        "darkred",
+        "sandgreen",
+        "darkgreen",
+        "mediumazure",
+        "lime",
+        "mediumnougat",
+        "transclear",
+        "flatsilver"
       ],
       "legacy": true,
       "ldrawName": "Brick  1 x  2",
@@ -372,7 +501,17 @@
         "brown",
         "gray",
         "navy",
-        "darkbrown"
+        "darkbrown",
+        "darkgray",
+        "darktan",
+        "darkred",
+        "sandgreen",
+        "darkgreen",
+        "mediumazure",
+        "lime",
+        "mediumnougat",
+        "transclear",
+        "translightblue"
       ],
       "legacy": true,
       "ldrawName": "Brick  1 x  1",
@@ -396,7 +535,10 @@
         "tan",
         "orange",
         "brown",
-        "gray"
+        "gray",
+        "darkgray",
+        "darkred",
+        "transclear"
       ],
       "legacy": false,
       "ldrawName": "Brick  2 x 10",
@@ -422,7 +564,12 @@
         "pink",
         "brown",
         "gray",
-        "navy"
+        "navy",
+        "darkgray",
+        "darkred",
+        "sandgreen",
+        "darkgreen",
+        "transclear"
       ],
       "legacy": true,
       "ldrawName": "Brick  2 x  8",
@@ -448,7 +595,15 @@
         "brown",
         "gray",
         "navy",
-        "darkbrown"
+        "darkbrown",
+        "darkgray",
+        "darktan",
+        "darkred",
+        "sandgreen",
+        "darkgreen",
+        "lime",
+        "mediumnougat",
+        "transclear"
       ],
       "legacy": true,
       "ldrawName": "Brick  1 x  8",
@@ -474,7 +629,17 @@
         "pink",
         "brown",
         "gray",
-        "navy"
+        "navy",
+        "darkgray",
+        "darktan",
+        "darkred",
+        "sandgreen",
+        "darkgreen",
+        "mediumazure",
+        "lime",
+        "mediumnougat",
+        "transclear",
+        "flatsilver"
       ],
       "legacy": true,
       "ldrawName": "Brick  1 x  6",
@@ -500,7 +665,18 @@
         "pink",
         "brown",
         "gray",
-        "navy"
+        "navy",
+        "darkgray",
+        "darktan",
+        "darkred",
+        "sandgreen",
+        "darkgreen",
+        "mediumazure",
+        "lime",
+        "mediumnougat",
+        "transclear",
+        "translightblue",
+        "flatsilver"
       ],
       "legacy": true,
       "ldrawName": "Brick  1 x  4",
@@ -547,7 +723,11 @@
         "orange",
         "pink",
         "brown",
-        "gray"
+        "gray",
+        "darkgray",
+        "darktan",
+        "darkred",
+        "mediumnougat"
       ],
       "legacy": false,
       "ldrawName": "Brick  2 x  2 x  3",
@@ -592,7 +772,14 @@
         "orange",
         "pink",
         "brown",
-        "gray"
+        "gray",
+        "darkgray",
+        "darkred",
+        "sandgreen",
+        "darkgreen",
+        "mediumazure",
+        "lime",
+        "mediumnougat"
       ],
       "legacy": false,
       "ldrawName": "Brick  1 x  2 x  2 without Understud",
@@ -618,7 +805,17 @@
         "pink",
         "brown",
         "gray",
-        "navy"
+        "navy",
+        "darkgray",
+        "darktan",
+        "darkred",
+        "sandgreen",
+        "darkgreen",
+        "mediumazure",
+        "lime",
+        "mediumnougat",
+        "transclear",
+        "flatsilver"
       ],
       "legacy": false,
       "ldrawName": "Brick  1 x  3",
@@ -640,7 +837,9 @@
         "yellow",
         "white",
         "tan",
-        "gray"
+        "gray",
+        "darkgray",
+        "translightblue"
       ],
       "legacy": false,
       "ldrawName": "Brick  1 x  6 x  5",
@@ -675,7 +874,8 @@
         "blue",
         "green",
         "red",
-        "white"
+        "white",
+        "darkgray"
       ],
       "legacy": false,
       "ldrawName": "Brick  8 x  8",
@@ -717,7 +917,8 @@
         "red",
         "yellow",
         "white",
-        "tan"
+        "tan",
+        "darkgray"
       ],
       "legacy": false,
       "ldrawName": "Brick  8 x 16",
@@ -738,7 +939,8 @@
         "orange",
         "brown",
         "gray",
-        "navy"
+        "navy",
+        "mediumnougat"
       ],
       "legacy": false,
       "ldrawName": "Brick  1 x  4 x  3",
@@ -764,7 +966,10 @@
         "pink",
         "brown",
         "gray",
-        "navy"
+        "navy",
+        "darkgray",
+        "darkred",
+        "lime"
       ],
       "legacy": false,
       "ldrawName": "Brick  1 x 10",
@@ -789,7 +994,10 @@
         "orange",
         "brown",
         "gray",
-        "darkbrown"
+        "darkbrown",
+        "darkgray",
+        "darkgreen",
+        "mediumnougat"
       ],
       "legacy": false,
       "ldrawName": "Brick  1 x 12",
@@ -811,7 +1019,10 @@
         "yellow",
         "white",
         "tan",
-        "gray"
+        "gray",
+        "darkgray",
+        "darkred",
+        "transclear"
       ],
       "legacy": false,
       "ldrawName": "Brick  4 x 10",
@@ -857,7 +1068,10 @@
         "pink",
         "brown",
         "gray",
-        "navy"
+        "navy",
+        "darkgray",
+        "darkgreen",
+        "lime"
       ],
       "legacy": false,
       "ldrawName": "Plate  3 x  3",
@@ -876,7 +1090,8 @@
         "white",
         "tan",
         "brown",
-        "gray"
+        "gray",
+        "darkgray"
       ],
       "legacy": false,
       "ldrawName": "Plate  3 x  3 Cross",
@@ -902,7 +1117,16 @@
         "brown",
         "gray",
         "navy",
-        "darkbrown"
+        "darkbrown",
+        "darkgray",
+        "darktan",
+        "darkred",
+        "sandgreen",
+        "darkgreen",
+        "mediumazure",
+        "lime",
+        "mediumnougat",
+        "pearlgold"
       ],
       "legacy": false,
       "ldrawName": "Plate  2 x  2 Corner",
@@ -928,7 +1152,14 @@
         "pink",
         "brown",
         "gray",
-        "navy"
+        "navy",
+        "darkgray",
+        "darktan",
+        "darkred",
+        "darkgreen",
+        "mediumazure",
+        "lime",
+        "mediumnougat"
       ],
       "legacy": false,
       "ldrawName": "Plate  2 x 12",
@@ -952,7 +1183,10 @@
         "pink",
         "brown",
         "gray",
-        "navy"
+        "navy",
+        "darkgray",
+        "darktan",
+        "darkred"
       ],
       "legacy": false,
       "ldrawName": "Plate  4 x  4 Corner",
@@ -979,7 +1213,18 @@
         "brown",
         "gray",
         "navy",
-        "darkbrown"
+        "darkbrown",
+        "darkgray",
+        "darktan",
+        "darkred",
+        "sandgreen",
+        "darkgreen",
+        "mediumazure",
+        "lime",
+        "mediumnougat",
+        "transclear",
+        "translightblue",
+        "flatsilver"
       ],
       "legacy": true,
       "ldrawName": "Plate  2 x  4",
@@ -1006,7 +1251,17 @@
         "brown",
         "gray",
         "navy",
-        "darkbrown"
+        "darkbrown",
+        "darkgray",
+        "darktan",
+        "darkred",
+        "sandgreen",
+        "darkgreen",
+        "mediumazure",
+        "lime",
+        "mediumnougat",
+        "transclear",
+        "flatsilver"
       ],
       "legacy": false,
       "ldrawName": "Plate  2 x  3",
@@ -1033,7 +1288,16 @@
         "brown",
         "gray",
         "navy",
-        "darkbrown"
+        "darkbrown",
+        "darkgray",
+        "darktan",
+        "darkred",
+        "sandgreen",
+        "mediumazure",
+        "lime",
+        "mediumnougat",
+        "transclear",
+        "pearlgold"
       ],
       "legacy": true,
       "ldrawName": "Plate  2 x  2",
@@ -1060,7 +1324,19 @@
         "brown",
         "gray",
         "navy",
-        "darkbrown"
+        "darkbrown",
+        "darkgray",
+        "darktan",
+        "darkred",
+        "sandgreen",
+        "darkgreen",
+        "mediumazure",
+        "lime",
+        "mediumnougat",
+        "transclear",
+        "translightblue",
+        "pearlgold",
+        "flatsilver"
       ],
       "legacy": true,
       "ldrawName": "Plate  1 x  1",
@@ -1077,7 +1353,8 @@
       "colors": [
         "green",
         "white",
-        "gray"
+        "gray",
+        "darkgray"
       ],
       "legacy": false,
       "ldrawName": "Plate  6 x 24",
@@ -1100,7 +1377,12 @@
         "white",
         "tan",
         "brown",
-        "gray"
+        "gray",
+        "darkgray",
+        "darktan",
+        "darkred",
+        "darkgreen",
+        "lime"
       ],
       "legacy": false,
       "ldrawName": "Plate  6 x 16",
@@ -1126,7 +1408,12 @@
         "pink",
         "brown",
         "gray",
-        "darkbrown"
+        "darkbrown",
+        "darkgray",
+        "darktan",
+        "darkred",
+        "darkgreen",
+        "mediumnougat"
       ],
       "legacy": false,
       "ldrawName": "Plate  6 x 12",
@@ -1151,7 +1438,14 @@
         "orange",
         "brown",
         "gray",
-        "navy"
+        "navy",
+        "darkgray",
+        "darktan",
+        "darkred",
+        "sandgreen",
+        "darkgreen",
+        "mediumazure",
+        "lime"
       ],
       "legacy": false,
       "ldrawName": "Plate  4 x 12",
@@ -1177,7 +1471,13 @@
         "pink",
         "brown",
         "gray",
-        "darkbrown"
+        "darkbrown",
+        "darkgray",
+        "darktan",
+        "darkred",
+        "darkgreen",
+        "mediumazure",
+        "lime"
       ],
       "legacy": false,
       "ldrawName": "Plate  4 x 10",
@@ -1203,7 +1503,13 @@
         "pink",
         "brown",
         "gray",
-        "navy"
+        "navy",
+        "darkgray",
+        "darkred",
+        "sandgreen",
+        "mediumazure",
+        "lime",
+        "mediumnougat"
       ],
       "legacy": false,
       "ldrawName": "Plate  4 x  4",
@@ -1228,7 +1534,14 @@
         "orange",
         "brown",
         "gray",
-        "navy"
+        "navy",
+        "darkgray",
+        "darktan",
+        "darkred",
+        "sandgreen",
+        "darkgreen",
+        "mediumazure",
+        "lime"
       ],
       "legacy": false,
       "ldrawName": "Plate  4 x  6",
@@ -1254,7 +1567,15 @@
         "brown",
         "gray",
         "navy",
-        "darkbrown"
+        "darkbrown",
+        "darkgray",
+        "darktan",
+        "darkred",
+        "sandgreen",
+        "darkgreen",
+        "mediumazure",
+        "lime",
+        "mediumnougat"
       ],
       "legacy": false,
       "ldrawName": "Plate  6 x 10",
@@ -1280,7 +1601,15 @@
         "pink",
         "brown",
         "gray",
-        "navy"
+        "navy",
+        "darkgray",
+        "darktan",
+        "darkred",
+        "sandgreen",
+        "darkgreen",
+        "mediumazure",
+        "lime",
+        "mediumnougat"
       ],
       "legacy": true,
       "ldrawName": "Plate  2 x  8",
@@ -1307,7 +1636,14 @@
         "brown",
         "gray",
         "navy",
-        "darkbrown"
+        "darkbrown",
+        "darkgray",
+        "darktan",
+        "darkred",
+        "darkgreen",
+        "mediumazure",
+        "lime",
+        "mediumnougat"
       ],
       "legacy": true,
       "ldrawName": "Plate  4 x  8",
@@ -1333,7 +1669,14 @@
         "pink",
         "brown",
         "gray",
-        "navy"
+        "navy",
+        "darkgray",
+        "darktan",
+        "darkred",
+        "sandgreen",
+        "mediumazure",
+        "lime",
+        "mediumnougat"
       ],
       "legacy": false,
       "ldrawName": "Plate  6 x  8",
@@ -1356,7 +1699,10 @@
         "white",
         "tan",
         "gray",
-        "navy"
+        "navy",
+        "darkgray",
+        "darktan",
+        "darkred"
       ],
       "legacy": false,
       "ldrawName": "Plate  6 x 14",
@@ -1383,7 +1729,15 @@
         "brown",
         "gray",
         "navy",
-        "darkbrown"
+        "darkbrown",
+        "darkgray",
+        "darktan",
+        "darkred",
+        "sandgreen",
+        "darkgreen",
+        "mediumazure",
+        "lime",
+        "mediumnougat"
       ],
       "legacy": true,
       "ldrawName": "Plate  1 x  8",
@@ -1410,7 +1764,15 @@
         "brown",
         "gray",
         "navy",
-        "darkbrown"
+        "darkbrown",
+        "darkgray",
+        "darktan",
+        "darkred",
+        "sandgreen",
+        "darkgreen",
+        "mediumazure",
+        "lime",
+        "mediumnougat"
       ],
       "legacy": false,
       "ldrawName": "Plate  1 x  3",
@@ -1437,7 +1799,16 @@
         "brown",
         "gray",
         "navy",
-        "darkbrown"
+        "darkbrown",
+        "darkgray",
+        "darktan",
+        "darkred",
+        "sandgreen",
+        "darkgreen",
+        "mediumazure",
+        "lime",
+        "mediumnougat",
+        "pearlgold"
       ],
       "legacy": true,
       "ldrawName": "Plate  1 x  6",
@@ -1464,7 +1835,16 @@
         "brown",
         "gray",
         "navy",
-        "darkbrown"
+        "darkbrown",
+        "darkgray",
+        "darktan",
+        "darkred",
+        "sandgreen",
+        "darkgreen",
+        "mediumazure",
+        "lime",
+        "mediumnougat",
+        "transclear"
       ],
       "legacy": true,
       "ldrawName": "Plate  1 x  4",
@@ -1491,7 +1871,15 @@
         "brown",
         "gray",
         "navy",
-        "darkbrown"
+        "darkbrown",
+        "darkgray",
+        "darktan",
+        "darkred",
+        "sandgreen",
+        "darkgreen",
+        "mediumazure",
+        "lime",
+        "mediumnougat"
       ],
       "legacy": false,
       "ldrawName": "Plate  2 x  6",
@@ -1516,7 +1904,11 @@
         "orange",
         "pink",
         "brown",
-        "gray"
+        "gray",
+        "darkgray",
+        "darktan",
+        "darkred",
+        "lime"
       ],
       "legacy": false,
       "ldrawName": "Plate  2 x 10",
@@ -1543,7 +1935,15 @@
         "brown",
         "gray",
         "navy",
-        "darkbrown"
+        "darkbrown",
+        "darkgray",
+        "darktan",
+        "darkred",
+        "sandgreen",
+        "darkgreen",
+        "mediumazure",
+        "lime",
+        "mediumnougat"
       ],
       "legacy": false,
       "ldrawName": "Plate  6 x  6",
@@ -1565,7 +1965,16 @@
         "tan",
         "pink",
         "gray",
-        "navy"
+        "navy",
+        "darkgray",
+        "darktan",
+        "darkred",
+        "sandgreen",
+        "darkgreen",
+        "mediumazure",
+        "lime",
+        "mediumnougat",
+        "translightblue"
       ],
       "legacy": false,
       "ldrawName": "Plate  8 x  8",
@@ -1590,7 +1999,11 @@
         "orange",
         "brown",
         "gray",
-        "navy"
+        "navy",
+        "darkgray",
+        "darktan",
+        "darkred",
+        "darkgreen"
       ],
       "legacy": false,
       "ldrawName": "Plate  2 x 16",
@@ -1616,7 +2029,14 @@
         "brown",
         "gray",
         "navy",
-        "darkbrown"
+        "darkbrown",
+        "darkgray",
+        "darktan",
+        "darkred",
+        "sandgreen",
+        "darkgreen",
+        "mediumazure",
+        "lime"
       ],
       "legacy": false,
       "ldrawName": "Plate  1 x 10",
@@ -1640,7 +2060,12 @@
         "brown",
         "gray",
         "navy",
-        "darkbrown"
+        "darkbrown",
+        "darkgray",
+        "darktan",
+        "darkred",
+        "lime",
+        "mediumnougat"
       ],
       "legacy": false,
       "ldrawName": "Plate  1 x 12",
@@ -1660,7 +2085,9 @@
         "red",
         "tan",
         "gray",
-        "darkbrown"
+        "darkbrown",
+        "sandgreen",
+        "mediumnougat"
       ],
       "legacy": false,
       "ldrawName": "Plate  2 x  3 with  1 x  1 Cutout",
@@ -1700,7 +2127,10 @@
         "orange",
         "gray",
         "navy",
-        "darkbrown"
+        "darkbrown",
+        "darkgray",
+        "darkred",
+        "mediumnougat"
       ],
       "legacy": false,
       "ldrawName": "Plate  3 x  3 Corner",
@@ -1722,7 +2152,9 @@
         "tan",
         "brown",
         "gray",
-        "navy"
+        "navy",
+        "darkgray",
+        "mediumnougat"
       ],
       "legacy": false,
       "ldrawName": "Plate  1 x  5",
@@ -1745,7 +2177,11 @@
         "orange",
         "brown",
         "gray",
-        "navy"
+        "navy",
+        "darkgray",
+        "darktan",
+        "lime",
+        "mediumnougat"
       ],
       "legacy": false,
       "ldrawName": "Plate  1 x  1 x  0.667",
@@ -1768,7 +2204,14 @@
         "tan",
         "orange",
         "pink",
-        "gray"
+        "gray",
+        "darkgray",
+        "darktan",
+        "sandgreen",
+        "darkgreen",
+        "mediumazure",
+        "lime",
+        "mediumnougat"
       ],
       "legacy": false,
       "ldrawName": "Plate 16 x 16 with Underside Ribs",
@@ -1791,7 +2234,11 @@
         "tan",
         "brown",
         "gray",
-        "navy"
+        "navy",
+        "darkgray",
+        "darktan",
+        "darkred",
+        "mediumnougat"
       ],
       "legacy": false,
       "ldrawName": "Plate  2 x 14",
@@ -1816,7 +2263,14 @@
         "orange",
         "pink",
         "gray",
-        "darkbrown"
+        "darkbrown",
+        "darkgray",
+        "darktan",
+        "sandgreen",
+        "darkgreen",
+        "mediumazure",
+        "lime",
+        "mediumnougat"
       ],
       "legacy": false,
       "ldrawName": "Plate  8 x 16",
@@ -1838,7 +2292,9 @@
         "white",
         "tan",
         "brown",
-        "gray"
+        "gray",
+        "darkgray",
+        "darkgreen"
       ],
       "legacy": false,
       "ldrawName": "Tile  6 x  6 with Groove and Underside Studs",
@@ -1862,7 +2318,12 @@
         "tan",
         "brown",
         "gray",
-        "navy"
+        "navy",
+        "darkgray",
+        "darktan",
+        "darkred",
+        "mediumazure",
+        "mediumnougat"
       ],
       "legacy": false,
       "ldrawName": "Tile  2 x  2 Corner",
@@ -1883,7 +2344,9 @@
         "tan",
         "brown",
         "gray",
-        "navy"
+        "navy",
+        "darkgray",
+        "darkred"
       ],
       "legacy": false,
       "ldrawName": "Tile  4 x  4",
@@ -1910,7 +2373,18 @@
         "brown",
         "gray",
         "navy",
-        "darkbrown"
+        "darkbrown",
+        "darkgray",
+        "darktan",
+        "darkred",
+        "sandgreen",
+        "darkgreen",
+        "mediumazure",
+        "lime",
+        "mediumnougat",
+        "transclear",
+        "translightblue",
+        "pearlgold"
       ],
       "legacy": true,
       "ldrawName": "Tile  1 x  4 with Groove",
@@ -1936,7 +2410,13 @@
         "pink",
         "brown",
         "gray",
-        "navy"
+        "navy",
+        "darkgray",
+        "darktan",
+        "darkred",
+        "mediumazure",
+        "lime",
+        "mediumnougat"
       ],
       "legacy": false,
       "ldrawName": "Tile  2 x  3",
@@ -1963,7 +2443,17 @@
         "brown",
         "gray",
         "navy",
-        "darkbrown"
+        "darkbrown",
+        "darkgray",
+        "darktan",
+        "darkred",
+        "sandgreen",
+        "darkgreen",
+        "mediumazure",
+        "lime",
+        "mediumnougat",
+        "transclear",
+        "pearlgold"
       ],
       "legacy": true,
       "ldrawName": "Tile  2 x  2 with Groove",
@@ -1990,7 +2480,18 @@
         "brown",
         "gray",
         "navy",
-        "darkbrown"
+        "darkbrown",
+        "darkgray",
+        "darktan",
+        "darkred",
+        "sandgreen",
+        "darkgreen",
+        "mediumazure",
+        "lime",
+        "mediumnougat",
+        "transclear",
+        "translightblue",
+        "pearlgold"
       ],
       "legacy": true,
       "ldrawName": "Tile  1 x  2 with Groove",
@@ -2017,7 +2518,17 @@
         "brown",
         "gray",
         "navy",
-        "darkbrown"
+        "darkbrown",
+        "darkgray",
+        "darktan",
+        "darkred",
+        "sandgreen",
+        "darkgreen",
+        "mediumazure",
+        "lime",
+        "mediumnougat",
+        "transclear",
+        "translightblue"
       ],
       "legacy": true,
       "ldrawName": "Tile  1 x  1 with Groove",
@@ -2044,7 +2555,12 @@
         "brown",
         "gray",
         "navy",
-        "darkbrown"
+        "darkbrown",
+        "darkgray",
+        "darktan",
+        "darkred",
+        "mediumazure",
+        "lime"
       ],
       "legacy": true,
       "ldrawName": "Tile  1 x  8",
@@ -2087,7 +2603,15 @@
         "brown",
         "gray",
         "navy",
-        "darkbrown"
+        "darkbrown",
+        "darkgray",
+        "darktan",
+        "darkred",
+        "sandgreen",
+        "darkgreen",
+        "mediumazure",
+        "lime",
+        "mediumnougat"
       ],
       "legacy": false,
       "ldrawName": "Tile  1 x  3",
@@ -2114,7 +2638,15 @@
         "brown",
         "gray",
         "navy",
-        "darkbrown"
+        "darkbrown",
+        "darkgray",
+        "darktan",
+        "darkred",
+        "sandgreen",
+        "darkgreen",
+        "mediumazure",
+        "lime",
+        "mediumnougat"
       ],
       "legacy": true,
       "ldrawName": "Tile  1 x  6",
@@ -2139,7 +2671,13 @@
         "orange",
         "brown",
         "gray",
-        "navy"
+        "navy",
+        "darkgray",
+        "darkred",
+        "sandgreen",
+        "mediumazure",
+        "lime",
+        "mediumnougat"
       ],
       "legacy": false,
       "ldrawName": "Tile  2 x  6",
@@ -2182,7 +2720,15 @@
         "brown",
         "gray",
         "navy",
-        "darkbrown"
+        "darkbrown",
+        "darkgray",
+        "darktan",
+        "darkred",
+        "sandgreen",
+        "darkgreen",
+        "mediumazure",
+        "lime",
+        "mediumnougat"
       ],
       "legacy": true,
       "ldrawName": "Tile  2 x  4",
@@ -2203,7 +2749,9 @@
         "yellow",
         "white",
         "tan",
-        "brown"
+        "brown",
+        "darkgray",
+        "darkred"
       ],
       "legacy": false,
       "ldrawName": "Tile  8 x 16 Type 2",
@@ -2225,7 +2773,10 @@
         "orange",
         "brown",
         "gray",
-        "navy"
+        "navy",
+        "darkgray",
+        "darkred",
+        "mediumazure"
       ],
       "legacy": false,
       "ldrawName": "Slope Brick Curved  2 x  8 x  2 Double",
@@ -2245,7 +2796,9 @@
         "white",
         "brown",
         "gray",
-        "navy"
+        "navy",
+        "darkgray",
+        "mediumazure"
       ],
       "legacy": false,
       "ldrawName": "Slope Brick Curved  2 x  8 x  2 Inverted Double",
@@ -2272,7 +2825,19 @@
         "brown",
         "gray",
         "navy",
-        "darkbrown"
+        "darkbrown",
+        "darkgray",
+        "darktan",
+        "darkred",
+        "sandgreen",
+        "darkgreen",
+        "mediumazure",
+        "lime",
+        "mediumnougat",
+        "transclear",
+        "translightblue",
+        "pearlgold",
+        "flatsilver"
       ],
       "legacy": true,
       "ldrawName": "Slope Brick Curved  2 x  1",
@@ -2296,7 +2861,14 @@
         "pink",
         "brown",
         "gray",
-        "navy"
+        "navy",
+        "darkgray",
+        "darktan",
+        "darkred",
+        "sandgreen",
+        "mediumazure",
+        "lime",
+        "mediumnougat"
       ],
       "legacy": false,
       "ldrawName": "Slope Brick Curved  4 x  1 Inverted",
@@ -2323,7 +2895,17 @@
         "brown",
         "gray",
         "navy",
-        "darkbrown"
+        "darkbrown",
+        "darkgray",
+        "darktan",
+        "darkred",
+        "sandgreen",
+        "darkgreen",
+        "mediumazure",
+        "lime",
+        "mediumnougat",
+        "pearlgold",
+        "flatsilver"
       ],
       "legacy": true,
       "ldrawName": "Slope Brick Curved  2 x  2 x  0.667",
@@ -2342,7 +2924,8 @@
         "white",
         "tan",
         "brown",
-        "gray"
+        "gray",
+        "darkgray"
       ],
       "legacy": false,
       "ldrawName": "Slope Brick Curved  5 x  8 x  0.667",
@@ -2368,7 +2951,10 @@
         "pink",
         "brown",
         "gray",
-        "navy"
+        "navy",
+        "darkgray",
+        "mediumazure",
+        "mediumnougat"
       ],
       "legacy": false,
       "ldrawName": "Brick  2 x  2 x  1 with Curved Bottom",
@@ -2394,7 +2980,15 @@
         "pink",
         "brown",
         "gray",
-        "navy"
+        "navy",
+        "darkgray",
+        "darktan",
+        "darkred",
+        "sandgreen",
+        "darkgreen",
+        "mediumazure",
+        "lime",
+        "mediumnougat"
       ],
       "legacy": false,
       "ldrawName": "Slope Brick Curved  2 x  1 Inverted",
@@ -2418,7 +3012,11 @@
         "orange",
         "brown",
         "gray",
-        "navy"
+        "navy",
+        "darkgray",
+        "darktan",
+        "darkred",
+        "mediumnougat"
       ],
       "legacy": false,
       "ldrawName": "Slope Brick Curved  3 x  2",
@@ -2461,7 +3059,14 @@
         "pink",
         "brown",
         "gray",
-        "navy"
+        "navy",
+        "darkgray",
+        "darkred",
+        "sandgreen",
+        "darkgreen",
+        "mediumazure",
+        "lime",
+        "mediumnougat"
       ],
       "legacy": false,
       "ldrawName": "Brick  2 x  2 with Curved Top and  2 Studs on Top",
@@ -2486,7 +3091,14 @@
         "orange",
         "brown",
         "gray",
-        "navy"
+        "navy",
+        "darkgray",
+        "darktan",
+        "darkred",
+        "darkgreen",
+        "lime",
+        "transclear",
+        "translightblue"
       ],
       "legacy": false,
       "ldrawName": "Slope Brick Curved Top  2 x  2 x  1",
@@ -2512,7 +3124,12 @@
         "pink",
         "brown",
         "gray",
-        "navy"
+        "navy",
+        "darkgray",
+        "darktan",
+        "darkred",
+        "darkgreen",
+        "mediumnougat"
       ],
       "legacy": false,
       "ldrawName": "Slope Brick Curved  2 x  2 Inverted",
@@ -2536,7 +3153,15 @@
         "pink",
         "brown",
         "gray",
-        "navy"
+        "navy",
+        "darkgray",
+        "darktan",
+        "darkred",
+        "darkgreen",
+        "mediumazure",
+        "lime",
+        "mediumnougat",
+        "pearlgold"
       ],
       "legacy": false,
       "ldrawName": "Brick  1 x  3 x  2 Curved Top",
@@ -2551,7 +3176,8 @@
       "name": "Brick Curved 3 x 1 Round Ends",
       "family": "curved",
       "colors": [
-        "brown"
+        "brown",
+        "darkgray"
       ],
       "legacy": false,
       "ldrawName": "Brick  1 x  3 x  1.333 with Rounded Ends",
@@ -2571,7 +3197,8 @@
         "tan",
         "orange",
         "pink",
-        "brown"
+        "brown",
+        "pearlgold"
       ],
       "legacy": false,
       "ldrawName": "Brick  1 x  2 x  0.667 with Curved Top",
@@ -2596,7 +3223,10 @@
         "pink",
         "brown",
         "gray",
-        "navy"
+        "navy",
+        "sandgreen",
+        "darkgreen",
+        "mediumazure"
       ],
       "legacy": false,
       "ldrawName": "Slope Brick Curved  4 x  1 x  1.667",
@@ -2622,7 +3252,14 @@
         "pink",
         "brown",
         "gray",
-        "navy"
+        "navy",
+        "darkgray",
+        "darkred",
+        "sandgreen",
+        "darkgreen",
+        "mediumazure",
+        "lime",
+        "mediumnougat"
       ],
       "legacy": false,
       "ldrawName": "Brick  1 x  2 with Curved Top",
@@ -2641,7 +3278,9 @@
         "green",
         "white",
         "tan",
-        "gray"
+        "gray",
+        "darkgray",
+        "mediumnougat"
       ],
       "legacy": false,
       "ldrawName": "Brick  1 x  1 with Half Arch on Opposite Sides",
@@ -2701,7 +3340,10 @@
         "tan",
         "brown",
         "gray",
-        "navy"
+        "navy",
+        "darkgray",
+        "darkred",
+        "lime"
       ],
       "legacy": false,
       "ldrawName": "Slope Brick Curved  8 x  2 x  2",
@@ -2725,7 +3367,10 @@
         "tan",
         "orange",
         "gray",
-        "navy"
+        "navy",
+        "darkgray",
+        "darkred",
+        "lime"
       ],
       "legacy": false,
       "ldrawName": "Slope Brick Rounded  2 x  2 x  0.667",
@@ -2752,7 +3397,14 @@
         "brown",
         "gray",
         "navy",
-        "darkbrown"
+        "darkbrown",
+        "darkgray",
+        "darktan",
+        "darkred",
+        "sandgreen",
+        "darkgreen",
+        "lime",
+        "translightblue"
       ],
       "legacy": false,
       "ldrawName": "Slope Brick Curved  6 x  1",
@@ -2777,7 +3429,13 @@
         "pink",
         "brown",
         "gray",
-        "navy"
+        "navy",
+        "darkgray",
+        "darkred",
+        "sandgreen",
+        "darkgreen",
+        "mediumazure",
+        "lime"
       ],
       "legacy": false,
       "ldrawName": "Slope Brick Curved  6 x  1 Inverted",
@@ -2799,7 +3457,10 @@
         "tan",
         "brown",
         "gray",
-        "navy"
+        "navy",
+        "darkgray",
+        "darkred",
+        "lime"
       ],
       "legacy": false,
       "ldrawName": "Slope Brick Curved  8 x  2",
@@ -2824,7 +3485,12 @@
         "orange",
         "brown",
         "gray",
-        "navy"
+        "navy",
+        "darkgray",
+        "darktan",
+        "darkred",
+        "darkgreen",
+        "lime"
       ],
       "legacy": false,
       "ldrawName": "Slope Brick Curved  6 x  2",
@@ -2844,7 +3510,9 @@
         "red",
         "yellow",
         "white",
-        "gray"
+        "gray",
+        "darkgray",
+        "darkred"
       ],
       "legacy": false,
       "ldrawName": "Slope Brick Curved  6 x  8 x  2 Inverted Double",
@@ -2907,7 +3575,13 @@
         "tan",
         "brown",
         "gray",
-        "darkbrown"
+        "darkbrown",
+        "darkgray",
+        "darktan",
+        "darkred",
+        "mediumazure",
+        "lime",
+        "pearlgold"
       ],
       "legacy": false,
       "ldrawName": "Slope Brick Curved  2 x  2 x   2/3 Triple with Two Top Studs",
@@ -2933,7 +3607,15 @@
         "pink",
         "brown",
         "gray",
-        "navy"
+        "navy",
+        "darkgray",
+        "darktan",
+        "darkred",
+        "sandgreen",
+        "darkgreen",
+        "mediumazure",
+        "lime",
+        "mediumnougat"
       ],
       "legacy": false,
       "ldrawName": "Brick  1 x  1 x  0.667 with Curved Top",
@@ -2960,7 +3642,16 @@
         "brown",
         "gray",
         "navy",
-        "darkbrown"
+        "darkbrown",
+        "darkgray",
+        "darktan",
+        "darkred",
+        "sandgreen",
+        "darkgreen",
+        "mediumazure",
+        "lime",
+        "mediumnougat",
+        "pearlgold"
       ],
       "legacy": false,
       "ldrawName": "Slope Brick Curved  3 x  1",
@@ -2979,7 +3670,8 @@
         "blue",
         "red",
         "yellow",
-        "white"
+        "white",
+        "darkgray"
       ],
       "legacy": false,
       "ldrawName": "Slope Brick Curved  8 x  1 x  1 & 2/3 with Arch",
@@ -3001,7 +3693,11 @@
         "white",
         "orange",
         "gray",
-        "navy"
+        "navy",
+        "darkgray",
+        "darktan",
+        "mediumazure",
+        "lime"
       ],
       "legacy": false,
       "ldrawName": "Slope Brick Curved  8 x  8 x  2 Inverted Double",
@@ -3024,7 +3720,9 @@
         "pink",
         "brown",
         "gray",
-        "navy"
+        "navy",
+        "mediumazure",
+        "lime"
       ],
       "legacy": false,
       "ldrawName": "Slope Brick Curved  8 x  8 x  2 Double",
@@ -3050,7 +3748,14 @@
         "pink",
         "brown",
         "gray",
-        "navy"
+        "navy",
+        "darkgray",
+        "darktan",
+        "darkred",
+        "darkgreen",
+        "mediumazure",
+        "mediumnougat",
+        "translightblue"
       ],
       "legacy": false,
       "ldrawName": "Brick  2 x  1 x  1 with Curved Top",
@@ -3071,7 +3776,11 @@
         "pink",
         "brown",
         "gray",
-        "navy"
+        "navy",
+        "darkgray",
+        "darkred",
+        "mediumnougat",
+        "pearlgold"
       ],
       "legacy": false,
       "ldrawName": "Brick  2 x  4 x  1 with Curved Top",
@@ -3115,7 +3824,11 @@
         "orange",
         "pink",
         "brown",
-        "gray"
+        "gray",
+        "darkgray",
+        "mediumazure",
+        "mediumnougat",
+        "pearlgold"
       ],
       "legacy": false,
       "ldrawName": "Brick  2 x  1 x 1.667 with Curved Top",
@@ -3139,7 +3852,13 @@
         "tan",
         "orange",
         "gray",
-        "navy"
+        "navy",
+        "darkgray",
+        "darktan",
+        "darkred",
+        "sandgreen",
+        "darkgreen",
+        "mediumazure"
       ],
       "legacy": false,
       "ldrawName": "Brick  2 x  4 x  1.333 with Curved Top",
@@ -3165,7 +3884,16 @@
         "pink",
         "brown",
         "gray",
-        "navy"
+        "navy",
+        "darkgray",
+        "darktan",
+        "darkred",
+        "sandgreen",
+        "darkgreen",
+        "mediumazure",
+        "lime",
+        "mediumnougat",
+        "pearlgold"
       ],
       "legacy": false,
       "ldrawName": "Brick  2 x  1 x  1.333 with Curved Top",
@@ -3182,7 +3910,8 @@
       "colors": [
         "black",
         "blue",
-        "white"
+        "white",
+        "lime"
       ],
       "legacy": false,
       "ldrawName": "Slope Brick Curved  2 x  4 without Underside Studs",
@@ -3225,7 +3954,12 @@
         "brown",
         "gray",
         "navy",
-        "darkbrown"
+        "darkbrown",
+        "darkgray",
+        "darkred",
+        "sandgreen",
+        "lime",
+        "pearlgold"
       ],
       "legacy": false,
       "ldrawName": "Slope Brick Curved  4 x  1",
@@ -3250,7 +3984,10 @@
         "orange",
         "pink",
         "brown",
-        "gray"
+        "gray",
+        "darktan",
+        "darkred",
+        "mediumazure"
       ],
       "legacy": false,
       "ldrawName": "Brick  1 x  4 x  1.333 with Curved Top",
@@ -3272,7 +4009,11 @@
         "tan",
         "orange",
         "gray",
-        "navy"
+        "navy",
+        "darkgray",
+        "darktan",
+        "darkgreen",
+        "lime"
       ],
       "legacy": false,
       "ldrawName": "Brick  2 x  4 with Curved Top and Groove",
@@ -3314,7 +4055,9 @@
         "pink",
         "brown",
         "gray",
-        "navy"
+        "navy",
+        "darkred",
+        "mediumazure"
       ],
       "legacy": false,
       "ldrawName": "Brick  2 x  3 with Curved Top",
@@ -3358,7 +4101,11 @@
         "orange",
         "pink",
         "brown",
-        "gray"
+        "gray",
+        "sandgreen",
+        "mediumnougat",
+        "transclear",
+        "translightblue"
       ],
       "legacy": false,
       "ldrawName": "Brick  1 x  4 x  2.667 Curved Top",
@@ -3385,7 +4132,14 @@
         "brown",
         "gray",
         "navy",
-        "darkbrown"
+        "darkbrown",
+        "darkgray",
+        "darkred",
+        "sandgreen",
+        "darkgreen",
+        "mediumazure",
+        "mediumnougat",
+        "pearlgold"
       ],
       "legacy": false,
       "ldrawName": "Slope Brick Curved  1 x  3 with  1 x  2 Inverted Cutout",
@@ -3400,7 +4154,8 @@
       "name": "Brick Curved 5 x 8 x 2/3 with No Studs on Top",
       "family": "curved",
       "colors": [
-        "red"
+        "red",
+        "darkgray"
       ],
       "legacy": false,
       "ldrawName": "Slope Brick Curved  5 x  8 x  0.667 without Studs",
@@ -3416,7 +4171,10 @@
       "family": "curved",
       "colors": [
         "black",
-        "blue"
+        "blue",
+        "darkred",
+        "sandgreen",
+        "darkgreen"
       ],
       "legacy": false,
       "ldrawName": "Slope Brick Curved 3 x 3 Corner with Inverted Cutout",
@@ -3433,7 +4191,9 @@
       "colors": [
         "white",
         "pink",
-        "navy"
+        "navy",
+        "lime",
+        "mediumnougat"
       ],
       "legacy": false,
       "ldrawName": "Brick Curved  2 x  2 x  1.667",
@@ -3470,7 +4230,8 @@
         "yellow",
         "white",
         "brown",
-        "gray"
+        "gray",
+        "darkgray"
       ],
       "legacy": false,
       "ldrawName": "Slope Brick Curved  6 x  4 Double",
@@ -3490,7 +4251,10 @@
         "white",
         "tan",
         "orange",
-        "gray"
+        "gray",
+        "darkgray",
+        "sandgreen",
+        "darkgreen"
       ],
       "legacy": false,
       "ldrawName": "Brick  1 x  4 x  0.667 with Curved Top",
@@ -3546,7 +4310,11 @@
         "yellow",
         "white",
         "tan",
-        "gray"
+        "gray",
+        "darkgray",
+        "darkred",
+        "sandgreen",
+        "pearlgold"
       ],
       "legacy": false,
       "ldrawName": "Slope Brick Curved  1 x  8 with Plate  1 x  2",
@@ -3573,7 +4341,15 @@
         "brown",
         "gray",
         "navy",
-        "darkbrown"
+        "darkbrown",
+        "darkgray",
+        "darktan",
+        "darkred",
+        "darkgreen",
+        "mediumazure",
+        "lime",
+        "mediumnougat",
+        "flatsilver"
       ],
       "legacy": false,
       "ldrawName": "Slope Brick Curved  4 x  1 Double",
@@ -3599,7 +4375,14 @@
         "brown",
         "gray",
         "navy",
-        "darkbrown"
+        "darkbrown",
+        "darkgray",
+        "darktan",
+        "darkred",
+        "darkgreen",
+        "mediumazure",
+        "lime",
+        "mediumnougat"
       ],
       "legacy": false,
       "ldrawName": "Slope Brick Curved  4 x  2",
@@ -3622,7 +4405,8 @@
         "white",
         "pink",
         "gray",
-        "navy"
+        "navy",
+        "darkred"
       ],
       "legacy": false,
       "ldrawName": "Wedge  6 x  4 x  0.667 Quadruple Curved",
@@ -3640,7 +4424,9 @@
         "red",
         "white",
         "tan",
-        "gray"
+        "gray",
+        "darkgray",
+        "mediumnougat"
       ],
       "legacy": false,
       "ldrawName": "Arch  1 x  6 x  2 with Very Thin Top",
@@ -3664,7 +4450,11 @@
         "brown",
         "gray",
         "navy",
-        "darkbrown"
+        "darkbrown",
+        "darktan",
+        "darkred",
+        "mediumazure",
+        "mediumnougat"
       ],
       "legacy": false,
       "ldrawName": "Arch  1 x  3 x  3 Pointed",
@@ -3686,7 +4476,10 @@
         "tan",
         "brown",
         "gray",
-        "darkbrown"
+        "darkbrown",
+        "darkgray",
+        "darktan",
+        "mediumnougat"
       ],
       "legacy": false,
       "ldrawName": "Arch  1 x  5 x  4 with Thin Walls",
@@ -3727,7 +4520,9 @@
         "pink",
         "brown",
         "gray",
-        "navy"
+        "navy",
+        "darkgray",
+        "mediumnougat"
       ],
       "legacy": false,
       "ldrawName": "Arch  1 x  8 x  2 Raised",
@@ -3753,7 +4548,13 @@
         "pink",
         "brown",
         "gray",
-        "navy"
+        "navy",
+        "darkgray",
+        "darkred",
+        "sandgreen",
+        "mediumazure",
+        "lime",
+        "mediumnougat"
       ],
       "legacy": false,
       "ldrawName": "Arch  1 x  3 x  2 Inverted",
@@ -3779,7 +4580,11 @@
         "brown",
         "gray",
         "navy",
-        "darkbrown"
+        "darkbrown",
+        "darkgray",
+        "darktan",
+        "darkred",
+        "mediumazure"
       ],
       "legacy": false,
       "ldrawName": "Arch  1 x  5 x  4 Inverted",
@@ -3812,7 +4617,8 @@
         "black",
         "yellow",
         "white",
-        "tan"
+        "tan",
+        "darkgray"
       ],
       "legacy": false,
       "ldrawName": "Arch  2 x 14 x  2.333",
@@ -3850,7 +4656,9 @@
         "white",
         "tan",
         "brown",
-        "gray"
+        "gray",
+        "darkgray",
+        "darkred"
       ],
       "legacy": false,
       "ldrawName": "Arch  1 x  6",
@@ -3868,7 +4676,9 @@
         "black",
         "red",
         "white",
-        "brown"
+        "brown",
+        "darktan",
+        "darkred"
       ],
       "legacy": false,
       "ldrawName": "Arch  1 x  5 x  2",
@@ -3895,7 +4705,12 @@
         "brown",
         "gray",
         "navy",
-        "darkbrown"
+        "darkbrown",
+        "darkgray",
+        "darktan",
+        "darkred",
+        "lime",
+        "mediumnougat"
       ],
       "legacy": false,
       "ldrawName": "Arch  1 x  4",
@@ -3919,7 +4734,9 @@
         "tan",
         "pink",
         "brown",
-        "gray"
+        "gray",
+        "darkgray",
+        "sandgreen"
       ],
       "legacy": false,
       "ldrawName": "Arch  1 x  3",
@@ -3963,7 +4780,12 @@
         "orange",
         "brown",
         "gray",
-        "navy"
+        "navy",
+        "darkgray",
+        "darkred",
+        "darkgreen",
+        "mediumazure",
+        "mediumnougat"
       ],
       "legacy": false,
       "ldrawName": "Arch  1 x  3 x  1.667 with Curved Top",
@@ -3985,7 +4807,8 @@
         "tan",
         "brown",
         "gray",
-        "navy"
+        "navy",
+        "mediumazure"
       ],
       "legacy": false,
       "ldrawName": "Arch 1 x 5 x 3.333 with Curved Top and Two Studs",
@@ -4031,7 +4854,11 @@
         "pink",
         "brown",
         "gray",
-        "navy"
+        "navy",
+        "darkgray",
+        "darkred",
+        "sandgreen",
+        "darkgreen"
       ],
       "legacy": false,
       "ldrawName": "Arch  1 x  3 x  2 with Curved Top",
@@ -4056,7 +4883,9 @@
         "brown",
         "gray",
         "navy",
-        "darkbrown"
+        "darkbrown",
+        "darkred",
+        "mediumazure"
       ],
       "legacy": false,
       "ldrawName": "Arch  1 x  6 x  3.333 with Curved Top and Two Studs",
@@ -4102,7 +4931,10 @@
         "white",
         "tan",
         "brown",
-        "gray"
+        "gray",
+        "darkgray",
+        "mediumazure",
+        "mediumnougat"
       ],
       "legacy": false,
       "ldrawName": "Arch  1 x  4 x  2",
@@ -4125,7 +4957,8 @@
         "white",
         "tan",
         "brown",
-        "gray"
+        "gray",
+        "lime"
       ],
       "legacy": false,
       "ldrawName": "Arch  1 x  6 x  2 with Curved Top",
@@ -4171,7 +5004,11 @@
         "orange",
         "brown",
         "gray",
-        "navy"
+        "navy",
+        "darkgray",
+        "darkred",
+        "sandgreen",
+        "mediumnougat"
       ],
       "legacy": false,
       "ldrawName": "Arch  1 x  2 x  1 Inverted",
@@ -4191,7 +5028,8 @@
         "white",
         "tan",
         "brown",
-        "gray"
+        "gray",
+        "darkgray"
       ],
       "legacy": false,
       "ldrawName": "Arch  1 x  4 x  3",
@@ -4212,7 +5050,11 @@
         "tan",
         "brown",
         "gray",
-        "navy"
+        "navy",
+        "darkgray",
+        "darkred",
+        "mediumazure",
+        "mediumnougat"
       ],
       "legacy": false,
       "ldrawName": "Arch  1 x  3 x  2 Ogee",
@@ -4236,7 +5078,11 @@
         "pink",
         "brown",
         "gray",
-        "navy"
+        "navy",
+        "darkgray",
+        "darkred",
+        "sandgreen",
+        "lime"
       ],
       "legacy": false,
       "ldrawName": "Arch  1 x  6 Raised",
@@ -4293,7 +5139,11 @@
         "yellow",
         "white",
         "tan",
-        "gray"
+        "gray",
+        "darkgray",
+        "darkred",
+        "darkgreen",
+        "lime"
       ],
       "legacy": false,
       "ldrawName": "Wedge  3 x  4 x  0.667 Cutout",
@@ -4313,7 +5163,10 @@
         "red",
         "white",
         "orange",
-        "navy"
+        "navy",
+        "darkgray",
+        "darkgreen",
+        "lime"
       ],
       "legacy": false,
       "ldrawName": "Slope Brick 33/45  6 x  4 with  2 x  2 Cutout",
@@ -4333,7 +5186,10 @@
         "white",
         "tan",
         "brown",
-        "gray"
+        "gray",
+        "darkgray",
+        "darkred",
+        "darkgreen"
       ],
       "legacy": false,
       "ldrawName": "Wedge  4 x  4 Triple Inverted with Ribs between Studs",
@@ -4356,7 +5212,13 @@
         "brown",
         "gray",
         "navy",
-        "darkbrown"
+        "darkbrown",
+        "darkgray",
+        "darktan",
+        "darkred",
+        "sandgreen",
+        "mediumnougat",
+        "pearlgold"
       ],
       "legacy": false,
       "ldrawName": "Slope Brick 45  2 x  2 Double Convex with 45 Corner",
@@ -4393,7 +5255,10 @@
         "black",
         "white",
         "orange",
-        "navy"
+        "navy",
+        "darkred",
+        "pearlgold",
+        "flatsilver"
       ],
       "legacy": false,
       "ldrawName": "Wedge  6 x  8 Double with Cutout",
@@ -4412,7 +5277,11 @@
         "blue",
         "white",
         "navy",
-        "darkbrown"
+        "darkbrown",
+        "darkred",
+        "sandgreen",
+        "pearlgold",
+        "flatsilver"
       ],
       "legacy": false,
       "ldrawName": "Wedge  4 x  4 Pointed",
@@ -4455,7 +5324,10 @@
         "white",
         "tan",
         "brown",
-        "gray"
+        "gray",
+        "darkgray",
+        "lime",
+        "mediumnougat"
       ],
       "legacy": false,
       "ldrawName": "Brick  3 x  3 Facet",
@@ -4511,7 +5383,8 @@
         "white",
         "tan",
         "orange",
-        "gray"
+        "gray",
+        "darkgray"
       ],
       "legacy": false,
       "ldrawName": "Slope Brick 33/45  6 x  6 with  4 x  4 Cutout",
@@ -4529,7 +5402,8 @@
         "black",
         "white",
         "brown",
-        "gray"
+        "gray",
+        "darkgray"
       ],
       "legacy": false,
       "ldrawName": "Wedge  6 x  6 Triple Inverted",
@@ -4556,7 +5430,16 @@
         "brown",
         "gray",
         "navy",
-        "darkbrown"
+        "darkbrown",
+        "darkgray",
+        "darktan",
+        "darkred",
+        "sandgreen",
+        "darkgreen",
+        "mediumazure",
+        "lime",
+        "mediumnougat",
+        "pearlgold"
       ],
       "legacy": false,
       "ldrawName": "Slope Brick Curved  2 x  1 with Cutout Right",
@@ -4585,7 +5468,16 @@
         "brown",
         "gray",
         "navy",
-        "darkbrown"
+        "darkbrown",
+        "darkgray",
+        "darktan",
+        "darkred",
+        "sandgreen",
+        "darkgreen",
+        "mediumazure",
+        "lime",
+        "mediumnougat",
+        "pearlgold"
       ],
       "legacy": false,
       "ldrawName": "Slope Brick Curved  2 x  1 with Cutout Left",
@@ -4625,7 +5517,8 @@
         "black",
         "brown",
         "gray",
-        "navy"
+        "navy",
+        "darkgray"
       ],
       "legacy": false,
       "ldrawName": "Wedge  2 x 12 Triple",
@@ -4644,7 +5537,8 @@
         "red",
         "white",
         "tan",
-        "brown"
+        "brown",
+        "darkgreen"
       ],
       "legacy": false,
       "ldrawName": "Brick  3 x  3 without Corner",
@@ -4686,7 +5580,8 @@
         "red",
         "white",
         "orange",
-        "navy"
+        "navy",
+        "darkgray"
       ],
       "legacy": false,
       "ldrawName": "Wedge  1 x  5 Straight Left",
@@ -4708,7 +5603,8 @@
         "red",
         "white",
         "orange",
-        "navy"
+        "navy",
+        "darkgray"
       ],
       "legacy": false,
       "ldrawName": "Wedge  1 x  5 Straight Right",
@@ -4732,7 +5628,8 @@
         "orange",
         "brown",
         "gray",
-        "navy"
+        "navy",
+        "darkgray"
       ],
       "legacy": false,
       "ldrawName": "Wedge  2 x  5 Straight Left",
@@ -4756,7 +5653,8 @@
         "orange",
         "brown",
         "gray",
-        "navy"
+        "navy",
+        "darkgray"
       ],
       "legacy": false,
       "ldrawName": "Wedge  2 x  5 Straight Right",
@@ -4784,7 +5682,13 @@
         "brown",
         "gray",
         "navy",
-        "darkbrown"
+        "darkbrown",
+        "darkgray",
+        "darktan",
+        "darkred",
+        "sandgreen",
+        "darkgreen",
+        "lime"
       ],
       "legacy": false,
       "ldrawName": "Wedge  2 x  6 Double Right",
@@ -4813,7 +5717,14 @@
         "brown",
         "gray",
         "navy",
-        "darkbrown"
+        "darkbrown",
+        "darkgray",
+        "darktan",
+        "darkred",
+        "sandgreen",
+        "darkgreen",
+        "lime",
+        "pearlgold"
       ],
       "legacy": false,
       "ldrawName": "Wedge  2 x  6 Double Left",
@@ -4841,7 +5752,15 @@
         "pink",
         "brown",
         "gray",
-        "navy"
+        "navy",
+        "darkgray",
+        "darktan",
+        "darkred",
+        "sandgreen",
+        "mediumazure",
+        "lime",
+        "mediumnougat",
+        "translightblue"
       ],
       "legacy": false,
       "ldrawName": "Slope Brick Round  3 x  8 x  2 Right",
@@ -4869,7 +5788,15 @@
         "pink",
         "brown",
         "gray",
-        "navy"
+        "navy",
+        "darkgray",
+        "darktan",
+        "darkred",
+        "sandgreen",
+        "mediumazure",
+        "lime",
+        "mediumnougat",
+        "translightblue"
       ],
       "legacy": false,
       "ldrawName": "Slope Brick Round  3 x  8 x  2 Left",
@@ -4897,7 +5824,11 @@
         "brown",
         "gray",
         "navy",
-        "darkbrown"
+        "darkbrown",
+        "darkgray",
+        "darkred",
+        "sandgreen",
+        "darkgreen"
       ],
       "legacy": false,
       "ldrawName": "Wedge  2 x  6 Double Inverted Right",
@@ -4925,7 +5856,11 @@
         "brown",
         "gray",
         "navy",
-        "darkbrown"
+        "darkbrown",
+        "darkgray",
+        "darkred",
+        "sandgreen",
+        "darkgreen"
       ],
       "legacy": false,
       "ldrawName": "Wedge  2 x  6 Double Inverted Left",
@@ -4953,7 +5888,11 @@
         "brown",
         "gray",
         "navy",
-        "darkbrown"
+        "darkbrown",
+        "darkgray",
+        "darkred",
+        "sandgreen",
+        "lime"
       ],
       "legacy": false,
       "ldrawName": "Wedge  4 x  2 Right",
@@ -4980,7 +5919,11 @@
         "orange",
         "brown",
         "gray",
-        "navy"
+        "navy",
+        "darkgray",
+        "darkred",
+        "sandgreen",
+        "lime"
       ],
       "legacy": false,
       "ldrawName": "Wedge  4 x  2 Left",
@@ -5006,7 +5949,9 @@
         "tan",
         "brown",
         "gray",
-        "navy"
+        "navy",
+        "darkgray",
+        "lime"
       ],
       "legacy": false,
       "ldrawName": "Wedge  6 x  8 x  2 Triple Inverted",
@@ -5029,7 +5974,10 @@
         "brown",
         "gray",
         "navy",
-        "darkbrown"
+        "darkbrown",
+        "darkgray",
+        "darkred",
+        "lime"
       ],
       "legacy": false,
       "ldrawName": "Wedge 12 x  3 x  1 Double Rounded Right",
@@ -5053,7 +6001,9 @@
         "brown",
         "gray",
         "navy",
-        "darkbrown"
+        "darkbrown",
+        "darkgray",
+        "darkred"
       ],
       "legacy": false,
       "ldrawName": "Wedge 12 x  3 x  1 Double Rounded Left",
@@ -5077,7 +6027,13 @@
         "tan",
         "brown",
         "gray",
-        "navy"
+        "navy",
+        "darkgray",
+        "darktan",
+        "darkred",
+        "sandgreen",
+        "mediumnougat",
+        "pearlgold"
       ],
       "legacy": false,
       "ldrawName": "Wedge  3 x  3 Sloped Left",
@@ -5104,7 +6060,9 @@
         "orange",
         "brown",
         "gray",
-        "navy"
+        "navy",
+        "darkgray",
+        "darkred"
       ],
       "legacy": false,
       "ldrawName": "Slope Brick 18  4 x  4 Corner",
@@ -5131,7 +6089,14 @@
         "brown",
         "gray",
         "navy",
-        "darkbrown"
+        "darkbrown",
+        "darkgray",
+        "darktan",
+        "darkred",
+        "sandgreen",
+        "darkgreen",
+        "lime",
+        "pearlgold"
       ],
       "legacy": false,
       "ldrawName": "Wedge  4 x  2 Double Left",
@@ -5160,7 +6125,14 @@
         "brown",
         "gray",
         "navy",
-        "darkbrown"
+        "darkbrown",
+        "darkgray",
+        "darktan",
+        "darkred",
+        "sandgreen",
+        "darkgreen",
+        "lime",
+        "pearlgold"
       ],
       "legacy": false,
       "ldrawName": "Wedge  4 x  2 Double Right",
@@ -5187,7 +6159,13 @@
         "orange",
         "brown",
         "gray",
-        "navy"
+        "navy",
+        "darkgray",
+        "darkred",
+        "darkgreen",
+        "lime",
+        "mediumnougat",
+        "pearlgold"
       ],
       "legacy": false,
       "ldrawName": "Wedge  6 x  4 Triple Curved",
@@ -5212,7 +6190,14 @@
         "orange",
         "brown",
         "gray",
-        "navy"
+        "navy",
+        "darkgray",
+        "darkred",
+        "sandgreen",
+        "darkgreen",
+        "mediumazure",
+        "lime",
+        "mediumnougat"
       ],
       "legacy": false,
       "ldrawName": "Wedge  6 x  4 Triple Curved Inverted",
@@ -5237,7 +6222,9 @@
         "orange",
         "brown",
         "gray",
-        "navy"
+        "navy",
+        "darkgray",
+        "darkred"
       ],
       "legacy": false,
       "ldrawName": "Wedge  4 x  2 Sloped Right",
@@ -5264,7 +6251,9 @@
         "orange",
         "brown",
         "gray",
-        "navy"
+        "navy",
+        "darkgray",
+        "darkred"
       ],
       "legacy": false,
       "ldrawName": "Wedge  4 x  2 Sloped Left",
@@ -5289,7 +6278,11 @@
         "orange",
         "brown",
         "gray",
-        "navy"
+        "navy",
+        "darkgray",
+        "darkred",
+        "sandgreen",
+        "darkgreen"
       ],
       "legacy": false,
       "ldrawName": "Wedge  4 x 16 Triple Curved",
@@ -5316,7 +6309,11 @@
         "brown",
         "gray",
         "navy",
-        "darkbrown"
+        "darkbrown",
+        "darkgray",
+        "darktan",
+        "darkred",
+        "lime"
       ],
       "legacy": false,
       "ldrawName": "Wedge  4 x  4 x  0.667 Curved",
@@ -5342,7 +6339,12 @@
         "brown",
         "gray",
         "navy",
-        "darkbrown"
+        "darkbrown",
+        "darkgray",
+        "darkred",
+        "darkgreen",
+        "mediumazure",
+        "pearlgold"
       ],
       "legacy": false,
       "ldrawName": "Slope Brick Curved  2 x  3 x 0.667 with Fin and 2 Top Studs",
@@ -5365,7 +6367,12 @@
         "tan",
         "pink",
         "brown",
-        "gray"
+        "gray",
+        "darkgray",
+        "darkred",
+        "sandgreen",
+        "mediumnougat",
+        "pearlgold"
       ],
       "legacy": false,
       "ldrawName": "Slope Brick Curved  1 x  2 x   2/3 with Fin without Studs",
@@ -5390,7 +6397,12 @@
         "brown",
         "gray",
         "navy",
-        "darkbrown"
+        "darkbrown",
+        "darkgray",
+        "darktan",
+        "darkred",
+        "darkgreen",
+        "lime"
       ],
       "legacy": false,
       "ldrawName": "Wedge  4 x  4 Triple Curved without Studs",
@@ -5408,7 +6420,10 @@
         "black",
         "gray",
         "navy",
-        "darkbrown"
+        "darkbrown",
+        "darktan",
+        "darkred",
+        "darkgreen"
       ],
       "legacy": false,
       "ldrawName": "Wedge  4 x  4 Quadruple Convex Slope Center",
@@ -5429,7 +6444,14 @@
         "white",
         "brown",
         "navy",
-        "darkbrown"
+        "darkbrown",
+        "darkgray",
+        "darktan",
+        "darkred",
+        "sandgreen",
+        "darkgreen",
+        "mediumnougat",
+        "pearlgold"
       ],
       "legacy": false,
       "ldrawName": "Wedge  2 x  4 Triple",
@@ -5451,7 +6473,13 @@
         "tan",
         "brown",
         "gray",
-        "navy"
+        "navy",
+        "darkgray",
+        "darktan",
+        "darkred",
+        "sandgreen",
+        "mediumnougat",
+        "pearlgold"
       ],
       "legacy": false,
       "ldrawName": "Wedge  3 x  3 Sloped Right",
@@ -5498,7 +6526,11 @@
         "orange",
         "brown",
         "gray",
-        "navy"
+        "navy",
+        "darkgray",
+        "darkgreen",
+        "lime",
+        "pearlgold"
       ],
       "legacy": false,
       "ldrawName": "Wedge  4 x  4 Triple with Stud Notches",
@@ -5520,7 +6552,9 @@
         "white",
         "orange",
         "gray",
-        "navy"
+        "navy",
+        "darkgray",
+        "darkred"
       ],
       "legacy": false,
       "ldrawName": "Wedge  3 x  4 with Stud Notches",
@@ -5545,7 +6579,11 @@
         "orange",
         "brown",
         "gray",
-        "darkbrown"
+        "darkbrown",
+        "darkgray",
+        "darkred",
+        "lime",
+        "mediumnougat"
       ],
       "legacy": false,
       "ldrawName": "Slope Brick Curved  2 x  2 x  0.667 with Stud Notch Right",
@@ -5564,7 +6602,8 @@
       "colors": [
         "black",
         "yellow",
-        "gray"
+        "gray",
+        "lime"
       ],
       "legacy": false,
       "ldrawName": "Slope Brick  3 x  4 x 0.667 Curved with  2 x  2 Cutout",
@@ -5589,7 +6628,11 @@
         "orange",
         "brown",
         "gray",
-        "darkbrown"
+        "darkbrown",
+        "darkgray",
+        "darkred",
+        "lime",
+        "mediumnougat"
       ],
       "legacy": false,
       "ldrawName": "Slope Brick Curved  2 x  2 x  0.667 with Stud Notch Left",
@@ -5613,7 +6656,12 @@
         "white",
         "brown",
         "gray",
-        "navy"
+        "navy",
+        "darkgray",
+        "darktan",
+        "darkred",
+        "darkgreen",
+        "lime"
       ],
       "legacy": false,
       "ldrawName": "Wedge 10 x  3 x  1 Double Rounded Left",
@@ -5637,7 +6685,12 @@
         "white",
         "brown",
         "gray",
-        "navy"
+        "navy",
+        "darkgray",
+        "darktan",
+        "darkred",
+        "darkgreen",
+        "lime"
       ],
       "legacy": false,
       "ldrawName": "Wedge 10 x  3 x  1 Double Rounded Right",
@@ -5664,7 +6717,13 @@
         "orange",
         "pink",
         "gray",
-        "navy"
+        "navy",
+        "darkgray",
+        "darkred",
+        "sandgreen",
+        "darkgreen",
+        "mediumazure",
+        "lime"
       ],
       "legacy": false,
       "ldrawName": "Slope Brick 45  4 x  6 x  0.667 Double Curved",
@@ -5722,7 +6781,9 @@
         "white",
         "orange",
         "gray",
-        "navy"
+        "navy",
+        "mediumazure",
+        "lime"
       ],
       "legacy": false,
       "ldrawName": "Wedge  6 x  4 with Stud Notches",
@@ -5749,7 +6810,15 @@
         "brown",
         "gray",
         "navy",
-        "darkbrown"
+        "darkbrown",
+        "darkgray",
+        "darktan",
+        "darkred",
+        "sandgreen",
+        "darkgreen",
+        "mediumazure",
+        "lime",
+        "pearlgold"
       ],
       "legacy": false,
       "ldrawName": "Wedge  4 x  3 Triple Curved without Studs",
@@ -5765,7 +6834,10 @@
       "family": "wedge",
       "colors": [
         "white",
-        "brown"
+        "brown",
+        "darkgray",
+        "darktan",
+        "mediumnougat"
       ],
       "legacy": false,
       "ldrawName": "Wedge  4 x  4 Fractured Polygon Top",
@@ -5788,7 +6860,10 @@
         "white",
         "tan",
         "orange",
-        "gray"
+        "gray",
+        "darkgray",
+        "darkred",
+        "darkgreen"
       ],
       "legacy": false,
       "ldrawName": "Wedge  3 x  2 Right",
@@ -5813,7 +6888,10 @@
         "white",
         "tan",
         "orange",
-        "gray"
+        "gray",
+        "darkgray",
+        "darkred",
+        "darkgreen"
       ],
       "legacy": false,
       "ldrawName": "Wedge  3 x  2 Left",
@@ -5839,7 +6917,11 @@
         "pink",
         "brown",
         "gray",
-        "darkbrown"
+        "darkbrown",
+        "darktan",
+        "darkred",
+        "sandgreen",
+        "lime"
       ],
       "legacy": false,
       "ldrawName": "Slope Brick Curved  2 x  2 with Double Cutout",
@@ -5857,7 +6939,8 @@
         "white",
         "tan",
         "brown",
-        "gray"
+        "gray",
+        "darktan"
       ],
       "legacy": false,
       "ldrawName": "Slope Brick Curved  2 x  2 x  0.667 Half Round with 2 Studs",
@@ -5888,7 +6971,11 @@
       "name": "Brick Wedged, Sloped 65\u00b0 2 x 2 x 2 Corner",
       "family": "wedge",
       "colors": [
-        "black"
+        "black",
+        "darkred",
+        "mediumazure",
+        "translightblue",
+        "pearlgold"
       ],
       "legacy": false,
       "ldrawName": "Slope Brick 65  2 x  2 x  2 Double Convex with 45 Corner",
@@ -5913,7 +7000,16 @@
         "pink",
         "brown",
         "gray",
-        "navy"
+        "navy",
+        "darkgray",
+        "darktan",
+        "darkred",
+        "sandgreen",
+        "darkgreen",
+        "mediumazure",
+        "lime",
+        "mediumnougat",
+        "pearlgold"
       ],
       "legacy": false,
       "ldrawName": "Slope Brick Curved  3 x  2 with Cutout Left",
@@ -5940,7 +7036,16 @@
         "pink",
         "brown",
         "gray",
-        "navy"
+        "navy",
+        "darkgray",
+        "darktan",
+        "darkred",
+        "sandgreen",
+        "darkgreen",
+        "mediumazure",
+        "lime",
+        "mediumnougat",
+        "pearlgold"
       ],
       "legacy": false,
       "ldrawName": "Slope Brick Curved  3 x  2 with Cutout Right",
@@ -5966,7 +7071,14 @@
         "orange",
         "pink",
         "gray",
-        "navy"
+        "navy",
+        "darkgray",
+        "darktan",
+        "darkred",
+        "sandgreen",
+        "darkgreen",
+        "mediumazure",
+        "mediumnougat"
       ],
       "legacy": false,
       "ldrawName": "Brick  2 x  2 Facet",
@@ -5987,7 +7099,8 @@
         "white",
         "tan",
         "gray",
-        "navy"
+        "navy",
+        "darkred"
       ],
       "legacy": false,
       "ldrawName": "Wedge  4 x  4 with Stud Notches",
@@ -6005,7 +7118,9 @@
         "black",
         "red",
         "white",
-        "brown"
+        "brown",
+        "darkgray",
+        "darkred"
       ],
       "legacy": false,
       "ldrawName": "Slope Brick Curved Tapered  4 x  2 on Plate  1 x  4",
@@ -6043,7 +7158,8 @@
         "white",
         "orange",
         "gray",
-        "navy"
+        "navy",
+        "mediumnougat"
       ],
       "legacy": false,
       "ldrawName": "Wing  4 x  9 with Stud Notches",
@@ -6062,7 +7178,10 @@
         "red",
         "orange",
         "brown",
-        "gray"
+        "gray",
+        "darkgray",
+        "sandgreen",
+        "mediumazure"
       ],
       "legacy": false,
       "ldrawName": "Plate  1 x  4 with Plate  1 x  4 at 45 Degrees",
@@ -6108,7 +7227,14 @@
         "orange",
         "pink",
         "gray",
-        "navy"
+        "navy",
+        "darkgray",
+        "darktan",
+        "darkred",
+        "sandgreen",
+        "darkgreen",
+        "lime",
+        "mediumnougat"
       ],
       "legacy": false,
       "ldrawName": "Plate  3 x  6 without Corners",
@@ -6135,7 +7261,16 @@
         "brown",
         "gray",
         "navy",
-        "darkbrown"
+        "darkbrown",
+        "darkgray",
+        "darktan",
+        "darkred",
+        "sandgreen",
+        "darkgreen",
+        "mediumazure",
+        "lime",
+        "mediumnougat",
+        "pearlgold"
       ],
       "legacy": false,
       "ldrawName": "Wing  2 x  2 Left",
@@ -6164,7 +7299,16 @@
         "brown",
         "gray",
         "navy",
-        "darkbrown"
+        "darkbrown",
+        "darkgray",
+        "darktan",
+        "darkred",
+        "sandgreen",
+        "darkgreen",
+        "mediumazure",
+        "lime",
+        "mediumnougat",
+        "pearlgold"
       ],
       "legacy": false,
       "ldrawName": "Wing  2 x  2 Right",
@@ -6193,7 +7337,16 @@
         "brown",
         "gray",
         "navy",
-        "darkbrown"
+        "darkbrown",
+        "darkgray",
+        "darktan",
+        "darkred",
+        "sandgreen",
+        "darkgreen",
+        "mediumazure",
+        "lime",
+        "mediumnougat",
+        "pearlgold"
       ],
       "legacy": false,
       "ldrawName": "Plate  3 x  3 without Corner",
@@ -6220,7 +7373,14 @@
         "brown",
         "gray",
         "navy",
-        "darkbrown"
+        "darkbrown",
+        "darkgray",
+        "darktan",
+        "darkred",
+        "sandgreen",
+        "mediumazure",
+        "lime",
+        "pearlgold"
       ],
       "legacy": false,
       "ldrawName": "Plate  2 x  2 without Corner",
@@ -6243,7 +7403,11 @@
         "tan",
         "brown",
         "gray",
-        "navy"
+        "navy",
+        "darkgray",
+        "darktan",
+        "darkred",
+        "mediumazure"
       ],
       "legacy": false,
       "ldrawName": "Wing  6 x 12 Left",
@@ -6267,7 +7431,11 @@
         "white",
         "brown",
         "gray",
-        "navy"
+        "navy",
+        "darkgray",
+        "darktan",
+        "darkred",
+        "mediumazure"
       ],
       "legacy": false,
       "ldrawName": "Wing  6 x 12 Right",
@@ -6295,7 +7463,11 @@
         "brown",
         "gray",
         "navy",
-        "darkbrown"
+        "darkbrown",
+        "darkgray",
+        "darkred",
+        "darkgreen",
+        "lime"
       ],
       "legacy": false,
       "ldrawName": "Plate  4 x  4 without Corner",
@@ -6318,7 +7490,13 @@
         "tan",
         "brown",
         "gray",
-        "navy"
+        "navy",
+        "darkgray",
+        "darktan",
+        "darkred",
+        "darkgreen",
+        "mediumazure",
+        "lime"
       ],
       "legacy": false,
       "ldrawName": "Plate  8 x  8 without Corner",
@@ -6343,7 +7521,12 @@
         "orange",
         "brown",
         "gray",
-        "navy"
+        "navy",
+        "darkgray",
+        "darktan",
+        "darkred",
+        "sandgreen",
+        "lime"
       ],
       "legacy": false,
       "ldrawName": "Plate  4 x  6 without Corners",
@@ -6361,7 +7544,8 @@
         "black",
         "white",
         "tan",
-        "gray"
+        "gray",
+        "darkgray"
       ],
       "legacy": false,
       "ldrawName": "Wing  3 x  8 Left",
@@ -6381,7 +7565,8 @@
         "black",
         "white",
         "tan",
-        "gray"
+        "gray",
+        "darkgray"
       ],
       "legacy": false,
       "ldrawName": "Wing  3 x  8 Right",
@@ -6445,7 +7630,9 @@
         "white",
         "orange",
         "gray",
-        "navy"
+        "navy",
+        "darkgray",
+        "darkred"
       ],
       "legacy": false,
       "ldrawName": "Wing  4 x  8 Left",
@@ -6471,7 +7658,9 @@
         "tan",
         "orange",
         "gray",
-        "navy"
+        "navy",
+        "darkgray",
+        "darkred"
       ],
       "legacy": false,
       "ldrawName": "Wing  4 x  8 Right",
@@ -6548,7 +7737,13 @@
         "orange",
         "brown",
         "gray",
-        "navy"
+        "navy",
+        "darkgray",
+        "darkred",
+        "sandgreen",
+        "mediumazure",
+        "lime",
+        "transclear"
       ],
       "legacy": false,
       "ldrawName": "Wing  4 x  4 with  2 x  2 Cutout",
@@ -6572,7 +7767,11 @@
         "orange",
         "brown",
         "gray",
-        "navy"
+        "navy",
+        "darkgray",
+        "darktan",
+        "darkred",
+        "darkgreen"
       ],
       "legacy": false,
       "ldrawName": "Wing  3 x 12 Left",
@@ -6598,7 +7797,11 @@
         "orange",
         "brown",
         "gray",
-        "navy"
+        "navy",
+        "darkgray",
+        "darktan",
+        "darkred",
+        "darkgreen"
       ],
       "legacy": false,
       "ldrawName": "Wing  3 x 12 Right",
@@ -6622,7 +7825,11 @@
         "white",
         "tan",
         "gray",
-        "navy"
+        "navy",
+        "darkgray",
+        "darktan",
+        "darkred",
+        "lime"
       ],
       "legacy": false,
       "ldrawName": "Wing  4 x  6 with  2 x  2 Cutout",
@@ -6645,7 +7852,10 @@
         "white",
         "tan",
         "brown",
-        "gray"
+        "gray",
+        "darkgray",
+        "darkred",
+        "darkgreen"
       ],
       "legacy": false,
       "ldrawName": "Wing  3 x  4 with  1 x  2 Cutout with Stud Notches",
@@ -6669,7 +7879,12 @@
         "tan",
         "pink",
         "gray",
-        "navy"
+        "navy",
+        "darkgray",
+        "darktan",
+        "darkred",
+        "sandgreen",
+        "mediumazure"
       ],
       "legacy": false,
       "ldrawName": "Wing  4 x  6 Right",
@@ -6695,7 +7910,11 @@
         "tan",
         "pink",
         "gray",
-        "navy"
+        "navy",
+        "darkgray",
+        "darkred",
+        "sandgreen",
+        "mediumazure"
       ],
       "legacy": false,
       "ldrawName": "Wing  4 x  6 Left",
@@ -6718,7 +7937,9 @@
         "white",
         "tan",
         "gray",
-        "navy"
+        "navy",
+        "darkgray",
+        "darktan"
       ],
       "legacy": false,
       "ldrawName": "Wing  7 x  6 with Stud Notches",
@@ -6743,7 +7964,11 @@
         "orange",
         "brown",
         "gray",
-        "navy"
+        "navy",
+        "darkgray",
+        "darktan",
+        "darkred",
+        "darkgreen"
       ],
       "legacy": false,
       "ldrawName": "Wing  3 x  8 Pentagonal Right",
@@ -6770,7 +7995,11 @@
         "orange",
         "brown",
         "gray",
-        "navy"
+        "navy",
+        "darkgray",
+        "darktan",
+        "darkred",
+        "darkgreen"
       ],
       "legacy": false,
       "ldrawName": "Wing  3 x  8 Pentagonal Left",
@@ -6797,7 +8026,13 @@
         "orange",
         "brown",
         "gray",
-        "navy"
+        "navy",
+        "darkgray",
+        "darktan",
+        "darkred",
+        "sandgreen",
+        "darkgreen",
+        "lime"
       ],
       "legacy": false,
       "ldrawName": "Wing  2 x  4",
@@ -6822,7 +8057,13 @@
         "orange",
         "brown",
         "gray",
-        "navy"
+        "navy",
+        "darkgray",
+        "darktan",
+        "darkred",
+        "sandgreen",
+        "darkgreen",
+        "lime"
       ],
       "legacy": false,
       "ldrawName": "Wing  3 x  6 Right",
@@ -6849,7 +8090,13 @@
         "orange",
         "brown",
         "gray",
-        "navy"
+        "navy",
+        "darkgray",
+        "darktan",
+        "darkred",
+        "sandgreen",
+        "darkgreen",
+        "lime"
       ],
       "legacy": false,
       "ldrawName": "Wing  3 x  6 Left",
@@ -6871,7 +8118,8 @@
         "green",
         "red",
         "yellow",
-        "tan"
+        "tan",
+        "darkgray"
       ],
       "legacy": false,
       "ldrawName": "Wing  8 x  8 with  3 x  4 Cutout",
@@ -6896,7 +8144,13 @@
         "orange",
         "brown",
         "gray",
-        "navy"
+        "navy",
+        "darkgray",
+        "darktan",
+        "darkred",
+        "darkgreen",
+        "mediumazure",
+        "mediumnougat"
       ],
       "legacy": false,
       "ldrawName": "Plate  6 x  6 without Corner",
@@ -6921,7 +8175,13 @@
         "orange",
         "brown",
         "gray",
-        "navy"
+        "navy",
+        "darkgray",
+        "darktan",
+        "darkgreen",
+        "mediumazure",
+        "lime",
+        "pearlgold"
       ],
       "legacy": false,
       "ldrawName": "Wing  2 x  4 Right with Truncated Tip",
@@ -6947,7 +8207,13 @@
         "orange",
         "brown",
         "gray",
-        "navy"
+        "navy",
+        "darkgray",
+        "darktan",
+        "darkgreen",
+        "mediumazure",
+        "lime",
+        "pearlgold"
       ],
       "legacy": false,
       "ldrawName": "Wing  2 x  4 Left with Truncated Tip",
@@ -6965,7 +8231,11 @@
       "family": "wedge_plate",
       "colors": [
         "black",
-        "white"
+        "white",
+        "darkgray",
+        "darktan",
+        "darkred",
+        "mediumnougat"
       ],
       "legacy": false,
       "ldrawName": "Plate  4 x  8 without Corners",
@@ -6990,7 +8260,9 @@
         "brown",
         "gray",
         "navy",
-        "darkbrown"
+        "darkbrown",
+        "darkgray",
+        "darktan"
       ],
       "legacy": false,
       "ldrawName": "Wing  2 x  6 Left",
@@ -7016,7 +8288,9 @@
         "brown",
         "gray",
         "navy",
-        "darkbrown"
+        "darkbrown",
+        "darkgray",
+        "darktan"
       ],
       "legacy": false,
       "ldrawName": "Wing  2 x  6 Right",
@@ -7041,7 +8315,10 @@
         "white",
         "tan",
         "orange",
-        "gray"
+        "gray",
+        "darkgray",
+        "darkgreen",
+        "pearlgold"
       ],
       "legacy": false,
       "ldrawName": "Plate  2 x  6 Angled 135 Degrees with Centre Hole",
@@ -7059,7 +8336,11 @@
         "black",
         "green",
         "white",
-        "brown"
+        "brown",
+        "darkgray",
+        "darktan",
+        "mediumazure",
+        "mediumnougat"
       ],
       "legacy": false,
       "ldrawName": "Plate 10 x 10 without Corner without Studs in Center",
@@ -7083,7 +8364,13 @@
         "orange",
         "brown",
         "gray",
-        "darkbrown"
+        "darkbrown",
+        "darktan",
+        "darkred",
+        "mediumazure",
+        "lime",
+        "mediumnougat",
+        "pearlgold"
       ],
       "legacy": false,
       "ldrawName": "Plate  6 x  6 Round with Hole and Snapstud",
@@ -7105,7 +8392,14 @@
         "white",
         "orange",
         "gray",
-        "navy"
+        "navy",
+        "darkred",
+        "sandgreen",
+        "lime",
+        "mediumnougat",
+        "transclear",
+        "translightblue",
+        "pearlgold"
       ],
       "legacy": false,
       "ldrawName": "Plate  4 x  4 Round with  2 x  2 Round Hole",
@@ -7131,7 +8425,13 @@
         "pink",
         "brown",
         "gray",
-        "navy"
+        "navy",
+        "darkgray",
+        "darktan",
+        "darkred",
+        "darkgreen",
+        "lime",
+        "pearlgold"
       ],
       "legacy": false,
       "ldrawName": "Plate  3 x  6 Round Half with  1 x  2 Cutout",
@@ -7157,7 +8457,13 @@
         "pink",
         "brown",
         "gray",
-        "navy"
+        "navy",
+        "darkgray",
+        "darktan",
+        "darkred",
+        "mediumazure",
+        "lime",
+        "mediumnougat"
       ],
       "legacy": false,
       "ldrawName": "Plate  2 x  6 with Two Rounded Corners",
@@ -7180,7 +8486,13 @@
         "white",
         "tan",
         "brown",
-        "gray"
+        "gray",
+        "darkgray",
+        "darktan",
+        "darkgreen",
+        "mediumazure",
+        "lime",
+        "mediumnougat"
       ],
       "legacy": false,
       "ldrawName": "Plate  4 x  8 Round Semicircle",
@@ -7206,7 +8518,14 @@
         "pink",
         "brown",
         "gray",
-        "navy"
+        "navy",
+        "darkgray",
+        "darktan",
+        "darkred",
+        "darkgreen",
+        "mediumazure",
+        "lime",
+        "mediumnougat"
       ],
       "legacy": false,
       "ldrawName": "Plate  3 x  3 with  2 x  2 Corner Round",
@@ -7232,7 +8551,15 @@
         "pink",
         "brown",
         "gray",
-        "navy"
+        "navy",
+        "darkgray",
+        "darktan",
+        "darkred",
+        "sandgreen",
+        "darkgreen",
+        "mediumazure",
+        "lime",
+        "mediumnougat"
       ],
       "legacy": false,
       "ldrawName": "Plate  4 x  4 with Corner Round",
@@ -7276,7 +8603,13 @@
         "pink",
         "brown",
         "gray",
-        "navy"
+        "navy",
+        "darkgray",
+        "darktan",
+        "darkred",
+        "sandgreen",
+        "darkgreen",
+        "mediumazure"
       ],
       "legacy": false,
       "ldrawName": "Plate  4 x  4 with  3 x  3 Quarter Circle Cutout",
@@ -7302,7 +8635,14 @@
         "pink",
         "brown",
         "gray",
-        "navy"
+        "navy",
+        "darkgray",
+        "darktan",
+        "darkred",
+        "sandgreen",
+        "mediumazure",
+        "lime",
+        "mediumnougat"
       ],
       "legacy": false,
       "ldrawName": "Plate  1 x  2 with Round Ends and 2 Open Studs",
@@ -7318,7 +8658,10 @@
       "family": "round_plate",
       "colors": [
         "white",
-        "tan"
+        "tan",
+        "darktan",
+        "sandgreen",
+        "pearlgold"
       ],
       "legacy": false,
       "ldrawName": "Plate  4 x  6 with Rounded Ends",
@@ -7338,7 +8681,8 @@
         "white",
         "tan",
         "gray",
-        "navy"
+        "navy",
+        "mediumnougat"
       ],
       "legacy": false,
       "ldrawName": "Plate  3 x  3 Heart Shape",
@@ -7365,7 +8709,17 @@
         "brown",
         "gray",
         "navy",
-        "darkbrown"
+        "darkbrown",
+        "darkgray",
+        "darktan",
+        "darkred",
+        "sandgreen",
+        "darkgreen",
+        "mediumazure",
+        "lime",
+        "mediumnougat",
+        "transclear",
+        "pearlgold"
       ],
       "legacy": false,
       "ldrawName": "Plate  2 x  2 Round with Axlehole",
@@ -7386,7 +8740,11 @@
         "white",
         "tan",
         "pink",
-        "gray"
+        "gray",
+        "darkred",
+        "mediumazure",
+        "lime",
+        "mediumnougat"
       ],
       "legacy": false,
       "ldrawName": "Plate  8 x  8 with Rounded End",
@@ -7402,7 +8760,8 @@
       "family": "round_plate",
       "colors": [
         "red",
-        "navy"
+        "navy",
+        "darkred"
       ],
       "legacy": false,
       "ldrawName": "Plate  6 x  6 with Heart Shape",
@@ -7428,7 +8787,14 @@
         "pink",
         "brown",
         "gray",
-        "navy"
+        "navy",
+        "darkgray",
+        "darktan",
+        "darkred",
+        "darkgreen",
+        "mediumazure",
+        "lime",
+        "mediumnougat"
       ],
       "legacy": false,
       "ldrawName": "Plate  6 x  6 with  4 x  4 Round Corner",
@@ -7454,7 +8820,14 @@
         "pink",
         "gray",
         "navy",
-        "darkbrown"
+        "darkbrown",
+        "darkgray",
+        "darktan",
+        "darkred",
+        "darkgreen",
+        "mediumazure",
+        "mediumnougat",
+        "pearlgold"
       ],
       "legacy": false,
       "ldrawName": "Plate  4 x  4 Round with Hole and Snapstud",
@@ -7481,7 +8854,18 @@
         "brown",
         "gray",
         "navy",
-        "darkbrown"
+        "darkbrown",
+        "darkgray",
+        "darktan",
+        "darkred",
+        "sandgreen",
+        "mediumazure",
+        "lime",
+        "mediumnougat",
+        "transclear",
+        "translightblue",
+        "pearlgold",
+        "flatsilver"
       ],
       "legacy": false,
       "ldrawName": "Plate  1 x  1 Round",
@@ -7501,7 +8885,12 @@
         "yellow",
         "tan",
         "gray",
-        "navy"
+        "navy",
+        "darkgray",
+        "darktan",
+        "darkred",
+        "lime",
+        "pearlgold"
       ],
       "legacy": false,
       "ldrawName": "Brick  4 x  4 x  0.667  with Rounded Top and Four Top Studs",
@@ -7518,7 +8907,8 @@
       "colors": [
         "black",
         "green",
-        "red"
+        "red",
+        "mediumnougat"
       ],
       "legacy": false,
       "ldrawName": "Plate  8 x  8 with Rounded Corners",
@@ -7554,7 +8944,10 @@
         "white",
         "tan",
         "brown",
-        "gray"
+        "gray",
+        "mediumazure",
+        "lime",
+        "mediumnougat"
       ],
       "legacy": false,
       "ldrawName": "Plate  6 x  6 x  0.667 with Rounded Corners with Studs on Edges without 4 Centre Studs",
@@ -7574,7 +8967,9 @@
         "red",
         "yellow",
         "white",
-        "orange"
+        "orange",
+        "lime",
+        "mediumnougat"
       ],
       "legacy": false,
       "ldrawName": "Plate  8 x  8 x  0.667 with Rounded Corners with 5 Vacant Stud Areas",
@@ -7598,7 +8993,9 @@
         "orange",
         "brown",
         "gray",
-        "navy"
+        "navy",
+        "mediumazure",
+        "mediumnougat"
       ],
       "legacy": false,
       "ldrawName": "Plate  4 x  4 x  0.667 with Rounded Corners with Studs on Edges",
@@ -7623,7 +9020,11 @@
         "orange",
         "brown",
         "gray",
-        "navy"
+        "navy",
+        "darkgray",
+        "darktan",
+        "darkred",
+        "mediumazure"
       ],
       "legacy": false,
       "ldrawName": "Plate  3 x  3 with  2 x  2 Corner Round and  2 x  2 with  1 x  1 Corner Round Cutout",
@@ -7640,7 +9041,8 @@
       "colors": [
         "blue",
         "red",
-        "gray"
+        "gray",
+        "mediumnougat"
       ],
       "legacy": false,
       "ldrawName": "Plate  8 x  4 x  0.667 with Rounded Corners with 2 Vacant Stud Areas with Cutout",
@@ -7706,7 +9108,8 @@
         "orange",
         "pink",
         "brown",
-        "gray"
+        "gray",
+        "mediumnougat"
       ],
       "legacy": false,
       "ldrawName": "Plate  1 x  4 Round Ends with  2 Open Studs on Ends",
@@ -7729,7 +9132,10 @@
         "orange",
         "brown",
         "gray",
-        "navy"
+        "navy",
+        "darkgray",
+        "darktan",
+        "mediumnougat"
       ],
       "legacy": false,
       "ldrawName": "Plate  1 x  3 with Round Ends and  3 Open Studs",
@@ -7768,7 +9174,9 @@
         "orange",
         "brown",
         "gray",
-        "navy"
+        "navy",
+        "mediumnougat",
+        "pearlgold"
       ],
       "legacy": false,
       "ldrawName": "Plate  2 x  2 Quarter Circle",
@@ -7786,7 +9194,9 @@
         "black",
         "red",
         "yellow",
-        "white"
+        "white",
+        "darkgray",
+        "darktan"
       ],
       "legacy": false,
       "ldrawName": "Plate  4 x  4 x  0.667 with Rounded Corners and  2 x  2 Centre Cutout",
@@ -7811,7 +9221,11 @@
         "pink",
         "brown",
         "gray",
-        "navy"
+        "navy",
+        "darkgray",
+        "darktan",
+        "darkred",
+        "pearlgold"
       ],
       "legacy": false,
       "ldrawName": "Plate  2 x  2 with Corner Round",
@@ -7835,7 +9249,11 @@
         "orange",
         "brown",
         "gray",
-        "navy"
+        "navy",
+        "sandgreen",
+        "darkgreen",
+        "lime",
+        "mediumnougat"
       ],
       "legacy": false,
       "ldrawName": "Plate  5 x  5 with  4 x  4 Corner Round and  4 x  4 with  3 x  3 Corner Round Cutout",
@@ -7854,7 +9272,11 @@
         "yellow",
         "white",
         "tan",
-        "brown"
+        "brown",
+        "darktan",
+        "darkgreen",
+        "mediumazure",
+        "lime"
       ],
       "legacy": false,
       "ldrawName": "Plate 10 x 10 with Rounded End",
@@ -7890,7 +9312,8 @@
         "blue",
         "red",
         "white",
-        "gray"
+        "gray",
+        "mediumnougat"
       ],
       "legacy": false,
       "ldrawName": "Plate  6 x  4 x  0.667 with Rounded Corners",
@@ -7911,7 +9334,10 @@
         "tan",
         "orange",
         "pink",
-        "gray"
+        "gray",
+        "darkgray",
+        "darkgreen",
+        "mediumnougat"
       ],
       "legacy": false,
       "ldrawName": "Tile  1 x  2 with Rounded Ends",
@@ -7937,7 +9363,18 @@
         "pink",
         "brown",
         "gray",
-        "navy"
+        "navy",
+        "darkgray",
+        "darktan",
+        "darkred",
+        "sandgreen",
+        "darkgreen",
+        "mediumazure",
+        "lime",
+        "mediumnougat",
+        "transclear",
+        "pearlgold",
+        "flatsilver"
       ],
       "legacy": false,
       "ldrawName": "Tile  2 x  2 Round with Round Underside Stud",
@@ -7962,7 +9399,13 @@
         "orange",
         "pink",
         "brown",
-        "gray"
+        "gray",
+        "darkgray",
+        "darkred",
+        "sandgreen",
+        "mediumazure",
+        "mediumnougat",
+        "transclear"
       ],
       "legacy": false,
       "ldrawName": "Tile  1 x  2 Half Round",
@@ -7988,7 +9431,17 @@
         "pink",
         "brown",
         "gray",
-        "navy"
+        "navy",
+        "darkgray",
+        "darkred",
+        "sandgreen",
+        "darkgreen",
+        "mediumazure",
+        "lime",
+        "mediumnougat",
+        "translightblue",
+        "pearlgold",
+        "flatsilver"
       ],
       "legacy": false,
       "ldrawName": "Tile  1 x  1 with Rounded End",
@@ -8015,7 +9468,18 @@
         "brown",
         "gray",
         "navy",
-        "darkbrown"
+        "darkbrown",
+        "darkgray",
+        "darktan",
+        "darkred",
+        "sandgreen",
+        "darkgreen",
+        "mediumazure",
+        "lime",
+        "mediumnougat",
+        "transclear",
+        "translightblue",
+        "pearlgold"
       ],
       "legacy": false,
       "ldrawName": "Tile  1 x  1 Corner Round",
@@ -8040,7 +9504,16 @@
         "pink",
         "brown",
         "gray",
-        "navy"
+        "navy",
+        "darkgray",
+        "darktan",
+        "darkred",
+        "sandgreen",
+        "mediumazure",
+        "lime",
+        "mediumnougat",
+        "transclear",
+        "pearlgold"
       ],
       "legacy": false,
       "ldrawName": "Tile  4 x  4 Corner Round",
@@ -8067,7 +9540,16 @@
         "brown",
         "gray",
         "navy",
-        "darkbrown"
+        "darkbrown",
+        "darkgray",
+        "darktan",
+        "darkred",
+        "sandgreen",
+        "darkgreen",
+        "mediumazure",
+        "lime",
+        "mediumnougat",
+        "pearlgold"
       ],
       "legacy": false,
       "ldrawName": "Tile  2 x  2 Corner Round",
@@ -8088,7 +9570,9 @@
         "white",
         "tan",
         "orange",
-        "pink"
+        "pink",
+        "darktan",
+        "pearlgold"
       ],
       "legacy": false,
       "ldrawName": "Tile  1 x  1 Heart Shape",
@@ -8110,7 +9594,13 @@
         "orange",
         "pink",
         "gray",
-        "navy"
+        "navy",
+        "darkgray",
+        "darktan",
+        "darkred",
+        "darkgreen",
+        "lime",
+        "mediumnougat"
       ],
       "legacy": false,
       "ldrawName": "Tile  2 x  2 with Rounded End",
@@ -8149,7 +9639,11 @@
         "tan",
         "pink",
         "brown",
-        "gray"
+        "gray",
+        "darkgray",
+        "sandgreen",
+        "mediumnougat",
+        "pearlgold"
       ],
       "legacy": false,
       "ldrawName": "Tile  2 x  4 with Rounded Ends",
@@ -8172,7 +9666,12 @@
         "tan",
         "brown",
         "gray",
-        "navy"
+        "navy",
+        "darkgray",
+        "darktan",
+        "darkred",
+        "mediumnougat",
+        "pearlgold"
       ],
       "legacy": false,
       "ldrawName": "Tile  3 x  3 Round",
@@ -8188,7 +9687,9 @@
       "family": "round_tile",
       "colors": [
         "white",
-        "gray"
+        "gray",
+        "mediumazure",
+        "mediumnougat"
       ],
       "legacy": false,
       "ldrawName": "Tile  4 x  4 x  0.667 with Rounded Corners",
@@ -8230,7 +9731,16 @@
         "pink",
         "brown",
         "gray",
-        "navy"
+        "navy",
+        "darkgray",
+        "darktan",
+        "darkred",
+        "sandgreen",
+        "darkgreen",
+        "mediumazure",
+        "lime",
+        "mediumnougat",
+        "pearlgold"
       ],
       "legacy": false,
       "ldrawName": "Tile  3 x  3 Corner Round",
@@ -8257,7 +9767,18 @@
         "brown",
         "gray",
         "navy",
-        "darkbrown"
+        "darkbrown",
+        "darkgray",
+        "darktan",
+        "darkred",
+        "darkgreen",
+        "mediumazure",
+        "lime",
+        "mediumnougat",
+        "transclear",
+        "translightblue",
+        "pearlgold",
+        "flatsilver"
       ],
       "legacy": false,
       "ldrawName": "Tile  1 x  1 Round with Groove",
@@ -8282,7 +9803,13 @@
         "pink",
         "brown",
         "gray",
-        "darkbrown"
+        "darkbrown",
+        "darkred",
+        "sandgreen",
+        "mediumazure",
+        "lime",
+        "pearlgold",
+        "flatsilver"
       ],
       "legacy": false,
       "ldrawName": "Dome  2 x  2 Inverted with Stud and Tube",
@@ -8323,7 +9850,8 @@
         "tan",
         "orange",
         "gray",
-        "darkbrown"
+        "darkbrown",
+        "mediumazure"
       ],
       "legacy": false,
       "ldrawName": "Brick  2 x  2 Round with Pin Holes",
@@ -8362,7 +9890,8 @@
       "family": "round",
       "colors": [
         "tan",
-        "gray"
+        "gray",
+        "darkgray"
       ],
       "legacy": false,
       "ldrawName": "Brick  6 x  6 Round with Holes",
@@ -8381,7 +9910,8 @@
         "yellow",
         "white",
         "gray",
-        "navy"
+        "navy",
+        "lime"
       ],
       "legacy": false,
       "ldrawName": "Brick Round Sphere  2 x  2 x  1.667 with Stud",
@@ -8403,7 +9933,10 @@
         "pink",
         "brown",
         "gray",
-        "darkbrown"
+        "darkbrown",
+        "sandgreen",
+        "lime",
+        "mediumnougat"
       ],
       "legacy": false,
       "ldrawName": "Cylinder Half  2 x  4 x  2 with  1 x  2 Cutout",
@@ -8424,7 +9957,11 @@
         "brown",
         "gray",
         "navy",
-        "darkbrown"
+        "darkbrown",
+        "darkgray",
+        "darktan",
+        "sandgreen",
+        "pearlgold"
       ],
       "legacy": false,
       "ldrawName": "Brick  5 x  5 x  1 Corner Round with Curved Top",
@@ -8468,7 +10005,10 @@
         "tan",
         "brown",
         "gray",
-        "navy"
+        "navy",
+        "darkgray",
+        "darkgreen",
+        "lime"
       ],
       "legacy": false,
       "ldrawName": "Brick  4 x  4 Corner Round",
@@ -8483,7 +10023,8 @@
       "name": "Brick Round 2 x 2 x 1 2/3 Dome Top, Hollow Stud",
       "family": "round",
       "colors": [
-        "red"
+        "red",
+        "transclear"
       ],
       "legacy": false,
       "ldrawName": "Cylinder  2 x  2 x  1.667 with Dome Top and Hollow Stud",
@@ -8520,7 +10061,10 @@
         "white",
         "tan",
         "orange",
-        "gray"
+        "gray",
+        "darkgray",
+        "darkred",
+        "darkgreen"
       ],
       "legacy": false,
       "ldrawName": "Cylinder  3 x  6 x  2.667 Horizontal with Hollow Studs",
@@ -8545,7 +10089,18 @@
         "orange",
         "pink",
         "brown",
-        "gray"
+        "gray",
+        "darkgray",
+        "darktan",
+        "darkred",
+        "sandgreen",
+        "darkgreen",
+        "mediumazure",
+        "lime",
+        "transclear",
+        "translightblue",
+        "pearlgold",
+        "flatsilver"
       ],
       "legacy": false,
       "ldrawName": "Cylinder  2 x  2 with Dome Top with Axle Hole and Hollow Stud",
@@ -8572,7 +10127,17 @@
         "brown",
         "gray",
         "navy",
-        "darkbrown"
+        "darkbrown",
+        "darkgray",
+        "darkred",
+        "sandgreen",
+        "darkgreen",
+        "mediumazure",
+        "lime",
+        "mediumnougat",
+        "transclear",
+        "translightblue",
+        "pearlgold"
       ],
       "legacy": false,
       "ldrawName": "Brick  1 x  1 Round with Hollow Stud",
@@ -8591,7 +10156,10 @@
         "blue",
         "red",
         "tan",
-        "navy"
+        "navy",
+        "darkgray",
+        "darkred",
+        "darkgreen"
       ],
       "legacy": false,
       "ldrawName": "Cone  4 x  2 x  4 Half with Roof Tiles",
@@ -8627,7 +10195,10 @@
         "green",
         "red",
         "white",
-        "gray"
+        "gray",
+        "darkgray",
+        "sandgreen",
+        "lime"
       ],
       "legacy": false,
       "ldrawName": "Cone  4 x  2 x  3 Half",
@@ -8654,7 +10225,17 @@
         "brown",
         "gray",
         "navy",
-        "darkbrown"
+        "darkbrown",
+        "darkgray",
+        "darktan",
+        "darkred",
+        "sandgreen",
+        "darkgreen",
+        "mediumazure",
+        "lime",
+        "mediumnougat",
+        "transclear",
+        "translightblue"
       ],
       "legacy": false,
       "ldrawName": "Brick  2 x  2 Round without Reinforcement",
@@ -8680,7 +10261,16 @@
         "pink",
         "brown",
         "gray",
-        "navy"
+        "navy",
+        "darkgray",
+        "darkred",
+        "sandgreen",
+        "darkgreen",
+        "mediumazure",
+        "lime",
+        "mediumnougat",
+        "pearlgold",
+        "flatsilver"
       ],
       "legacy": false,
       "ldrawName": "Cone  2 x  2 x  2 with Hollow Stud Open",
@@ -8704,7 +10294,11 @@
         "tan",
         "orange",
         "gray",
-        "navy"
+        "navy",
+        "darkgray",
+        "sandgreen",
+        "mediumazure",
+        "lime"
       ],
       "legacy": false,
       "ldrawName": "Cone  4 x  4 x  2 with Axlehole",
@@ -8727,7 +10321,9 @@
         "white",
         "tan",
         "brown",
-        "gray"
+        "gray",
+        "darkgray",
+        "flatsilver"
       ],
       "legacy": false,
       "ldrawName": "Brick  1 x  1 Round with Fins",
@@ -8753,7 +10349,13 @@
         "pink",
         "brown",
         "gray",
-        "navy"
+        "navy",
+        "darkgray",
+        "darkred",
+        "sandgreen",
+        "transclear",
+        "translightblue",
+        "pearlgold"
       ],
       "legacy": false,
       "ldrawName": "Cone  1 x  1",
@@ -8793,7 +10395,8 @@
         "white",
         "tan",
         "brown",
-        "gray"
+        "gray",
+        "darkgray"
       ],
       "legacy": false,
       "ldrawName": "Cone 4 x  4 x  2 Hollow Without Studs",
@@ -8808,7 +10411,8 @@
       "name": "Brick Round Corner 4 x 8 Full Brick Double",
       "family": "round",
       "colors": [
-        "gray"
+        "gray",
+        "darkgray"
       ],
       "legacy": false,
       "ldrawName": "Brick  4 x  8 Round Half Circle",
@@ -8833,7 +10437,14 @@
         "orange",
         "brown",
         "gray",
-        "navy"
+        "navy",
+        "darkgray",
+        "darkred",
+        "sandgreen",
+        "darkgreen",
+        "mediumazure",
+        "lime",
+        "mediumnougat"
       ],
       "legacy": false,
       "ldrawName": "Brick  4 x  4 Corner Round",
@@ -8853,7 +10464,11 @@
         "white",
         "orange",
         "pink",
-        "gray"
+        "gray",
+        "darkgray",
+        "sandgreen",
+        "lime",
+        "pearlgold"
       ],
       "legacy": false,
       "ldrawName": "Cylinder  3 x  3 with Dome Top with Open Stud",
@@ -8870,7 +10485,9 @@
       "colors": [
         "black",
         "brown",
-        "navy"
+        "navy",
+        "lime",
+        "mediumnougat"
       ],
       "legacy": false,
       "ldrawName": "Cone  2 x  2 x  2 Inverted",
@@ -8892,7 +10509,9 @@
         "yellow",
         "white",
         "orange",
-        "gray"
+        "gray",
+        "sandgreen",
+        "lime"
       ],
       "legacy": false,
       "ldrawName": "Brick  4 x  4 x  2.667 Corner Round with Dome Top",
@@ -8913,7 +10532,9 @@
         "tan",
         "pink",
         "gray",
-        "navy"
+        "navy",
+        "transclear",
+        "translightblue"
       ],
       "legacy": false,
       "ldrawName": "Brick  3 x  3 Corner Round",
@@ -8955,7 +10576,8 @@
         "tan",
         "pink",
         "brown",
-        "gray"
+        "gray",
+        "pearlgold"
       ],
       "legacy": false,
       "ldrawName": "Brick  2 x  2 x  1 with Curved Corner Top",
@@ -9005,7 +10627,12 @@
         "pink",
         "brown",
         "gray",
-        "navy"
+        "navy",
+        "darkred",
+        "darkgreen",
+        "mediumazure",
+        "lime",
+        "mediumnougat"
       ],
       "legacy": false,
       "ldrawName": "Brick  2 x  2 x  0.667 Quarter Circle with Curved Top",
@@ -9026,7 +10653,12 @@
         "tan",
         "orange",
         "gray",
-        "navy"
+        "navy",
+        "darkgray",
+        "darkgreen",
+        "mediumazure",
+        "mediumnougat",
+        "pearlgold"
       ],
       "legacy": false,
       "ldrawName": "Brick 2 x 2 x 1.667 Corner Round with Curved Top",
@@ -9063,7 +10695,9 @@
       "family": "round",
       "colors": [
         "red",
-        "gray"
+        "gray",
+        "transclear",
+        "flatsilver"
       ],
       "legacy": false,
       "ldrawName": "Cylinder Hemisphere  2 x  2 with Cutout",
@@ -9087,7 +10721,10 @@
         "tan",
         "orange",
         "brown",
-        "gray"
+        "gray",
+        "darkgray",
+        "darkred",
+        "lime"
       ],
       "legacy": false,
       "ldrawName": "Brick  4 x  4 Round with Holes",
@@ -9111,7 +10748,10 @@
         "pink",
         "brown",
         "gray",
-        "navy"
+        "navy",
+        "darkgray",
+        "darkred",
+        "sandgreen"
       ],
       "legacy": false,
       "ldrawName": "Cone  3 x  3 x  2",
@@ -9135,7 +10775,10 @@
         "tan",
         "brown",
         "gray",
-        "darkbrown"
+        "darkbrown",
+        "darkgray",
+        "darkred",
+        "translightblue"
       ],
       "legacy": false,
       "ldrawName": "Cylinder  2 x  4 x  4",
@@ -9157,7 +10800,11 @@
         "tan",
         "orange",
         "brown",
-        "navy"
+        "navy",
+        "mediumazure",
+        "lime",
+        "mediumnougat",
+        "pearlgold"
       ],
       "legacy": false,
       "ldrawName": "Brick Round  2 x  2 Curved 45 Degrees",
@@ -9182,7 +10829,10 @@
         "pink",
         "brown",
         "gray",
-        "navy"
+        "navy",
+        "darkred",
+        "darkgreen",
+        "pearlgold"
       ],
       "legacy": false,
       "ldrawName": "Brick  3 x  3 x  1 Corner Round with Curved Top",
@@ -9205,7 +10855,12 @@
         "tan",
         "pink",
         "brown",
-        "gray"
+        "gray",
+        "darkgray",
+        "darkred",
+        "sandgreen",
+        "mediumazure",
+        "mediumnougat"
       ],
       "legacy": false,
       "ldrawName": "Brick  2 x  2 x  1.333 with Curved Corner Top",
@@ -9227,7 +10882,9 @@
         "tan",
         "brown",
         "gray",
-        "navy"
+        "navy",
+        "mediumazure",
+        "lime"
       ],
       "legacy": false,
       "ldrawName": "Cylinder Half  1 x  2 with Cutout",
@@ -9247,7 +10904,8 @@
         "white",
         "tan",
         "brown",
-        "gray"
+        "gray",
+        "darkred"
       ],
       "legacy": false,
       "ldrawName": "Brick  4 x  4 Round with  3 x  3 Recess with Hole and Snapstud",
@@ -9302,7 +10960,9 @@
         "white",
         "brown",
         "gray",
-        "navy"
+        "navy",
+        "darkgray",
+        "lime"
       ],
       "legacy": false,
       "ldrawName": "Brick  3 x  3 x  2 Round with Recessed Centre",
@@ -9318,7 +10978,8 @@
       "family": "round",
       "colors": [
         "white",
-        "brown"
+        "brown",
+        "sandgreen"
       ],
       "legacy": false,
       "ldrawName": "Brick  5 x  5 x  3.333 Corner Round with Dome Top and  2 x  2 Cutout",
@@ -9338,7 +10999,12 @@
         "yellow",
         "white",
         "pink",
-        "gray"
+        "gray",
+        "darktan",
+        "darkred",
+        "darkgreen",
+        "mediumnougat",
+        "pearlgold"
       ],
       "legacy": false,
       "ldrawName": "Brick  5 x  5 Corner Round with Slope 45 Chamfer",
@@ -9364,7 +11030,12 @@
         "pink",
         "brown",
         "gray",
-        "navy"
+        "navy",
+        "darkgray",
+        "darktan",
+        "darkred",
+        "darkgreen",
+        "mediumnougat"
       ],
       "legacy": false,
       "ldrawName": "Brick 3 x 3 x 1 Quarter Circle with Curved Top",
@@ -9400,7 +11071,9 @@
         "orange",
         "pink",
         "gray",
-        "navy"
+        "navy",
+        "darkgray",
+        "transclear"
       ],
       "legacy": false,
       "ldrawName": "Brick  4 x  4 x  1  Round with Rounded Top and Round  2 x  2 x  0.667 Cutout",
@@ -9426,7 +11099,16 @@
         "pink",
         "brown",
         "gray",
-        "navy"
+        "navy",
+        "darkgray",
+        "darktan",
+        "darkred",
+        "sandgreen",
+        "darkgreen",
+        "mediumazure",
+        "lime",
+        "mediumnougat",
+        "pearlgold"
       ],
       "legacy": false,
       "ldrawName": "Brick  2 x  2 Corner Round with Stud Notch and Reinforced Underside",
@@ -9445,7 +11127,12 @@
         "red",
         "white",
         "tan",
-        "gray"
+        "gray",
+        "darkgray",
+        "darkgreen",
+        "mediumnougat",
+        "transclear",
+        "translightblue"
       ],
       "legacy": false,
       "ldrawName": "Cylinder Half  2 x  4 x  5 with  1 x  2 cutout",
@@ -9464,7 +11151,12 @@
         "red",
         "yellow",
         "white",
-        "gray"
+        "gray",
+        "darktan",
+        "darkgreen",
+        "mediumazure",
+        "transclear",
+        "translightblue"
       ],
       "legacy": false,
       "ldrawName": "Dome  4 x  4 Smooth",
@@ -9486,7 +11178,9 @@
         "yellow",
         "white",
         "tan",
-        "brown"
+        "brown",
+        "darkgray",
+        "darkred"
       ],
       "legacy": false,
       "ldrawName": "Brick  4 x  4 Round with Pinhole and Snapstud",
@@ -9507,7 +11201,12 @@
         "white",
         "tan",
         "navy",
-        "darkbrown"
+        "darkbrown",
+        "darkgray",
+        "darkred",
+        "sandgreen",
+        "darkgreen",
+        "flatsilver"
       ],
       "legacy": false,
       "ldrawName": "Brick  6 x  6 x  2 Corner Round with Curved Top",
@@ -9526,7 +11225,10 @@
         "white",
         "tan",
         "brown",
-        "gray"
+        "gray",
+        "darkgray",
+        "darkred",
+        "transclear"
       ],
       "legacy": false,
       "ldrawName": "Cylinder Half  3 x  6 x  6 with  1 x  2 Cutout",
@@ -9548,7 +11250,14 @@
         "tan",
         "pink",
         "gray",
-        "navy"
+        "navy",
+        "darkgray",
+        "darkred",
+        "darkgreen",
+        "mediumazure",
+        "lime",
+        "mediumnougat",
+        "pearlgold"
       ],
       "legacy": false,
       "ldrawName": "Brick  3 x  3 x  2 Round Corner with Dome Top",
@@ -9571,7 +11280,10 @@
         "pink",
         "brown",
         "gray",
-        "darkbrown"
+        "darkbrown",
+        "darkgray",
+        "mediumnougat",
+        "pearlgold"
       ],
       "legacy": false,
       "ldrawName": "Brick  2 x  2 Round with Grille",
@@ -9593,7 +11305,14 @@
         "tan",
         "orange",
         "brown",
-        "gray"
+        "gray",
+        "darkgray",
+        "darktan",
+        "darkred",
+        "sandgreen",
+        "darkgreen",
+        "mediumazure",
+        "mediumnougat"
       ],
       "legacy": false,
       "ldrawName": "Slope Brick Curved  3 x  4 x  0.667 Rounded",
@@ -9616,7 +11335,12 @@
         "tan",
         "orange",
         "pink",
-        "gray"
+        "gray",
+        "darktan",
+        "darkred",
+        "darkgreen",
+        "mediumnougat",
+        "pearlgold"
       ],
       "legacy": false,
       "ldrawName": "Cone  2 x  2 Truncated",
@@ -9641,7 +11365,13 @@
         "orange",
         "pink",
         "brown",
-        "gray"
+        "gray",
+        "darkgray",
+        "darktan",
+        "darkgreen",
+        "lime",
+        "transclear",
+        "pearlgold"
       ],
       "legacy": false,
       "ldrawName": "Slope Brick 45  1 x  2 Triple with Bottom Stud Holder",
@@ -9668,7 +11398,14 @@
         "brown",
         "gray",
         "navy",
-        "darkbrown"
+        "darkbrown",
+        "darkgray",
+        "darktan",
+        "darkred",
+        "sandgreen",
+        "mediumazure",
+        "lime",
+        "mediumnougat"
       ],
       "legacy": false,
       "ldrawName": "Slope Plate 45  2 x  1",
@@ -9687,7 +11424,8 @@
         "white",
         "tan",
         "pink",
-        "gray"
+        "gray",
+        "darktan"
       ],
       "legacy": false,
       "ldrawName": "Slope Brick 31  2 x  2 Double, Curved",
@@ -9706,7 +11444,9 @@
         "white",
         "tan",
         "pink",
-        "gray"
+        "gray",
+        "darkgray",
+        "mediumazure"
       ],
       "legacy": false,
       "ldrawName": "Slope Brick 45  3 x  1 Inverted Double with Inner Stopper Rings",
@@ -9726,7 +11466,14 @@
         "white",
         "tan",
         "brown",
-        "gray"
+        "gray",
+        "darktan",
+        "darkred",
+        "lime",
+        "transclear",
+        "translightblue",
+        "pearlgold",
+        "flatsilver"
       ],
       "legacy": false,
       "ldrawName": "Slope Brick 50  1 x  1 x  0.667 Quadruple",
@@ -9750,7 +11497,10 @@
         "tan",
         "orange",
         "gray",
-        "navy"
+        "navy",
+        "darkgray",
+        "darkred",
+        "lime"
       ],
       "legacy": false,
       "ldrawName": "Slope Brick 45  6 x  2 Double Inverted with Open Centre",
@@ -9772,7 +11522,12 @@
         "tan",
         "brown",
         "gray",
-        "navy"
+        "navy",
+        "darkgray",
+        "darktan",
+        "sandgreen",
+        "mediumazure",
+        "mediumnougat"
       ],
       "legacy": false,
       "ldrawName": "Slope Brick 45  2 x  1 Inverted with 0.667 Cutout",
@@ -9789,7 +11544,10 @@
       "colors": [
         "black",
         "blue",
-        "tan"
+        "tan",
+        "darkgray",
+        "darkred",
+        "sandgreen"
       ],
       "legacy": false,
       "ldrawName": "Slope Brick 45  2 x  6",
@@ -9815,7 +11573,13 @@
         "brown",
         "gray",
         "navy",
-        "darkbrown"
+        "darkbrown",
+        "darkgray",
+        "darktan",
+        "darkred",
+        "sandgreen",
+        "darkgreen",
+        "mediumnougat"
       ],
       "legacy": false,
       "ldrawName": "Slope Brick 75  2 x  1 x  3 Inverted",
@@ -9841,7 +11605,14 @@
         "brown",
         "gray",
         "navy",
-        "darkbrown"
+        "darkbrown",
+        "darkgray",
+        "darktan",
+        "darkred",
+        "mediumazure",
+        "lime",
+        "mediumnougat",
+        "pearlgold"
       ],
       "legacy": false,
       "ldrawName": "Slope Brick 45  2 x  1 with Cutout and without Stud",
@@ -9883,7 +11654,8 @@
         "yellow",
         "white",
         "orange",
-        "gray"
+        "gray",
+        "darkgray"
       ],
       "legacy": false,
       "ldrawName": "Slope Brick 55  1 x  6 x  5 with Bottom Stud Holders",
@@ -9946,7 +11718,8 @@
         "yellow",
         "white",
         "orange",
-        "gray"
+        "gray",
+        "darkgray"
       ],
       "legacy": false,
       "ldrawName": "Slope Brick 45  6 x  4 Double Inverted",
@@ -9964,7 +11737,8 @@
         "black",
         "yellow",
         "orange",
-        "gray"
+        "gray",
+        "darkgray"
       ],
       "legacy": false,
       "ldrawName": "Slope Brick 45  6 x  4 Double Inverted with Open Centre",
@@ -9989,7 +11763,13 @@
         "orange",
         "brown",
         "gray",
-        "navy"
+        "navy",
+        "darkgray",
+        "darkred",
+        "sandgreen",
+        "mediumazure",
+        "lime",
+        "mediumnougat"
       ],
       "legacy": false,
       "ldrawName": "Slope Brick 18  4 x  2",
@@ -10014,7 +11794,13 @@
         "orange",
         "brown",
         "gray",
-        "navy"
+        "navy",
+        "darkgray",
+        "darkred",
+        "sandgreen",
+        "darkgreen",
+        "mediumazure",
+        "transclear"
       ],
       "legacy": false,
       "ldrawName": "Slope Brick 45  2 x  4",
@@ -10031,7 +11817,8 @@
       "colors": [
         "black",
         "white",
-        "tan"
+        "tan",
+        "darkgray"
       ],
       "legacy": false,
       "ldrawName": "Slope Brick 65  6 x  6 x  2 Inverted Quadruple",
@@ -10055,7 +11842,11 @@
         "tan",
         "brown",
         "gray",
-        "navy"
+        "navy",
+        "darkgray",
+        "darkred",
+        "darkgreen",
+        "transclear"
       ],
       "legacy": false,
       "ldrawName": "Slope Brick 45  2 x  3",
@@ -10081,7 +11872,18 @@
         "pink",
         "brown",
         "gray",
-        "navy"
+        "navy",
+        "darkgray",
+        "darktan",
+        "darkred",
+        "sandgreen",
+        "darkgreen",
+        "mediumazure",
+        "lime",
+        "mediumnougat",
+        "transclear",
+        "translightblue",
+        "pearlgold"
       ],
       "legacy": true,
       "ldrawName": "Slope Brick 45  2 x  2",
@@ -10108,7 +11910,17 @@
         "brown",
         "gray",
         "navy",
-        "darkbrown"
+        "darkbrown",
+        "darkgray",
+        "darktan",
+        "darkred",
+        "sandgreen",
+        "darkgreen",
+        "mediumazure",
+        "lime",
+        "mediumnougat",
+        "transclear",
+        "translightblue"
       ],
       "legacy": true,
       "ldrawName": "Slope Brick 45  2 x  1",
@@ -10134,7 +11946,8 @@
         "pink",
         "gray",
         "navy",
-        "darkbrown"
+        "darkbrown",
+        "sandgreen"
       ],
       "legacy": false,
       "ldrawName": "Slope Brick 45  2 x  4 Double",
@@ -10174,7 +11987,10 @@
         "orange",
         "brown",
         "gray",
-        "navy"
+        "navy",
+        "darkgray",
+        "darktan",
+        "mediumnougat"
       ],
       "legacy": false,
       "ldrawName": "Slope Brick 45  2 x  2 Double",
@@ -10199,7 +12015,11 @@
         "orange",
         "brown",
         "gray",
-        "navy"
+        "navy",
+        "darkgray",
+        "sandgreen",
+        "darkgreen",
+        "mediumnougat"
       ],
       "legacy": false,
       "ldrawName": "Slope Brick 45  2 x  1 Double with Bottom Stud Holder",
@@ -10224,7 +12044,13 @@
         "orange",
         "brown",
         "gray",
-        "navy"
+        "navy",
+        "darkgray",
+        "darktan",
+        "darkred",
+        "sandgreen",
+        "mediumazure",
+        "lime"
       ],
       "legacy": false,
       "ldrawName": "Slope Brick 45  2 x  2 Double Convex",
@@ -10241,7 +12067,9 @@
       "colors": [
         "black",
         "white",
-        "tan"
+        "tan",
+        "darkred",
+        "darkgreen"
       ],
       "legacy": false,
       "ldrawName": "Slope Brick 45  1 x  2 Double / Inverted without Centre Stud",
@@ -10328,7 +12156,8 @@
         "white",
         "orange",
         "gray",
-        "navy"
+        "navy",
+        "darkgray"
       ],
       "legacy": false,
       "ldrawName": "Slope Brick 45  4 x  6 x  0.667 Double",
@@ -10349,7 +12178,9 @@
         "red",
         "white",
         "tan",
-        "darkbrown"
+        "darkbrown",
+        "darkgray",
+        "mediumnougat"
       ],
       "legacy": false,
       "ldrawName": "Slope Brick 45  4 x  1 Double Inverted with Open Centre",
@@ -10375,7 +12206,12 @@
         "brown",
         "gray",
         "navy",
-        "darkbrown"
+        "darkbrown",
+        "darkgray",
+        "darkred",
+        "sandgreen",
+        "mediumazure",
+        "transclear"
       ],
       "legacy": false,
       "ldrawName": "Slope Brick 33  3 x  4",
@@ -10400,7 +12236,14 @@
         "orange",
         "brown",
         "gray",
-        "navy"
+        "navy",
+        "darkgray",
+        "darktan",
+        "darkred",
+        "sandgreen",
+        "lime",
+        "mediumnougat",
+        "transclear"
       ],
       "legacy": true,
       "ldrawName": "Slope Brick 33  3 x  2",
@@ -10423,7 +12266,9 @@
         "white",
         "tan",
         "brown",
-        "navy"
+        "navy",
+        "darkgray",
+        "darkred"
       ],
       "legacy": false,
       "ldrawName": "Slope Brick 33  2 x  4 Double",
@@ -10445,7 +12290,10 @@
         "yellow",
         "white",
         "tan",
-        "gray"
+        "gray",
+        "darkgray",
+        "darkred",
+        "lime"
       ],
       "legacy": false,
       "ldrawName": "Slope Brick 33  2 x  2 Double",
@@ -10461,7 +12309,9 @@
       "family": "slope",
       "colors": [
         "black",
-        "gray"
+        "gray",
+        "sandgreen",
+        "translightblue"
       ],
       "legacy": false,
       "ldrawName": "Roof  6 x  8 x  9 Half Pyramid",
@@ -10482,7 +12332,10 @@
         "white",
         "tan",
         "orange",
-        "gray"
+        "gray",
+        "darkgray",
+        "sandgreen",
+        "mediumnougat"
       ],
       "legacy": false,
       "ldrawName": "Slope Brick 45  1 x  1 Double",
@@ -10507,7 +12360,13 @@
         "brown",
         "gray",
         "navy",
-        "darkbrown"
+        "darkbrown",
+        "darkgray",
+        "darktan",
+        "darkred",
+        "sandgreen",
+        "lime",
+        "mediumnougat"
       ],
       "legacy": false,
       "ldrawName": "Slope Brick 33  3 x  3 Double Convex",
@@ -10532,7 +12391,10 @@
         "orange",
         "brown",
         "gray",
-        "navy"
+        "navy",
+        "darkgray",
+        "darkred",
+        "darkgreen"
       ],
       "legacy": false,
       "ldrawName": "Slope Brick 45  2 x  2 Inverted Double Convex",
@@ -10556,7 +12418,13 @@
         "tan",
         "brown",
         "gray",
-        "navy"
+        "navy",
+        "darkgray",
+        "darktan",
+        "darkred",
+        "mediumazure",
+        "lime",
+        "pearlgold"
       ],
       "legacy": false,
       "ldrawName": "Slope Brick 65  2 x  2 x  2 with Centre Tube",
@@ -10581,7 +12449,13 @@
         "orange",
         "brown",
         "gray",
-        "navy"
+        "navy",
+        "darkgray",
+        "darktan",
+        "darkred",
+        "sandgreen",
+        "mediumnougat",
+        "transclear"
       ],
       "legacy": false,
       "ldrawName": "Slope Brick 75  2 x  2 x  3 Double Convex",
@@ -10602,7 +12476,9 @@
         "red",
         "white",
         "tan",
-        "navy"
+        "navy",
+        "darkgray",
+        "sandgreen"
       ],
       "legacy": false,
       "ldrawName": "Slope Brick 75  2 x  2 x  2 Quadruple Convex",
@@ -10626,7 +12502,13 @@
         "tan",
         "orange",
         "brown",
-        "gray"
+        "gray",
+        "darkgray",
+        "darktan",
+        "darkred",
+        "sandgreen",
+        "mediumazure",
+        "mediumnougat"
       ],
       "legacy": false,
       "ldrawName": "Slope Brick 33  3 x  2 Inverted with Ribs between Studs",
@@ -10648,7 +12530,11 @@
         "yellow",
         "white",
         "tan",
-        "navy"
+        "navy",
+        "darkgray",
+        "sandgreen",
+        "transclear",
+        "translightblue"
       ],
       "legacy": false,
       "ldrawName": "Slope Brick 33  3 x  6",
@@ -10673,7 +12559,10 @@
         "orange",
         "brown",
         "gray",
-        "navy"
+        "navy",
+        "darkred",
+        "darkgreen",
+        "mediumnougat"
       ],
       "legacy": false,
       "ldrawName": "Slope Brick 33  3 x  3",
@@ -10717,7 +12606,16 @@
         "brown",
         "gray",
         "navy",
-        "darkbrown"
+        "darkbrown",
+        "darkgray",
+        "darktan",
+        "darkred",
+        "sandgreen",
+        "darkgreen",
+        "mediumazure",
+        "lime",
+        "mediumnougat",
+        "transclear"
       ],
       "legacy": true,
       "ldrawName": "Slope Brick 33  3 x  1",
@@ -10743,7 +12641,12 @@
         "pink",
         "brown",
         "gray",
-        "navy"
+        "navy",
+        "darkgray",
+        "darkred",
+        "darkgreen",
+        "lime",
+        "mediumnougat"
       ],
       "legacy": false,
       "ldrawName": "Slope Brick 33  3 x  1 Inverted with Notch, Stud Blocker and Thin Front",
@@ -10766,7 +12669,11 @@
         "white",
         "tan",
         "gray",
-        "navy"
+        "navy",
+        "darkgray",
+        "darkred",
+        "sandgreen",
+        "mediumazure"
       ],
       "legacy": false,
       "ldrawName": "Slope Brick 45  2 x  8",
@@ -10792,7 +12699,14 @@
         "brown",
         "gray",
         "navy",
-        "darkbrown"
+        "darkbrown",
+        "darkgray",
+        "darktan",
+        "darkred",
+        "sandgreen",
+        "darkgreen",
+        "lime",
+        "mediumnougat"
       ],
       "legacy": false,
       "ldrawName": "Slope Brick 75  2 x  1 x  3 with Hollow Stud",
@@ -10814,7 +12728,8 @@
         "yellow",
         "white",
         "tan",
-        "gray"
+        "gray",
+        "darkgray"
       ],
       "legacy": false,
       "ldrawName": "Slope Brick 33  6 x  6 Double",
@@ -10837,7 +12752,11 @@
         "white",
         "tan",
         "gray",
-        "navy"
+        "navy",
+        "darkgray",
+        "darktan",
+        "darkred",
+        "darkgreen"
       ],
       "legacy": false,
       "ldrawName": "Slope Brick 10  6 x  8",
@@ -10859,7 +12778,10 @@
         "white",
         "brown",
         "gray",
-        "navy"
+        "navy",
+        "darkgray",
+        "darkred",
+        "mediumazure"
       ],
       "legacy": false,
       "ldrawName": "Slope Brick 10  6 x  1",
@@ -10882,7 +12804,8 @@
         "white",
         "tan",
         "gray",
-        "navy"
+        "navy",
+        "darkgray"
       ],
       "legacy": false,
       "ldrawName": "Slope Brick 45  4 x  4 Double Inverted with Open Centre",
@@ -10905,7 +12828,8 @@
         "white",
         "tan",
         "pink",
-        "navy"
+        "navy",
+        "darkgray"
       ],
       "legacy": false,
       "ldrawName": "Slope Brick 45  3 x  4 Double / 33",
@@ -10930,7 +12854,10 @@
         "orange",
         "brown",
         "gray",
-        "navy"
+        "navy",
+        "darkgray",
+        "darktan",
+        "lime"
       ],
       "legacy": false,
       "ldrawName": "Slope Brick 45  4 x  2 Double Inverted with Open Centre",
@@ -10949,7 +12876,8 @@
         "green",
         "red",
         "white",
-        "gray"
+        "gray",
+        "lime"
       ],
       "legacy": false,
       "ldrawName": "Slope Brick 33  8 x  1 x  3",
@@ -10965,7 +12893,8 @@
       "family": "slope",
       "colors": [
         "black",
-        "blue"
+        "blue",
+        "darkgray"
       ],
       "legacy": false,
       "ldrawName": "Slope Brick 45  6 x  8 Double Inverted with Open Centre and  4 Holes",
@@ -11021,7 +12950,11 @@
         "tan",
         "orange",
         "pink",
-        "brown"
+        "brown",
+        "darkgray",
+        "darkred",
+        "lime",
+        "mediumnougat"
       ],
       "legacy": false,
       "ldrawName": "Slope Brick 45  6 x  1 Double Inverted with Open Centre",
@@ -11047,7 +12980,12 @@
         "brown",
         "gray",
         "navy",
-        "darkbrown"
+        "darkbrown",
+        "darkgray",
+        "darkred",
+        "lime",
+        "mediumnougat",
+        "pearlgold"
       ],
       "legacy": false,
       "ldrawName": "Slope Brick 18  2 x  1 x  0.667",
@@ -11074,7 +13012,19 @@
         "brown",
         "gray",
         "navy",
-        "darkbrown"
+        "darkbrown",
+        "darkgray",
+        "darktan",
+        "darkred",
+        "sandgreen",
+        "darkgreen",
+        "mediumazure",
+        "lime",
+        "mediumnougat",
+        "transclear",
+        "translightblue",
+        "pearlgold",
+        "flatsilver"
       ],
       "legacy": true,
       "ldrawName": "Slope Brick 31  1 x  1 x  0.667",
@@ -11117,7 +13067,9 @@
         "orange",
         "brown",
         "gray",
-        "darkbrown"
+        "darkbrown",
+        "darkred",
+        "pearlgold"
       ],
       "legacy": false,
       "ldrawName": "Slope Brick 13  4 x  1",
@@ -11142,7 +13094,10 @@
         "brown",
         "gray",
         "navy",
-        "darkbrown"
+        "darkbrown",
+        "darkgray",
+        "darkred",
+        "mediumazure"
       ],
       "legacy": false,
       "ldrawName": "Slope Brick 18  4 x  1",
@@ -11160,7 +13115,9 @@
         "black",
         "blue",
         "red",
-        "white"
+        "white",
+        "darkgray",
+        "darkred"
       ],
       "legacy": false,
       "ldrawName": "Slope Brick 60  4 x  1 x  3 Inverted",
@@ -11212,7 +13169,9 @@
         "white",
         "orange",
         "brown",
-        "navy"
+        "navy",
+        "darkgray",
+        "mediumnougat"
       ],
       "legacy": false,
       "ldrawName": "Slope Brick 45  4 x  4 Double Inverted with Open Centre and 2 Holes",
@@ -11227,7 +13186,9 @@
       "name": "Brick Sloped 8 x 5 x 2/3 with 2 x 6 Studs",
       "family": "slope",
       "colors": [
-        "orange"
+        "orange",
+        "darkgray",
+        "lime"
       ],
       "legacy": false,
       "ldrawName": "Slope  5 x  8 x  0.667 with  2 x  6 Plate",
@@ -11245,7 +13206,8 @@
         "black",
         "white",
         "orange",
-        "gray"
+        "gray",
+        "mediumazure"
       ],
       "legacy": false,
       "ldrawName": "Slope Brick 31  1 x  3 x  0.667",
@@ -11298,7 +13260,8 @@
         "black",
         "red",
         "tan",
-        "gray"
+        "gray",
+        "darkgray"
       ],
       "legacy": false,
       "ldrawName": "Slope Brick 31  1 x  4 x  0.667",
@@ -11314,7 +13277,9 @@
       "family": "slope",
       "colors": [
         "black",
-        "gray"
+        "gray",
+        "darkgray",
+        "darkgreen"
       ],
       "legacy": false,
       "ldrawName": "Slope Brick 45  2 x  4 x  1.333 Double, Wedge",
@@ -11341,7 +13306,16 @@
         "brown",
         "gray",
         "navy",
-        "darkbrown"
+        "darkbrown",
+        "darkgray",
+        "darktan",
+        "darkred",
+        "sandgreen",
+        "darkgreen",
+        "mediumazure",
+        "lime",
+        "mediumnougat",
+        "pearlgold"
       ],
       "legacy": true,
       "ldrawName": "Slope Brick 31  1 x  2 x  0.667",
@@ -11358,7 +13332,10 @@
       "colors": [
         "blue",
         "white",
-        "tan"
+        "tan",
+        "darkgray",
+        "darkgreen",
+        "lime"
       ],
       "legacy": false,
       "ldrawName": "Slope Plate 45.73  2 x  1",
@@ -11375,7 +13352,10 @@
       "colors": [
         "black",
         "white",
-        "navy"
+        "navy",
+        "darkgray",
+        "darkred",
+        "sandgreen"
       ],
       "legacy": false,
       "ldrawName": "Slope Brick 33  3 x  3 Double Concave",
@@ -11396,7 +13376,12 @@
         "white",
         "tan",
         "gray",
-        "navy"
+        "navy",
+        "darkgray",
+        "darkred",
+        "darkgreen",
+        "mediumazure",
+        "lime"
       ],
       "legacy": false,
       "ldrawName": "Panel  1 x  4 x  2 with Hollow Studs",
@@ -11421,7 +13406,12 @@
         "orange",
         "brown",
         "gray",
-        "navy"
+        "navy",
+        "darkgray",
+        "darkred",
+        "darkgreen",
+        "lime",
+        "translightblue"
       ],
       "legacy": false,
       "ldrawName": "Panel  1 x  4 x  1 with Rounded Corners, Thin Wall",
@@ -11440,7 +13430,8 @@
         "red",
         "white",
         "tan",
-        "gray"
+        "gray",
+        "mediumazure"
       ],
       "legacy": false,
       "ldrawName": "Panel  1 x  6 x  6 with  4 x  2 Window Cutout",
@@ -11460,7 +13451,9 @@
         "red",
         "yellow",
         "white",
-        "gray"
+        "gray",
+        "darkgray",
+        "darkred"
       ],
       "legacy": false,
       "ldrawName": "Panel  1 x  6 x  5 Corrugated",
@@ -11498,7 +13491,9 @@
         "yellow",
         "white",
         "brown",
-        "gray"
+        "gray",
+        "transclear",
+        "translightblue"
       ],
       "legacy": false,
       "ldrawName": "Panel  1 x  2 x  3 with Hollow Studs",
@@ -11522,7 +13517,9 @@
         "orange",
         "brown",
         "gray",
-        "navy"
+        "navy",
+        "darkgray",
+        "darkred"
       ],
       "legacy": false,
       "ldrawName": "Panel  1 x  3 x  1 with Rounded Corners",
@@ -11541,7 +13538,13 @@
         "white",
         "tan",
         "brown",
-        "gray"
+        "gray",
+        "darkgray",
+        "darktan",
+        "mediumazure",
+        "transclear",
+        "translightblue",
+        "pearlgold"
       ],
       "legacy": false,
       "ldrawName": "Panel  1 x  2 x  1 Double Corner with Rounded Corners",
@@ -11573,7 +13576,8 @@
       "family": "panel",
       "colors": [
         "yellow",
-        "white"
+        "white",
+        "translightblue"
       ],
       "legacy": false,
       "ldrawName": "Panel  3 x  2 x  6",
@@ -11605,7 +13609,11 @@
       "family": "panel",
       "colors": [
         "white",
-        "brown"
+        "brown",
+        "mediumazure",
+        "lime",
+        "transclear",
+        "translightblue"
       ],
       "legacy": false,
       "ldrawName": "Panel  3 x  4 x  6 with Curved Top",
@@ -11694,7 +13702,10 @@
         "white",
         "tan",
         "pink",
-        "gray"
+        "gray",
+        "sandgreen",
+        "mediumazure",
+        "mediumnougat"
       ],
       "legacy": false,
       "ldrawName": "Panel Wall  3 x  4 x  6",
@@ -11734,7 +13745,12 @@
         "tan",
         "orange",
         "gray",
-        "navy"
+        "navy",
+        "darkgray",
+        "darkred",
+        "lime",
+        "transclear",
+        "translightblue"
       ],
       "legacy": false,
       "ldrawName": "Panel  4 x  4 x  6 Corner Round",
@@ -11756,7 +13772,10 @@
         "tan",
         "brown",
         "gray",
-        "navy"
+        "navy",
+        "darkgray",
+        "sandgreen",
+        "mediumnougat"
       ],
       "legacy": false,
       "ldrawName": "Cylinder Quarter  2 x  2 x  5 with  1 x  1 Cutout",
@@ -11823,7 +13842,9 @@
         "black",
         "red",
         "white",
-        "gray"
+        "gray",
+        "lime",
+        "translightblue"
       ],
       "legacy": false,
       "ldrawName": "Panel  3 x  3 x  2 Quarter Round",
@@ -11841,7 +13862,10 @@
         "white",
         "tan",
         "pink",
-        "brown"
+        "brown",
+        "darkgray",
+        "mediumazure",
+        "mediumnougat"
       ],
       "legacy": false,
       "ldrawName": "Panel  2 x  6 x  6  with Pointed Arch Opening and Rounded Sides",
@@ -11862,7 +13886,9 @@
         "white",
         "tan",
         "pink",
-        "navy"
+        "navy",
+        "transclear",
+        "translightblue"
       ],
       "legacy": false,
       "ldrawName": "Panel  4 x  4 x  3 Corner Round",
@@ -11927,7 +13953,17 @@
         "pink",
         "brown",
         "gray",
-        "navy"
+        "navy",
+        "darkgray",
+        "darktan",
+        "darkred",
+        "sandgreen",
+        "darkgreen",
+        "mediumazure",
+        "lime",
+        "mediumnougat",
+        "transclear",
+        "translightblue"
       ],
       "legacy": false,
       "ldrawName": "Panel  1 x  2 x  1 with Rounded Corners",
@@ -11944,7 +13980,8 @@
       "colors": [
         "black",
         "white",
-        "brown"
+        "brown",
+        "transclear"
       ],
       "legacy": false,
       "ldrawName": "Panel  6 x  5 x  3.333 with Curved Top",
@@ -11970,7 +14007,17 @@
         "brown",
         "gray",
         "navy",
-        "darkbrown"
+        "darkbrown",
+        "darkgray",
+        "darktan",
+        "darkred",
+        "sandgreen",
+        "darkgreen",
+        "mediumazure",
+        "lime",
+        "mediumnougat",
+        "transclear",
+        "translightblue"
       ],
       "legacy": false,
       "ldrawName": "Panel  1 x  6 x  5",
@@ -11985,7 +14032,8 @@
       "name": "Panel 3 x 3 x 5 Quarter Round with 2 1 x 2 Arches (Tree)",
       "family": "panel",
       "colors": [
-        "brown"
+        "brown",
+        "mediumnougat"
       ],
       "legacy": false,
       "ldrawName": "Cylinder Quarter  3 x  3 x  5 with 2 Half-Arches at 90 Degrees",
@@ -12011,7 +14059,13 @@
         "pink",
         "brown",
         "gray",
-        "navy"
+        "navy",
+        "darkgray",
+        "darktan",
+        "darkgreen",
+        "mediumazure",
+        "transclear",
+        "translightblue"
       ],
       "legacy": false,
       "ldrawName": "Panel  1 x  4 x  3 Reinforced",
@@ -12026,7 +14080,11 @@
       "name": "Panel 3 x 3 x 6 Corner Convex with Curved Top",
       "family": "panel",
       "colors": [
-        "white"
+        "white",
+        "darkgray",
+        "mediumazure",
+        "lime",
+        "transclear"
       ],
       "legacy": false,
       "ldrawName": "Panel  3 x  3 x  6 Corner Round",
@@ -12052,7 +14110,9 @@
         "brown",
         "gray",
         "navy",
-        "darkbrown"
+        "darkbrown",
+        "darkgray",
+        "darkred"
       ],
       "legacy": false,
       "ldrawName": "Brick  4 x  8 x  2.333 Turret Top",
@@ -12093,7 +14153,10 @@
         "white",
         "tan",
         "pink",
-        "gray"
+        "gray",
+        "darkgray",
+        "sandgreen",
+        "mediumnougat"
       ],
       "legacy": false,
       "ldrawName": "Panel  1 x  4 x  5 with Window",
@@ -12134,7 +14197,12 @@
         "pink",
         "brown",
         "gray",
-        "navy"
+        "navy",
+        "darkgray",
+        "darkred",
+        "darkgreen",
+        "mediumazure",
+        "lime"
       ],
       "legacy": false,
       "ldrawName": "Panel  1 x  1 x  1 Corner with Rounded Corners",
@@ -12152,7 +14220,12 @@
         "white",
         "tan",
         "brown",
-        "gray"
+        "gray",
+        "sandgreen",
+        "darkgreen",
+        "mediumnougat",
+        "transclear",
+        "translightblue"
       ],
       "legacy": false,
       "ldrawName": "Panel Wall  2 x  2 x  5 Corner Faceted",
@@ -12191,7 +14264,12 @@
         "orange",
         "brown",
         "gray",
-        "navy"
+        "navy",
+        "mediumazure",
+        "lime",
+        "mediumnougat",
+        "transclear",
+        "translightblue"
       ],
       "legacy": false,
       "ldrawName": "Panel  1 x  2 x  3 Reinforced",
@@ -12213,7 +14291,12 @@
         "white",
         "tan",
         "brown",
-        "gray"
+        "gray",
+        "darkred",
+        "mediumazure",
+        "lime",
+        "transclear",
+        "translightblue"
       ],
       "legacy": false,
       "ldrawName": "Panel  1 x  2 x  2 Reinforced",
@@ -12231,7 +14314,8 @@
         "black",
         "white",
         "tan",
-        "gray"
+        "gray",
+        "mediumazure"
       ],
       "legacy": false,
       "ldrawName": "Panel  2 x  2 x  1 Corner with Rounded Corners",
@@ -12270,7 +14354,8 @@
         "tan",
         "orange",
         "pink",
-        "brown"
+        "brown",
+        "mediumazure"
       ],
       "legacy": false,
       "ldrawName": "Panel  1 x  2 x  1 with Thin Central Divider and Rounded Corners",
@@ -12317,7 +14402,8 @@
       "colors": [
         "black",
         "yellow",
-        "white"
+        "white",
+        "darkgray"
       ],
       "legacy": false,
       "ldrawName": "Support  2 x  2 x 10 Girder Triangular",
@@ -12355,7 +14441,8 @@
         "yellow",
         "white",
         "tan",
-        "brown"
+        "brown",
+        "darkgray"
       ],
       "legacy": false,
       "ldrawName": "Support  2 x  2 x  2 Round with Open Hole and Stud Holders",
@@ -12378,7 +14465,11 @@
         "pink",
         "brown",
         "gray",
-        "navy"
+        "navy",
+        "darkgray",
+        "mediumazure",
+        "mediumnougat",
+        "pearlgold"
       ],
       "legacy": false,
       "ldrawName": "Brick  1 x  1 x  6 Round with Square Base",
@@ -12401,7 +14492,10 @@
         "tan",
         "brown",
         "gray",
-        "navy"
+        "navy",
+        "darkgray",
+        "lime",
+        "mediumnougat"
       ],
       "legacy": false,
       "ldrawName": "Support  1 x  6 x  5 Girder Rectangular",
@@ -12419,7 +14513,11 @@
         "black",
         "yellow",
         "white",
-        "brown"
+        "brown",
+        "darkgray",
+        "darkgreen",
+        "mediumazure",
+        "mediumnougat"
       ],
       "legacy": false,
       "ldrawName": "Support  1 x  6 x 10 Girder Triangular",
